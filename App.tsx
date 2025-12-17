@@ -35,7 +35,7 @@ const useApp = () => {
 const LoadingSpinner = () => (
   <div className="flex h-screen w-full flex-col items-center justify-center bg-gray-50">
     <div className="h-16 w-16 animate-spin rounded-full border-4 border-brand-500 border-t-transparent shadow-xl"></div>
-    <p className="mt-6 text-gray-500 font-black uppercase tracking-widest text-[10px] animate-pulse">Cargando Infraestructura...</p>
+    <p className="mt-6 text-gray-500 font-black uppercase tracking-widest text-[10px] animate-pulse">Iniciando Sistemas...</p>
   </div>
 );
 
@@ -55,6 +55,26 @@ const ConnectionStatusBadge = () => {
         <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
       </span>
       {dbHealthy ? 'Supabase Online' : 'Connecting...'}
+    </div>
+  );
+};
+
+const LanguageSwitcher = () => {
+  const { language, setLanguage } = useApp();
+  return (
+    <div className="flex bg-gray-100 p-1 rounded-xl">
+      <button 
+        onClick={() => setLanguage('es')} 
+        className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${language === 'es' ? 'bg-white text-brand-600 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+      >
+        ES
+      </button>
+      <button 
+        onClick={() => setLanguage('ca')} 
+        className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${language === 'ca' ? 'bg-white text-brand-600 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+      >
+        CA
+      </button>
     </div>
   );
 };
@@ -79,23 +99,21 @@ const Input = ({ label, ...props }: any) => (
   </div>
 );
 
-// Added LanguageSwitcher component to fix errors where it was called but not defined
-const LanguageSwitcher = () => {
-  const { language, setLanguage } = useApp();
+// --- SuperAdmin Global Notification ---
+const SuperAdminFloatingBar = () => {
+  const { profile } = useApp();
+  if (!profile?.is_superadmin) return null;
+  
   return (
-    <div className="flex bg-gray-100 p-1 rounded-xl">
-      <button 
-        onClick={() => setLanguage('es')} 
-        className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${language === 'es' ? 'bg-white text-brand-600 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
-      >
-        ES
-      </button>
-      <button 
-        onClick={() => setLanguage('ca')} 
-        className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${language === 'ca' ? 'bg-white text-brand-600 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
-      >
-        CA
-      </button>
+    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] animate-in slide-in-from-bottom-10 duration-500">
+      <Link to="/admin/dashboard" className="flex items-center gap-3 px-6 py-3 bg-slate-900 text-white rounded-full shadow-2xl border border-white/10 hover:scale-105 transition-all group">
+        <span className="relative flex h-2 w-2">
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-400 opacity-75"></span>
+          <span className="relative inline-flex rounded-full h-2 w-2 bg-brand-500"></span>
+        </span>
+        <span className="text-[10px] font-black uppercase tracking-[0.2em]">Acceder al Panel de Control Global</span>
+        <span className="group-hover:translate-x-1 transition-transform">→</span>
+      </Link>
     </div>
   );
 };
@@ -231,8 +249,6 @@ const AdminDashboard = () => {
     </div>
   );
 };
-
-// ... (Resto de componentes AdminTenants y AdminCMS iguales o con ajustes leves de estilo) ...
 
 const AdminTenants = () => {
   const [tenants, setTenants] = useState<Tenant[]>([]);
@@ -431,8 +447,6 @@ const Login = () => {
   );
 };
 
-// ... (Signup, Landing, Onboarding y TenantLayout se mantienen con su funcionalidad pero se pulen visualmente) ...
-
 const Signup = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -529,11 +543,10 @@ const Landing = () => {
            <button className="w-full sm:w-auto px-12 py-6 bg-white text-slate-900 border-2 border-slate-100 rounded-[2rem] text-sm font-black uppercase tracking-widest hover:border-brand-500 transition-all">VER DEMO</button>
         </div>
       </main>
+      <SuperAdminFloatingBar />
     </div>
   );
 };
-
-// ... (Resto del código App.tsx: Onboarding, TenantLayout, Dashboard y el componente principal App se mantienen igual que en la versión anterior para no romper la lógica multi-tenant) ...
 
 const TenantLayout = () => {
   const { slug } = useParams();
@@ -595,6 +608,7 @@ const TenantLayout = () => {
         </header>
         <div className="flex-1 overflow-auto p-12"><Outlet context={{ tenant: currentTenant }} /></div>
       </main>
+      <SuperAdminFloatingBar />
     </div>
   );
 };
