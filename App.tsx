@@ -1,5 +1,4 @@
 import React, { useState, useEffect, createContext, useContext } from 'react';
-// Added missing useOutletContext import from react-router-dom to fix errors on lines 106, 167, 208, and 691
 import { HashRouter, Routes, Route, Link, useNavigate, useParams, Navigate, Outlet, useLocation, useOutletContext } from 'react-router-dom';
 import { supabase, isConfigured, SUPABASE_URL, saveManualConfig, clearManualConfig } from './supabaseClient';
 import { Membership, Profile, Tenant, Customer, Quote, QuoteItem, Language, PlatformContent } from './types';
@@ -104,7 +103,6 @@ const SuperAdminFloatingBar = () => {
 // --- Tenant Operations Components ---
 
 const Customers = () => {
-  // Fixed error: useOutletContext is now available via import
   const { tenant } = useOutletContext<{ tenant: Tenant }>();
   const { t } = useApp();
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -166,7 +164,6 @@ const Customers = () => {
 };
 
 const Quotes = () => {
-  // Fixed error: useOutletContext is now available via import
   const { tenant } = useOutletContext<{ tenant: Tenant }>();
   const { t, language } = useApp();
   const [quotes, setQuotes] = useState<Quote[]>([]);
@@ -208,7 +205,6 @@ const Quotes = () => {
 };
 
 const TenantSettings = () => {
-  // Fixed error: useOutletContext is now available via import
   const { tenant } = useOutletContext<{ tenant: Tenant }>();
   const { t } = useApp();
   const [name, setName] = useState(tenant.name);
@@ -692,7 +688,6 @@ const TenantLayout = () => {
 };
 
 const Dashboard = () => {
-  // Fixed error: useOutletContext is now available via import
   const { tenant } = useOutletContext<{ tenant: Tenant }>();
   const { t } = useApp();
   return (
@@ -718,11 +713,19 @@ const Dashboard = () => {
 };
 
 const Onboarding = () => {
-    const { session, refreshProfile } = useApp();
+    const { session, refreshProfile, signOut, memberships } = useApp();
     const navigate = useNavigate();
     const [name, setName] = useState('');
     const [slug, setSlug] = useState('');
     const [loading, setLoading] = useState(false);
+
+    // Auto-generar slug a partir del nombre
+    const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const val = e.target.value;
+        setName(val);
+        const generatedSlug = val.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-');
+        setSlug(generatedSlug);
+    };
 
     const handleCreate = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -739,15 +742,31 @@ const Onboarding = () => {
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-[#f8fafc] p-6 text-center font-sans">
-            <div className="max-w-md w-full bg-white p-12 rounded-[3.5rem] shadow-2xl border border-gray-100">
-                <h2 className="text-4xl font-black mb-10 text-gray-900 tracking-tighter">Tu Espacio</h2>
-                <form onSubmit={handleCreate} className="space-y-6">
-                    <Input label="Empresa" value={name} onChange={(e: any) => setName(e.target.value)} required />
-                    <Input label="Slug / URL" value={slug} onChange={(e: any) => setSlug(e.target.value)} required />
-                    <button type="submit" disabled={loading} className="w-full py-5 bg-slate-900 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-xl">
-                      {loading ? 'CREANDO...' : 'EMPEZAR'}
-                    </button>
-                </form>
+            <div className="max-w-md w-full animate-in zoom-in-95 duration-500">
+                <div className="bg-white p-12 rounded-[3.5rem] shadow-2xl border border-gray-100 relative overflow-hidden">
+                    <div className="absolute top-0 left-0 w-full h-2 bg-brand-500"></div>
+                    <h2 className="text-4xl font-black mb-4 text-gray-900 tracking-tighter leading-none">Tu Nuevo Equipo</h2>
+                    <p className="mb-10 text-gray-400 text-sm font-medium">Configura tu espacio de trabajo bilingüe ahora.</p>
+                    <form onSubmit={handleCreate} className="space-y-6">
+                        <Input label="Nombre de la Empresa" value={name} onChange={handleNameChange} required placeholder="Ej: Mi Empresa" />
+                        <Input label="Slug / URL personalizada" value={slug} onChange={(e: any) => setSlug(e.target.value)} required placeholder="mi-empresa" />
+                        
+                        <div className="bg-gray-50 p-4 rounded-2xl text-left border border-gray-100 mb-6">
+                            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Previsualización URL</span>
+                            <p className="text-[10px] font-mono text-brand-600 truncate mt-1">acme-saas.com/#/t/{slug || '...'}</p>
+                        </div>
+
+                        <button type="submit" disabled={loading} className="w-full py-5 bg-slate-900 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest hover:bg-black transition-all shadow-xl">
+                        {loading ? 'CREANDO...' : 'CONFIRMAR Y EMPEZAR'}
+                        </button>
+                    </form>
+
+                    <div className="mt-8 pt-8 border-t border-gray-50">
+                        <button onClick={signOut} className="text-[9px] font-black uppercase tracking-widest text-red-400 hover:text-red-600 transition-colors">
+                            Cerrar Sesión
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
     );
