@@ -733,23 +733,57 @@ const Landing = () => {
 
 const TenantLayout = () => {
   const { slug } = useParams();
-  const { memberships, signOut, loading, t, profile, session } = useApp();
+  const { memberships, signOut, loading, t, profile, session, dbHealthy } = useApp();
   const navigate = useNavigate();
   const location = useLocation();
+  const [impersonatedTenant, setImpersonatedTenant] = useState<Tenant | null>(null);
+  const [fetchingTenant, setFetchingTenant] = useState(false);
 
   const currentMembership = memberships.find(m => m.tenant?.slug === slug);
-  const currentTenant = currentMembership?.tenant;
+  const currentTenant = currentMembership?.tenant || impersonatedTenant;
 
   useEffect(() => {
-    if (!loading) {
-        if (!session) navigate('/login');
-        else if (memberships.length === 0 && location.pathname !== '/onboarding') navigate('/onboarding');
-        else if (!currentMembership && memberships.length > 0) navigate(`/t/${memberships[0].tenant?.slug}/dashboard`);
-    }
-  }, [loading, session, memberships, currentMembership, navigate, location]);
+    const fetchImpersonated = async () => {
+      // Solo buscar si es SuperAdmin, no es miembro directo y tenemos slug
+      if (profile?.is_superadmin && !currentMembership && slug && dbHealthy) {
+        setFetchingTenant(true);
+        const { data } = await supabase.from('tenants').select('*').eq('slug', slug).single();
+        if (data) setImpersonatedTenant(data);
+        setFetchingTenant(false);
+      }
+    };
+    fetchImpersonated();
+  }, [slug, profile, currentMembership, dbHealthy]);
 
-  if (loading) return <LoadingSpinner />;
-  if (!currentTenant) return null;
+  useEffect(() => {
+    if (!loading && !fetchingTenant) {
+        if (!session) {
+            navigate('/login');
+        } else if (profile?.is_superadmin) {
+            // Los superadmins pueden acceder a cualquier tenant. 
+            // Si el tenant no existe (currentTenant es null), podríamos manejar un error, 
+            // pero no redirigimos a onboarding.
+        } else if (memberships.length === 0 && location.pathname !== '/onboarding') {
+            navigate('/onboarding');
+        } else if (!currentMembership && memberships.length > 0) {
+            navigate(`/t/${memberships[0].tenant?.slug}/dashboard`);
+        }
+    }
+  }, [loading, fetchingTenant, session, memberships, currentMembership, navigate, location, profile, currentTenant]);
+
+  if (loading || fetchingTenant) return <LoadingSpinner />;
+  if (!currentTenant) {
+    if (profile?.is_superadmin) return (
+        <div className="flex h-screen items-center justify-center bg-gray-50">
+            <div className="text-center">
+                <h2 className="text-2xl font-black text-gray-900">Tenant no encontrado</h2>
+                <p className="text-gray-500 mt-2">No existe ninguna empresa con el slug "{slug}".</p>
+                <Link to="/admin/tenants" className="mt-6 inline-block px-6 py-3 bg-brand-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest">Volver al Directorio</Link>
+            </div>
+        </div>
+    );
+    return null;
+  }
 
   const isActive = (path: string) => location.pathname.includes(path);
 
@@ -769,7 +803,10 @@ const TenantLayout = () => {
       </aside>
       <main className="flex-1 flex flex-col h-screen overflow-hidden">
         <header className="h-24 bg-white border-b border-gray-100 flex items-center justify-between px-12 shrink-0">
-             <h2 className="text-2xl font-black text-gray-900 tracking-tight">{currentTenant.name}</h2>
+             <div className="flex flex-col">
+                <h2 className="text-2xl font-black text-gray-900 tracking-tight">{currentTenant.name}</h2>
+                {impersonatedTenant && <span className="text-[9px] font-black uppercase text-brand-600 tracking-widest">👁️ Modo Impersonación Admin</span>}
+             </div>
              <div className="flex gap-4">
                 <a href={`#/c/${slug}`} target="_blank" rel="noreferrer" className="px-4 py-2 bg-gray-50 text-gray-400 text-[9px] font-black uppercase rounded-full border border-gray-100 hover:text-gray-900 transition-all">Ver Web Pública ↗</a>
                 {profile?.is_superadmin && <Link to="/admin/dashboard" className="px-4 py-2 bg-slate-900 text-white text-[9px] font-black uppercase rounded-full shadow-lg">SYSTEM ADMIN</Link>}
