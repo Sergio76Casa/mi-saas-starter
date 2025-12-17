@@ -21,34 +21,27 @@ interface AppContextType {
   t: (key: keyof typeof translations['es']) => string;
 }
 
-const AppContext = createContext<AppContextType>({
-  session: null,
-  profile: null,
-  memberships: [],
-  loading: true,
-  isDemoMode: false,
-  language: 'es',
-  setLanguage: () => {},
-  refreshProfile: async () => {},
-  signOut: async () => {},
-  enterDemoMode: () => {},
-  t: (key) => key,
-});
+const AppContext = createContext<AppContextType | null>(null);
 
-const useApp = () => useContext(AppContext);
+const useApp = () => {
+  const context = useContext(AppContext);
+  if (!context) throw new Error("useApp must be used within AppProvider");
+  return context;
+};
 
 // --- Components ---
 
 const LoadingSpinner = () => (
-  <div className="flex h-screen w-full items-center justify-center">
-    <div className="h-8 w-8 animate-spin rounded-full border-4 border-brand-500 border-t-transparent"></div>
+  <div className="flex h-screen w-full flex-col items-center justify-center bg-gray-50">
+    <div className="h-12 w-12 animate-spin rounded-full border-4 border-brand-500 border-t-transparent"></div>
+    <p className="mt-4 text-gray-500 font-medium animate-pulse">Cargando plataforma...</p>
   </div>
 );
 
 const Button = ({ children, onClick, variant = 'primary', className = '', type = 'button', disabled = false }: any) => {
-  const base = "px-4 py-2 rounded-md font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2";
+  const base = "px-4 py-2 rounded-md font-medium transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 active:scale-95";
   const variants = {
-    primary: "bg-brand-600 text-white hover:bg-brand-700 focus:ring-brand-500",
+    primary: "bg-brand-600 text-white hover:bg-brand-700 focus:ring-brand-500 shadow-sm",
     secondary: "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 focus:ring-brand-500",
     danger: "bg-red-600 text-white hover:bg-red-700 focus:ring-red-500",
     success: "bg-green-600 text-white hover:bg-green-700 focus:ring-green-500",
@@ -70,7 +63,7 @@ const Input = ({ label, ...props }: any) => (
   <div className="mb-4">
     <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
     <input 
-      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-brand-500 focus:border-brand-500" 
+      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-all" 
       {...props} 
     />
   </div>
@@ -79,17 +72,16 @@ const Input = ({ label, ...props }: any) => (
 const LanguageSwitcher = () => {
   const { language, setLanguage } = useApp();
   return (
-    <div className="flex items-center space-x-2 text-sm">
+    <div className="flex items-center space-x-1 bg-gray-100 p-1 rounded-lg text-xs font-bold">
       <button 
         onClick={() => setLanguage('es')} 
-        className={`px-2 py-1 rounded ${language === 'es' ? 'bg-brand-100 text-brand-800 font-bold' : 'text-gray-500 hover:bg-gray-100'}`}
+        className={`px-3 py-1.5 rounded-md transition-all ${language === 'es' ? 'bg-white text-brand-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
       >
         ES
       </button>
-      <span className="text-gray-300">|</span>
       <button 
         onClick={() => setLanguage('ca')} 
-        className={`px-2 py-1 rounded ${language === 'ca' ? 'bg-brand-100 text-brand-800 font-bold' : 'text-gray-500 hover:bg-gray-100'}`}
+        className={`px-3 py-1.5 rounded-md transition-all ${language === 'ca' ? 'bg-white text-brand-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
       >
         CA
       </button>
@@ -97,7 +89,7 @@ const LanguageSwitcher = () => {
   );
 };
 
-// --- Pages: Platform Public (Web Principal) ---
+// --- Pages: Platform Public ---
 
 const Landing = () => {
   const { t, language } = useApp();
@@ -105,13 +97,17 @@ const Landing = () => {
 
   useEffect(() => {
     const fetchContent = async () => {
-      const { data } = await supabase.from('platform_content').select('*');
-      if (data) {
-        const contentMap: Record<string, string> = {};
-        data.forEach((item: PlatformContent) => {
-           contentMap[item.key] = language === 'ca' ? item.ca : item.es;
-        });
-        setContent(contentMap);
+      try {
+        const { data } = await supabase.from('platform_content').select('*');
+        if (data) {
+          const contentMap: Record<string, string> = {};
+          data.forEach((item: PlatformContent) => {
+             contentMap[item.key] = language === 'ca' ? item.ca : item.es;
+          });
+          setContent(contentMap);
+        }
+      } catch (e) {
+        console.error("Error loading platform content", e);
       }
     };
     fetchContent();
@@ -122,29 +118,29 @@ const Landing = () => {
 
   return (
     <div className="min-h-screen bg-white">
-      <header className="flex items-center justify-between px-6 py-4 border-b sticky top-0 bg-white z-50">
-        <div className="text-2xl font-bold text-brand-600">Acme SaaS</div>
-        <div className="flex items-center space-x-4">
+      <header className="flex items-center justify-between px-8 py-5 border-b sticky top-0 bg-white/80 backdrop-blur-md z-50">
+        <div className="text-2xl font-black text-brand-600 tracking-tighter">ACME<span className="text-gray-900">SAAS</span></div>
+        <div className="flex items-center space-x-6">
           <LanguageSwitcher />
-          <Link to="/login" className="text-gray-600 hover:text-gray-900">{t('login_nav')}</Link>
-          <Link to="/signup" className="px-4 py-2 bg-brand-600 text-white rounded-md hover:bg-brand-700">{t('start_cta')}</Link>
+          <Link to="/login" className="text-sm font-semibold text-gray-600 hover:text-brand-600 transition-colors">{t('login_nav')}</Link>
+          <Link to="/signup" className="px-5 py-2.5 bg-brand-600 text-white text-sm font-bold rounded-full hover:bg-brand-700 shadow-md hover:shadow-lg transition-all">{t('start_cta')}</Link>
         </div>
       </header>
-      <main className="max-w-7xl mx-auto px-6 py-20 text-center">
-        <h1 className="text-5xl font-extrabold text-gray-900 mb-6">{heroTitle}</h1>
-        <p className="text-xl text-gray-600 mb-10 max-w-2xl mx-auto">
+      <main className="max-w-7xl mx-auto px-6 py-32 text-center">
+        <h1 className="text-6xl font-black text-gray-900 mb-8 tracking-tight leading-tight">{heroTitle}</h1>
+        <p className="text-xl text-gray-600 mb-12 max-w-3xl mx-auto leading-relaxed">
           {heroSubtitle}
         </p>
-        <div className="space-x-4">
-          <Link to="/pricing" className="px-6 py-3 bg-white text-brand-600 border border-brand-200 rounded-md hover:bg-gray-50 text-lg">{t('pricing_nav')}</Link>
-          <Link to="/signup" className="px-6 py-3 bg-brand-600 text-white rounded-md hover:bg-brand-700 text-lg">{t('start_cta')}</Link>
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+          <Link to="/signup" className="w-full sm:w-auto px-8 py-4 bg-brand-600 text-white rounded-full hover:bg-brand-700 text-lg font-bold shadow-xl transition-all transform hover:-translate-y-1">{t('start_cta')}</Link>
+          <Link to="/pricing" className="w-full sm:w-auto px-8 py-4 bg-white text-brand-600 border-2 border-brand-100 rounded-full hover:border-brand-500 text-lg font-bold transition-all">{t('pricing_nav')}</Link>
         </div>
       </main>
     </div>
   );
 };
 
-// --- Pages: Tenant Public Site (Web Cliente) ---
+// --- Tenant Public Site (Customer Web) ---
 
 const TenantPublicSite = () => {
   const { slug } = useParams();
@@ -153,12 +149,11 @@ const TenantPublicSite = () => {
   const [content, setContent] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
 
-  // Check if current user is admin of this tenant
   const isAdmin = memberships.some(m => m.tenant?.slug === slug && ['owner', 'admin'].includes(m.role));
 
   useEffect(() => {
     const fetchTenantData = async () => {
-      // 1. Get Tenant ID
+      setLoading(true);
       const { data: tenantData } = await supabase.from('tenants').select('*').eq('slug', slug).single();
       if (!tenantData) {
         setLoading(false); 
@@ -166,9 +161,7 @@ const TenantPublicSite = () => {
       }
       setTenant(tenantData);
 
-      // 2. Get CMS Content
       const { data: cmsData } = await supabase.from('tenant_content').select('*').eq('tenant_id', tenantData.id);
-      
       const contentMap: Record<string, string> = {};
       if (cmsData) {
         cmsData.forEach((item: TenantContent) => {
@@ -178,61 +171,60 @@ const TenantPublicSite = () => {
       setContent(contentMap);
       setLoading(false);
     };
-
     fetchTenantData();
   }, [slug, language]);
 
   if (loading) return <LoadingSpinner />;
-  if (!tenant) return <div className="text-center py-20">Empresa no encontrada</div>;
+  if (!tenant) return <div className="min-h-screen flex items-center justify-center">Empresa no encontrada</div>;
 
   return (
     <div className={`min-h-screen bg-white relative ${isAdmin ? 'pt-14' : ''}`}>
-       {/* Admin Overlay Bar (Fixed) */}
        {isAdmin && (
            <div className="fixed top-0 left-0 right-0 h-14 bg-gray-900 text-white px-6 flex justify-between items-center z-[100] shadow-xl border-b border-gray-700">
                <div className="flex items-center gap-4">
-                   <span className="bg-brand-600 text-white text-[10px] px-1.5 py-0.5 rounded uppercase font-bold tracking-wider border border-brand-500">Admin</span>
+                   <span className="bg-brand-600 text-white text-[10px] px-1.5 py-0.5 rounded uppercase font-bold tracking-wider border border-brand-500 animate-pulse">Admin</span>
                    <span className="text-sm font-medium text-gray-300">{t('view_mode')}: <span className="text-white font-bold">{t('view_public')}</span></span>
                </div>
-               <Link to={`/t/${slug}/dashboard`} className="flex items-center gap-2 bg-white text-gray-900 px-4 py-1.5 rounded-full text-xs font-bold hover:bg-gray-100 transition-transform transform hover:scale-105 shadow-sm">
+               <Link to={`/t/${slug}/dashboard`} className="flex items-center gap-2 bg-white text-gray-900 px-4 py-1.5 rounded-full text-xs font-bold hover:bg-gray-100 transition-all shadow-sm">
                    <span>⚙️</span> {t('back_to_admin')}
                </Link>
            </div>
        )}
 
-       <header className="bg-white border-b px-8 py-4 flex justify-between items-center">
-          <div className="font-bold text-xl uppercase tracking-wider">{tenant.name}</div>
-          <div className="flex gap-4 items-center">
-             <a href="#services" className="text-gray-600 hover:text-black">Servicios</a>
-             <a href="#contact" className="text-gray-600 hover:text-black">Contacto</a>
+       <header className="bg-white border-b px-8 py-5 flex justify-between items-center sticky top-0 z-40">
+          <div className="font-black text-2xl uppercase tracking-tighter text-gray-900">{tenant.name}</div>
+          <div className="flex gap-6 items-center text-sm font-bold">
+             <a href="#services" className="text-gray-500 hover:text-brand-600 transition-colors">Servicios</a>
+             <a href="#contact" className="text-gray-500 hover:text-brand-600 transition-colors">Contacto</a>
              <LanguageSwitcher />
           </div>
        </header>
 
-       <section className="bg-gray-50 py-24 px-8 text-center">
-          <h1 className="text-4xl font-bold mb-4">{content['hero_title'] || `Bienvenido a ${tenant.name}`}</h1>
-          <p className="text-xl text-gray-600 max-w-2xl mx-auto">{content['hero_desc'] || "Estamos aquí para servirte."}</p>
+       <section className="bg-gradient-to-b from-brand-50 to-white py-32 px-8 text-center">
+          <h1 className="text-5xl font-black mb-6 text-gray-900 tracking-tight">{content['hero_title'] || `Bienvenido a ${tenant.name}`}</h1>
+          <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">{content['hero_desc'] || "Soluciones profesionales adaptadas a tus necesidades."}</p>
        </section>
 
-       <section id="services" className="py-20 px-8 max-w-5xl mx-auto">
-          <h2 className="text-3xl font-bold mb-8 text-center">{content['services_title'] || "Nuestros Servicios"}</h2>
+       <section id="services" className="py-24 px-8 max-w-6xl mx-auto">
+          <h2 className="text-3xl font-black mb-12 text-center text-gray-900">{content['services_title'] || "Nuestros Servicios"}</h2>
           <div className="grid md:grid-cols-3 gap-8">
-             <div className="p-6 border rounded-lg hover:shadow-lg transition">
-                <h3 className="font-bold text-xl mb-2">{content['service_1_title'] || "Servicio 1"}</h3>
-                <p className="text-gray-600">{content['service_1_desc'] || "Descripción del servicio..."}</p>
-             </div>
-             {/* More placeholders */}
+             {[1, 2, 3].map(i => (
+                <div key={i} className="p-8 border-2 border-gray-50 rounded-2xl hover:border-brand-200 hover:shadow-xl transition-all group">
+                   <div className="w-12 h-12 bg-brand-100 rounded-xl mb-6 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">✨</div>
+                   <h3 className="font-bold text-xl mb-3 text-gray-900">{content[`service_${i}_title`] || `Servicio Profesional ${i}`}</h3>
+                   <p className="text-gray-600 text-sm leading-relaxed">{content[`service_${i}_desc`] || "Ofrecemos la mejor calidad en cada detalle de nuestro trabajo diario."}</p>
+                </div>
+             ))}
           </div>
        </section>
 
-       <section id="contact" className="bg-gray-900 text-white py-20 px-8 text-center">
-          <h2 className="text-3xl font-bold mb-4">{content['contact_title'] || "Contáctanos"}</h2>
-          <p className="mb-8 opacity-80">{content['contact_email'] || "contacto@empresa.com"}</p>
-          <button className="px-6 py-3 bg-white text-gray-900 font-bold rounded">Enviar Mensaje</button>
-       </section>
-
-       <footer className="py-8 text-center text-sm text-gray-500 border-t">
-          &copy; {new Date().getFullYear()} {tenant.name}. Powered by Acme SaaS.
+       <footer className="bg-gray-900 text-white py-12 px-8 text-center">
+          <div className="font-black text-xl mb-4 uppercase">{tenant.name}</div>
+          <p className="opacity-50 text-sm mb-8">© {new Date().getFullYear()} - Todos los derechos reservados.</p>
+          <div className="flex justify-center gap-6">
+             <a href="#" className="hover:text-brand-500 transition-colors text-sm font-bold">Aviso Legal</a>
+             <a href="#" className="hover:text-brand-500 transition-colors text-sm font-bold">Privacidad</a>
+          </div>
        </footer>
     </div>
   )
@@ -262,23 +254,26 @@ const Login = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-      <div className="max-w-md w-full bg-white p-8 rounded-lg shadow-sm border">
-        <div className="flex justify-end mb-4"><LanguageSwitcher /></div>
-        <h2 className="text-2xl font-bold mb-6 text-center">{t('login_title')}</h2>
-        <form onSubmit={handleLogin}>
-          <Input label={t('email')} type="email" value={email} onChange={(e: any) => setEmail(e.target.value)} required />
+      <div className="max-w-md w-full bg-white p-10 rounded-3xl shadow-xl border border-gray-100">
+        <div className="flex justify-between items-center mb-8">
+            <Link to="/" className="font-black text-brand-600">← HOME</Link>
+            <LanguageSwitcher />
+        </div>
+        <h2 className="text-3xl font-black mb-8 text-center text-gray-900 tracking-tight">{t('login_title')}</h2>
+        <form onSubmit={handleLogin} className="space-y-4">
+          <Input label={t('email')} type="email" value={email} onChange={(e: any) => setEmail(e.target.value)} required placeholder="ejemplo@correo.com" />
           <Input label={t('password')} type="password" value={password} onChange={(e: any) => setPassword(e.target.value)} required />
-          <Button type="submit" className="w-full" disabled={loading}>{loading ? t('loading') : t('login_btn')}</Button>
+          <Button type="submit" className="w-full py-3 text-lg" disabled={loading}>{loading ? t('loading') : t('login_btn')}</Button>
         </form>
         
-        <div className="relative my-6">
-            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-300"></div></div>
-            <div className="relative flex justify-center text-sm"><span className="px-2 bg-white text-gray-500">Demo</span></div>
+        <div className="relative my-8">
+            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-200"></div></div>
+            <div className="relative flex justify-center text-xs font-bold uppercase tracking-widest"><span className="px-3 bg-white text-gray-400">O pruébalo gratis</span></div>
         </div>
-        <Button onClick={() => { enterDemoMode(); navigate('/t/demo/dashboard'); }} variant="secondary" className="w-full">{t('demo_mode')}</Button>
+        <Button onClick={() => { enterDemoMode(); navigate('/t/demo/dashboard'); }} variant="secondary" className="w-full py-3">{t('demo_mode')}</Button>
         
-        <p className="mt-4 text-center text-sm text-gray-600">
-          {t('no_account')} <Link to="/signup" className="text-brand-600 hover:underline">{t('signup_btn')}</Link>
+        <p className="mt-8 text-center text-sm text-gray-500 font-medium">
+          {t('no_account')} <Link to="/signup" className="text-brand-600 font-bold hover:underline">{t('signup_btn')}</Link>
         </p>
       </div>
     </div>
@@ -289,39 +284,50 @@ const Signup = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
+  const [loading, setLoading] = useState(false);
   const { t } = useApp();
   const navigate = useNavigate();
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoading(true);
     const { error } = await supabase.auth.signUp({
       email,
       password,
       options: { data: { full_name: fullName } },
     });
-    if (!error) navigate('/onboarding');
+    if (!error) {
+        alert("¡Cuenta creada! Revisa tu email para confirmar.");
+        navigate('/login');
+    } else {
+        alert(error.message);
+        setLoading(false);
+    }
   };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-      <div className="max-w-md w-full bg-white p-8 rounded-lg shadow-sm border">
-        <div className="flex justify-end mb-4"><LanguageSwitcher /></div>
-        <h2 className="text-2xl font-bold mb-6 text-center">{t('signup_title')}</h2>
-        <form onSubmit={handleSignup}>
+      <div className="max-w-md w-full bg-white p-10 rounded-3xl shadow-xl border border-gray-100">
+        <div className="flex justify-between items-center mb-8">
+            <Link to="/" className="font-black text-brand-600">← HOME</Link>
+            <LanguageSwitcher />
+        </div>
+        <h2 className="text-3xl font-black mb-8 text-center text-gray-900 tracking-tight">{t('signup_title')}</h2>
+        <form onSubmit={handleSignup} className="space-y-4">
           <Input label={t('fullname')} value={fullName} onChange={(e: any) => setFullName(e.target.value)} required />
           <Input label={t('email')} type="email" value={email} onChange={(e: any) => setEmail(e.target.value)} required />
           <Input label={t('password')} type="password" value={password} onChange={(e: any) => setPassword(e.target.value)} required />
-          <Button type="submit" className="w-full">{t('signup_btn')}</Button>
+          <Button type="submit" className="w-full py-3 text-lg" disabled={loading}>{loading ? t('loading') : t('signup_btn')}</Button>
         </form>
-        <p className="mt-4 text-center text-sm text-gray-600">
-          {t('have_account')} <Link to="/login" className="text-brand-600 hover:underline">{t('login_btn')}</Link>
+        <p className="mt-8 text-center text-sm text-gray-500 font-medium">
+          {t('have_account')} <Link to="/login" className="text-brand-600 font-bold hover:underline">{t('login_btn')}</Link>
         </p>
       </div>
     </div>
   );
 };
 
-// --- Tenant Admin Pages ---
+// --- Tenant Admin Layout ---
 
 const TenantLayout = () => {
   const { slug } = useParams();
@@ -334,24 +340,26 @@ const TenantLayout = () => {
 
   useEffect(() => {
     if (!loading && !currentMembership) {
-      navigate('/onboarding');
+      navigate('/');
     }
   }, [loading, currentMembership, navigate]);
 
-  if (!currentTenant) return <LoadingSpinner />;
+  if (loading) return <LoadingSpinner />;
+  if (!currentTenant) return null;
+
+  const isActive = (path: string) => location.pathname.includes(path);
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
-      <aside className="w-64 bg-white border-r border-gray-200 flex flex-col shrink-0">
-        <div className="p-4 border-b h-16 flex items-center justify-between">
-          <div className="font-bold text-lg truncate w-32">{currentTenant.name}</div>
-          <LanguageSwitcher />
+    <div className="flex min-h-screen bg-gray-50 overflow-hidden">
+      <aside className="w-72 bg-white border-r border-gray-100 flex flex-col shrink-0 z-30 shadow-sm">
+        <div className="p-6 border-b h-20 flex items-center justify-between">
+          <div className="font-black text-xl truncate text-brand-600">{currentTenant.name}</div>
         </div>
         
-        <div className="p-4 border-b">
-           <label className="text-xs font-semibold text-gray-500 uppercase">{t('switch_team')}</label>
+        <div className="p-4 bg-brand-50 mx-4 mt-6 rounded-2xl">
+           <label className="text-[10px] font-black text-brand-600 uppercase tracking-widest">{t('switch_team')}</label>
            <select 
-             className="mt-1 w-full text-sm border-gray-300 rounded-md"
+             className="mt-1 w-full text-sm bg-transparent border-none font-bold text-gray-800 focus:ring-0 p-0"
              value={slug}
              onChange={(e) => navigate(`/t/${e.target.value}/dashboard`)}
            >
@@ -361,51 +369,63 @@ const TenantLayout = () => {
            </select>
         </div>
 
-        <nav className="flex-1 p-4 space-y-1">
-          <Link to={`/t/${slug}/dashboard`} className="block px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md">{t('dashboard')}</Link>
-          <Link to={`/t/${slug}/customers`} className="block px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md">{t('customers')}</Link>
-          <Link to={`/t/${slug}/quotes`} className="block px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md">{t('quotes')}</Link>
-          <Link to={`/t/${slug}/website`} className="block px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md">{t('website')}</Link>
-          <Link to={`/t/${slug}/settings`} className="block px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md">{t('settings')}</Link>
+        <nav className="flex-1 p-6 space-y-2 mt-4">
+          <Link to={`/t/${slug}/dashboard`} className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all ${isActive('dashboard') ? 'bg-brand-600 text-white shadow-lg shadow-brand-200' : 'text-gray-500 hover:bg-gray-50 hover:text-brand-600'}`}>
+            <span>📊</span> {t('dashboard')}
+          </Link>
+          <Link to={`/t/${slug}/customers`} className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all ${isActive('customers') ? 'bg-brand-600 text-white shadow-lg shadow-brand-200' : 'text-gray-500 hover:bg-gray-50 hover:text-brand-600'}`}>
+            <span>👥</span> {t('customers')}
+          </Link>
+          <Link to={`/t/${slug}/quotes`} className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all ${isActive('quotes') ? 'bg-brand-600 text-white shadow-lg shadow-brand-200' : 'text-gray-500 hover:bg-gray-50 hover:text-brand-600'}`}>
+            <span>📄</span> {t('quotes')}
+          </Link>
+          <Link to={`/t/${slug}/website`} className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all ${isActive('website') ? 'bg-brand-600 text-white shadow-lg shadow-brand-200' : 'text-gray-500 hover:bg-gray-50 hover:text-brand-600'}`}>
+            <span>🌐</span> {t('website')}
+          </Link>
+          <Link to={`/t/${slug}/settings`} className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all ${isActive('settings') ? 'bg-brand-600 text-white shadow-lg shadow-brand-200' : 'text-gray-500 hover:bg-gray-50 hover:text-brand-600'}`}>
+            <span>⚙️</span> {t('settings')}
+          </Link>
         </nav>
 
-        <div className="p-4 border-t">
-          <button onClick={signOut} className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-md">{t('logout')}</button>
+        <div className="p-6 border-t border-gray-50">
+          <button onClick={signOut} className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-red-500 hover:bg-red-50 rounded-xl transition-colors">
+            <span>🚪</span> {t('logout')}
+          </button>
         </div>
       </aside>
 
       <main className="flex-1 flex flex-col h-screen overflow-hidden">
-        {/* Main Header with View Switcher */}
-        <header className="h-16 bg-white border-b flex items-center justify-between px-8 shrink-0 z-20 shadow-sm relative">
-             <h2 className="text-xl font-bold capitalize text-gray-800">
+        <header className="h-20 bg-white border-b border-gray-100 flex items-center justify-between px-10 shrink-0 z-20 shadow-sm">
+             <h2 className="text-xl font-black text-gray-900 capitalize tracking-tight">
                 {t(location.pathname.split('/').filter(Boolean).pop() as any) || t('dashboard')}
              </h2>
-             <div className="flex items-center gap-4">
-                 {/* The Big Selector */}
-                 <div className="bg-gray-100 p-1 rounded-full border border-gray-200 flex items-center">
-                    <button className="px-4 py-1.5 bg-white text-gray-900 rounded-full shadow-sm text-sm font-bold cursor-default">
+             <div className="flex items-center gap-6">
+                 <div className="bg-gray-100 p-1.5 rounded-full flex items-center shadow-inner">
+                    <button className="px-6 py-2 bg-white text-brand-600 rounded-full shadow-md text-xs font-black uppercase tracking-wider">
                         {t('view_admin')}
                     </button>
                     <Link 
                         to={`/c/${currentTenant.slug}`} 
-                        className="px-4 py-1.5 text-gray-500 hover:text-brand-600 text-sm font-medium transition-colors"
+                        target="_blank"
+                        className="px-6 py-2 text-gray-400 hover:text-brand-600 text-xs font-black uppercase tracking-wider transition-all"
                     >
                         {t('view_public')} ↗
                     </Link>
                  </div>
 
-                 <div className="w-px h-6 bg-gray-300 mx-2"></div>
-
-                 <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-gray-600 hidden md:block">{profile?.full_name || 'User'}</span>
-                    <div className="h-9 w-9 bg-brand-600 text-white rounded-full flex items-center justify-center font-bold shadow-sm">
+                 <div className="flex items-center gap-3 bg-gray-50 p-2 rounded-2xl border border-gray-100">
+                    <div className="h-10 w-10 bg-brand-600 text-white rounded-xl flex items-center justify-center font-black shadow-lg shadow-brand-100">
                         {profile?.full_name?.[0] || 'U'}
+                    </div>
+                    <div className="hidden md:block">
+                        <div className="text-sm font-black text-gray-900 leading-none">{profile?.full_name || 'Usuario'}</div>
+                        <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">{currentMembership?.role}</div>
                     </div>
                  </div>
              </div>
         </header>
 
-        <div className="flex-1 overflow-auto bg-gray-50 p-8">
+        <div className="flex-1 overflow-auto p-10">
            <Outlet context={{ tenant: currentTenant, membership: currentMembership }} />
         </div>
       </main>
@@ -416,19 +436,42 @@ const TenantLayout = () => {
 const Dashboard = () => {
     const { t } = useApp();
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-      <div className="bg-white p-6 rounded-lg shadow-sm border">
-        <h3 className="text-gray-500 text-sm font-medium">{t('total_revenue')}</h3>
-        <p className="text-3xl font-bold mt-2">12.450 €</p>
-      </div>
-      <div className="bg-white p-6 rounded-lg shadow-sm border">
-        <h3 className="text-gray-500 text-sm font-medium">{t('active_quotes')}</h3>
-        <p className="text-3xl font-bold mt-2">8</p>
-      </div>
-      <div className="bg-white p-6 rounded-lg shadow-sm border">
-        <h3 className="text-gray-500 text-sm font-medium">{t('total_customers')}</h3>
-        <p className="text-3xl font-bold mt-2">24</p>
-      </div>
+    <div className="space-y-10">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-50 hover:shadow-xl transition-all group">
+            <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center text-xl mb-4 group-hover:scale-110 transition-transform">💰</div>
+            <h3 className="text-gray-400 text-xs font-black uppercase tracking-widest">{t('total_revenue')}</h3>
+            <p className="text-4xl font-black mt-2 text-gray-900 tracking-tighter">12.450 €</p>
+          </div>
+          <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-50 hover:shadow-xl transition-all group">
+            <div className="w-12 h-12 bg-orange-50 text-orange-600 rounded-2xl flex items-center justify-center text-xl mb-4 group-hover:scale-110 transition-transform">⏳</div>
+            <h3 className="text-gray-400 text-xs font-black uppercase tracking-widest">{t('active_quotes')}</h3>
+            <p className="text-4xl font-black mt-2 text-gray-900 tracking-tighter">8</p>
+          </div>
+          <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-50 hover:shadow-xl transition-all group">
+            <div className="w-12 h-12 bg-brand-50 text-brand-600 rounded-2xl flex items-center justify-center text-xl mb-4 group-hover:scale-110 transition-transform">👥</div>
+            <h3 className="text-gray-400 text-xs font-black uppercase tracking-widest">{t('total_customers')}</h3>
+            <p className="text-4xl font-black mt-2 text-gray-900 tracking-tighter">24</p>
+          </div>
+        </div>
+
+        <div className="bg-white p-10 rounded-3xl border border-gray-100 shadow-sm">
+            <h3 className="text-xl font-black mb-6 tracking-tight">Actividad Reciente</h3>
+            <div className="space-y-4">
+                {[1, 2, 3].map(i => (
+                    <div key={i} className="flex items-center justify-between py-4 border-b border-gray-50 last:border-0">
+                        <div className="flex items-center gap-4">
+                            <div className="h-10 w-10 bg-gray-100 rounded-full"></div>
+                            <div>
+                                <div className="font-bold text-gray-900">Presupuesto #PR-2024-00{i}</div>
+                                <div className="text-xs text-gray-500">Cliente Ejemplo S.A.</div>
+                            </div>
+                        </div>
+                        <div className="text-sm font-bold text-brand-600">+450,00 €</div>
+                    </div>
+                ))}
+            </div>
+        </div>
     </div>
   );
 };
@@ -449,7 +492,6 @@ const TenantWebsiteEditor = () => {
                      initFields[`${row.key}_ca`] = row.ca;
                  });
              }
-             // Set Defaults if empty
              if(!initFields.hero_title_es) initFields.hero_title_es = `Bienvenido a ${tenant.name}`;
              setFields(initFields);
         }
@@ -464,7 +506,6 @@ const TenantWebsiteEditor = () => {
         const updates = [
             { tenant_id: tenant.id, key: 'hero_title', es: fields.hero_title_es, ca: fields.hero_title_ca },
             { tenant_id: tenant.id, key: 'hero_desc', es: fields.hero_desc_es, ca: fields.hero_desc_ca },
-            // Add other mappings as needed
         ];
         
         const { error } = await supabase.from('tenant_content').upsert(updates, { onConflict: 'tenant_id, key' });
@@ -475,144 +516,48 @@ const TenantWebsiteEditor = () => {
     }
 
     return (
-        <div>
-            <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold">{t('manage_website')}</h2>
-                <a href={`#/c/${tenant.slug}`} target="_blank" rel="noreferrer" className="text-brand-600 hover:underline flex items-center gap-1">
+        <div className="max-w-4xl">
+            <div className="flex justify-between items-center mb-10">
+                <h2 className="text-3xl font-black tracking-tight text-gray-900">{t('manage_website')}</h2>
+                <a href={`#/c/${tenant.slug}`} target="_blank" rel="noreferrer" className="px-6 py-2 bg-brand-50 text-brand-600 rounded-full font-bold hover:bg-brand-100 transition-all">
                     {t('public_link')} ↗
                 </a>
             </div>
 
-            <form onSubmit={handleSave} className="space-y-8 bg-white p-6 rounded-lg border">
-                
-                {/* Hero Section */}
+            <form onSubmit={handleSave} className="space-y-10 bg-white p-10 rounded-3xl border border-gray-100 shadow-xl">
                 <div>
-                    <h3 className="font-bold text-lg mb-4 border-b pb-2">{t('hero_section')}</h3>
-                    <div className="grid grid-cols-2 gap-4">
+                    <h3 className="font-black text-xl mb-6 text-gray-900 border-b pb-4 border-gray-50 tracking-tight">{t('hero_section')}</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
-                            <label className="block text-xs font-bold text-gray-500 mb-1">ES {t('title')}</label>
-                            <input className="w-full border p-2 rounded" value={fields.hero_title_es || ''} onChange={e => setFields({...fields, hero_title_es: e.target.value})} />
+                            <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">ES {t('title')}</label>
+                            <input className="w-full border-2 border-gray-50 bg-gray-50 p-3 rounded-xl font-bold focus:bg-white focus:border-brand-500 transition-all outline-none" value={fields.hero_title_es || ''} onChange={e => setFields({...fields, hero_title_es: e.target.value})} />
                         </div>
                         <div>
-                            <label className="block text-xs font-bold text-gray-500 mb-1">CA {t('title')}</label>
-                            <input className="w-full border p-2 rounded" value={fields.hero_title_ca || ''} onChange={e => setFields({...fields, hero_title_ca: e.target.value})} />
+                            <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">CA {t('title')}</label>
+                            <input className="w-full border-2 border-gray-50 bg-gray-50 p-3 rounded-xl font-bold focus:bg-white focus:border-brand-500 transition-all outline-none" value={fields.hero_title_ca || ''} onChange={e => setFields({...fields, hero_title_ca: e.target.value})} />
                         </div>
                     </div>
-                     <div className="grid grid-cols-2 gap-4 mt-4">
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
                         <div>
-                            <label className="block text-xs font-bold text-gray-500 mb-1">ES {t('description')}</label>
-                            <textarea className="w-full border p-2 rounded" value={fields.hero_desc_es || ''} onChange={e => setFields({...fields, hero_desc_es: e.target.value})} />
+                            <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">ES {t('description')}</label>
+                            <textarea rows={4} className="w-full border-2 border-gray-50 bg-gray-50 p-3 rounded-xl font-bold focus:bg-white focus:border-brand-500 transition-all outline-none" value={fields.hero_desc_es || ''} onChange={e => setFields({...fields, hero_desc_es: e.target.value})} />
                         </div>
                         <div>
-                            <label className="block text-xs font-bold text-gray-500 mb-1">CA {t('description')}</label>
-                            <textarea className="w-full border p-2 rounded" value={fields.hero_desc_ca || ''} onChange={e => setFields({...fields, hero_desc_ca: e.target.value})} />
+                            <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">CA {t('description')}</label>
+                            <textarea rows={4} className="w-full border-2 border-gray-50 bg-gray-50 p-3 rounded-xl font-bold focus:bg-white focus:border-brand-500 transition-all outline-none" value={fields.hero_desc_ca || ''} onChange={e => setFields({...fields, hero_desc_ca: e.target.value})} />
                         </div>
                     </div>
                 </div>
 
-                <div className="flex justify-end">
-                    <Button type="submit" disabled={loading}>{loading ? t('loading') : t('save')}</Button>
+                <div className="flex justify-end pt-6">
+                    <Button type="submit" className="px-10 py-4 text-lg shadow-xl shadow-brand-100" disabled={loading}>{loading ? t('loading') : t('save')}</Button>
                 </div>
             </form>
         </div>
     )
 }
 
-const Quotes = () => {
-    const { tenant } = useOutletContext<{ tenant: Tenant }>();
-    const { t } = useApp();
-    // Simplified list...
-    return (
-        <div>
-            <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold">{t('quotes')}</h2>
-                <Button>{t('new_quote')}</Button>
-            </div>
-            <div className="bg-white p-8 text-center text-gray-500 border rounded">
-                Listado de presupuestos...
-            </div>
-        </div>
-    )
-}
-
-const QuoteDetail = () => {
-  const { id } = useParams();
-  const { tenant } = useOutletContext<{ tenant: Tenant }>();
-  const { t, language } = useApp();
-  // Using simplified mock for display, in real app fetch like before
-  const quote = { id: id || '123', total: 1500, date: new Date().toISOString() };
-  
-  const handlePrint = () => window.print();
-
-  return (
-    <div className="max-w-4xl mx-auto bg-white min-h-[800px] shadow-lg border p-8 print:shadow-none print:border-none">
-      <div className="flex justify-between items-start mb-8 print:hidden">
-        <Link to={`/t/${tenant.slug}/quotes`} className="text-gray-500 hover:text-gray-900">← {t('back')}</Link>
-        <div className="space-x-2">
-            <Link to={`/p/${quote.id}`} target="_blank">
-                <Button variant="secondary">🔗 {t('view_as_client')}</Button>
-            </Link>
-            <Button onClick={handlePrint}>{t('download_pdf')}</Button>
-        </div>
-      </div>
-
-      {/* PDF Content - Language Sensitive */}
-      <div className="flex justify-between items-end border-b pb-8 mb-8">
-        <div>
-          <h1 className="text-4xl font-bold text-gray-900 uppercase">{t('quote_details')}</h1>
-          <p className="text-gray-500 mt-1">#{quote.id.slice(0, 8)}</p>
-        </div>
-        <div className="text-right">
-          <div className="font-bold text-xl">{tenant.name}</div>
-          <div className="text-gray-500">{t('date')}: {formatDate(quote.date, language)}</div>
-        </div>
-      </div>
-
-      {/* ... Table Items ... */}
-      <div className="flex justify-end">
-        <div className="w-64 border-t-2 border-gray-900 py-2 flex justify-between font-bold text-xl">
-             <span>{t('total')}</span>
-             <span>{formatCurrency(quote.total, language)}</span>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// --- Superadmin ---
-
-const AdminDashboard = () => {
-    const { t } = useApp();
-    return (
-        <div className="min-h-screen bg-gray-100 p-8">
-            <header className="flex justify-between items-center mb-8">
-                <h1 className="text-3xl font-bold">{t('admin_panel')}</h1>
-                <LanguageSwitcher />
-            </header>
-            
-            <div className="grid grid-cols-2 gap-8">
-                <div className="bg-white p-6 rounded shadow">
-                    <h2 className="font-bold mb-4">CMS: Web Principal</h2>
-                    <p className="text-sm text-gray-500 mb-4">Edita los textos de la landing page.</p>
-                    <div className="space-y-4">
-                        <Input label="Hero Title (ES)" defaultValue="Gestiona tu negocio..." />
-                        <Input label="Hero Title (CA)" defaultValue="Gestiona el teu negoci..." />
-                        <Button>Guardar Cambios</Button>
-                    </div>
-                </div>
-                <div className="bg-white p-6 rounded shadow">
-                    <h2 className="font-bold mb-4">Estadísticas Globales</h2>
-                    <div className="space-y-2">
-                        <div className="flex justify-between"><span>Empresas activas:</span> <strong>12</strong></div>
-                        <div className="flex justify-between"><span>Usuarios totales:</span> <strong>45</strong></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    )
-}
-
-// --- App Root ---
+// --- App Root Provider ---
 
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
@@ -622,7 +567,6 @@ export default function App() {
   const [isDemoMode, setIsDemoMode] = useState(false);
   const [language, setLanguageState] = useState<Language>('es');
 
-  // Load language preference
   useEffect(() => {
     const saved = localStorage.getItem('app_lang') as Language;
     if (saved) setLanguageState(saved);
@@ -637,23 +581,67 @@ export default function App() {
       return translations[language][key] || key;
   }
 
-  // ... (Auth Logic similar to previous version, omitted for brevity but assumed present) ...
-  // Mocking auth load for brevity in this specific output block
+  const fetchProfileData = async (userId: string) => {
+    try {
+        const { data: profileData } = await supabase.from('profiles').select('*').eq('id', userId).single();
+        if (profileData) setProfile(profileData);
+
+        const { data: membershipData } = await supabase.from('memberships').select('*, tenant:tenants(*)').eq('user_id', userId);
+        if (membershipData) setMemberships(membershipData as any);
+    } catch (e) {
+        console.error("Error fetching user data", e);
+    }
+  };
+
   useEffect(() => {
-     supabase.auth.getSession().then(({ data: { session } }) => {
+    // 1. Check Initial Session
+    supabase.auth.getSession().then(({ data: { session } }) => {
         setSession(session);
+        if (session) {
+            fetchProfileData(session.user.id).finally(() => setLoading(false));
+        } else {
+            setLoading(false);
+        }
+    }).catch(err => {
+        console.error("Auth error", err);
         setLoading(false);
-     });
+    });
+
+    // 2. Listen for Auth Changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+        setSession(session);
+        if (session) {
+            fetchProfileData(session.user.id);
+        } else {
+            setProfile(null);
+            setMemberships([]);
+        }
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
+
+  const refreshProfile = async () => {
+    if (session) await fetchProfileData(session.user.id);
+  };
+
+  const signOut = async () => {
+    await supabase.auth.signOut();
+    setIsDemoMode(false);
+    setSession(null);
+    setProfile(null);
+    setMemberships([]);
+  };
 
   const enterDemoMode = () => {
     setIsDemoMode(true);
     setSession({ user: { id: 'demo' } } as any);
-    setProfile({ id: 'demo', email: 'demo@demo.com', is_superadmin: false });
+    setProfile({ id: 'demo', email: 'demo@demo.com', is_superadmin: false, full_name: 'Demo User' });
     setMemberships([{ 
         id: 'm1', user_id: 'demo', tenant_id: 't1', role: 'owner', 
         tenant: { id: 't1', name: 'Demo Corp', slug: 'demo', plan: 'pro', created_at: '' } 
     }]);
+    setLoading(false);
   };
 
   if (loading) return <LoadingSpinner />;
@@ -662,7 +650,7 @@ export default function App() {
     <AppContext.Provider value={{ 
         session, profile, memberships, loading, isDemoMode, language, setLanguage, 
         t: t_func,
-        refreshProfile: async () => {}, signOut: async () => { setSession(null) }, enterDemoMode 
+        refreshProfile, signOut, enterDemoMode 
     }}>
       <HashRouter>
         <Routes>
@@ -670,23 +658,17 @@ export default function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
           
-          {/* Tenant Public Site */}
           <Route path="/c/:slug" element={<TenantPublicSite />} />
           
-          {/* Public Quote */}
-          <Route path="/p/:id" element={<QuoteDetail />} /> {/* Reusing component for simplicity, typically separate */}
-
-          <Route path="/onboarding" element={<div>Onboarding...</div>} />
-
           <Route path="/t/:slug" element={<TenantLayout />}>
             <Route path="dashboard" element={<Dashboard />} />
-            <Route path="quotes" element={<Quotes />} />
-            <Route path="quotes/:id" element={<QuoteDetail />} />
             <Route path="website" element={<TenantWebsiteEditor />} />
-            {/* ... other routes ... */}
+            <Route path="customers" element={<div className="bg-white p-10 rounded-3xl border text-center text-gray-400 font-bold">Módulo de Clientes Próximamente</div>} />
+            <Route path="quotes" element={<div className="bg-white p-10 rounded-3xl border text-center text-gray-400 font-bold">Módulo de Presupuestos Próximamente</div>} />
+            <Route path="settings" element={<div className="bg-white p-10 rounded-3xl border text-center text-gray-400 font-bold">Configuración del Perfil</div>} />
           </Route>
 
-          <Route path="/admin" element={<AdminDashboard />} />
+          <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </HashRouter>
     </AppContext.Provider>

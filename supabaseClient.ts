@@ -1,14 +1,25 @@
-
 import { createClient } from '@supabase/supabase-js';
 
-// En Vercel, estas variables se configuran en el panel de control del proyecto
-// En desarrollo local, se leen del archivo .env
-// Fix: Use casting to any to access 'env' on 'import.meta' as it may not be defined in the TypeScript environment
-const supabaseUrl = (import.meta as any).env?.VITE_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseAnonKey = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+// Función segura para obtener variables de entorno sin romper el navegador
+const getEnv = (name: string): string => {
+  try {
+    // Intenta Vite
+    if ((import.meta as any).env?.[name]) return (import.meta as any).env[name];
+    // Intenta Process (Node/Vercel)
+    if (typeof process !== 'undefined' && process.env?.[name]) return process.env[name] || '';
+    // Intenta Global
+    if ((window as any).process?.env?.[name]) return (window as any).process.env[name];
+  } catch (e) {
+    // Ignorar errores
+  }
+  return '';
+};
+
+const supabaseUrl = getEnv('VITE_SUPABASE_URL') || getEnv('NEXT_PUBLIC_SUPABASE_URL');
+const supabaseAnonKey = getEnv('VITE_SUPABASE_ANON_KEY') || getEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY');
 
 if (!supabaseUrl || !supabaseAnonKey) {
-  console.warn("Supabase credentials missing. Ensure environment variables are set.");
+  console.error("Supabase credentials missing! Check your environment variables.");
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient(supabaseUrl || 'https://placeholder.supabase.co', supabaseAnonKey || 'placeholder');
