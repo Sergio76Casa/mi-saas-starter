@@ -104,7 +104,7 @@ const SuperAdminFloatingBar = () => {
 
 const PublicTenantWebsite = () => {
   const { slug } = useParams();
-  const { dbHealthy, t } = useApp();
+  const { dbHealthy, t, session, memberships, profile } = useApp();
   const [tenant, setTenant] = useState<Tenant | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -129,6 +129,9 @@ const PublicTenantWebsite = () => {
     </div>
   );
 
+  // Determinar si el usuario tiene acceso a la administración de esta empresa
+  const hasAdminAccess = session && (memberships.some(m => m.tenant?.slug === slug) || profile?.is_superadmin);
+
   return (
     <div className="min-h-screen bg-white font-sans selection:bg-brand-500 selection:text-white animate-in fade-in duration-1000">
       <nav className="flex items-center justify-between px-10 py-8 sticky top-0 bg-white/80 backdrop-blur-xl z-50 border-b border-gray-50">
@@ -136,6 +139,18 @@ const PublicTenantWebsite = () => {
         <div className="flex items-center gap-10">
            <a href="#services" className="text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-gray-900 transition-colors">{t('services_section')}</a>
            <LanguageSwitcher />
+           
+           {/* Botón de acceso administrativo inteligente */}
+           {hasAdminAccess ? (
+             <Link to={`/t/${slug}/dashboard`} className="px-6 py-3 bg-brand-600 text-white rounded-full text-[10px] font-black uppercase tracking-widest shadow-xl hover:scale-105 transition-all">
+                {t('view_admin')}
+             </Link>
+           ) : (
+             <Link to="/login" className="text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-gray-900 transition-colors">
+                {t('login_nav')}
+             </Link>
+           )}
+
            <a href="#contact" className="px-8 py-3 bg-gray-900 text-white rounded-full text-[10px] font-black uppercase tracking-widest shadow-xl hover:scale-105 transition-all">{t('contact_section')}</a>
         </div>
       </nav>
@@ -761,8 +776,6 @@ const TenantLayout = () => {
             navigate('/login');
         } else if (profile?.is_superadmin) {
             // Los superadmins pueden acceder a cualquier tenant. 
-            // Si el tenant no existe (currentTenant es null), podríamos manejar un error, 
-            // pero no redirigimos a onboarding.
         } else if (memberships.length === 0 && location.pathname !== '/onboarding') {
             navigate('/onboarding');
         } else if (!currentMembership && memberships.length > 0) {
@@ -892,7 +905,10 @@ const Onboarding = () => {
                         </button>
                     </form>
 
-                    <div className="mt-8 pt-8 border-t border-gray-50">
+                    <div className="mt-8 pt-8 border-t border-gray-50 flex justify-between items-center">
+                        <Link to="/" className="text-[9px] font-black uppercase tracking-widest text-gray-400 hover:text-gray-900 transition-colors">
+                            ← Volver al Inicio
+                        </Link>
                         <button onClick={signOut} className="text-[9px] font-black uppercase tracking-widest text-red-400 hover:text-red-600 transition-colors">
                             Cerrar Sesión
                         </button>
