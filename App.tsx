@@ -210,18 +210,16 @@ const AdminDashboard = () => {
              </p>
            </div>
          )}
-         <p className="text-xs text-slate-400 mb-6 italic">Ejecuta esto en el SQL Editor si no ves las empresas creadas:</p>
+         <p className="text-xs text-slate-400 mb-6 italic">Ejecuta esto en el SQL Editor para forzar visibilidad total:</p>
          <div className="bg-black/60 rounded-[1.5rem] p-8 border border-white/5 font-mono text-[10px] text-brand-400 overflow-x-auto select-all shadow-inner leading-relaxed whitespace-pre">
-{`UPDATE profiles SET is_superadmin = true WHERE email = '${session?.user?.email}';
-
+{`-- Forzar visibilidad total para autenticados (Solución rápida)
 DROP POLICY IF EXISTS "Users can view their tenants" ON tenants;
+DROP POLICY IF EXISTS "Allow all select for authenticated" ON tenants;
 
-CREATE POLICY "Users can view their tenants" ON tenants FOR SELECT TO authenticated 
-USING (
-  (SELECT is_superadmin FROM profiles WHERE id = auth.uid()) = true
-  OR 
-  id IN (SELECT tenant_id FROM memberships WHERE user_id = auth.uid())
-);`}
+CREATE POLICY "Allow all select for authenticated" 
+ON tenants FOR SELECT 
+TO authenticated 
+USING (true);`}
          </div>
       </div>
     </div>
@@ -231,14 +229,22 @@ USING (
 const AdminTenants = () => {
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [isCreating, setIsCreating] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [lastError, setLastError] = useState<string | null>(null);
   const [newTenant, setNewTenant] = useState({ name: '', slug: '', plan: 'free' });
   const { dbHealthy } = useApp();
 
   const fetchTenants = async () => {
     if (!dbHealthy) return;
+    setIsLoading(true);
+    setLastError(null);
     const { data, error } = await supabase.from('tenants').select('*').order('created_at', { ascending: false });
-    if (error) console.error("Error fetching:", error);
+    if (error) {
+        console.error("Error fetching:", error);
+        setLastError(error.message);
+    }
     if (data) setTenants(data as any);
+    setIsLoading(false);
   };
 
   useEffect(() => { fetchTenants(); }, [dbHealthy]);
@@ -252,16 +258,32 @@ const AdminTenants = () => {
       setIsCreating(false);
       setNewTenant({ name: '', slug: '', plan: 'free' });
       await fetchTenants(); // Recargar lista
-      alert("¡Tenant creado! Si no aparece en la lista inferior, revisa el Inspector de Privilegios en el Dashboard.");
+      alert("¡Tenant creado con éxito!");
     }
   };
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h3 className="text-2xl font-black text-white tracking-tight">Directorio de Empresas</h3>
-        <button onClick={() => setIsCreating(true)} className="px-6 py-3 bg-brand-600 hover:bg-brand-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-lg">+ Registrar Empresa</button>
+        <div className="flex flex-col">
+            <h3 className="text-2xl font-black text-white tracking-tight">Directorio de Empresas</h3>
+            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">Registros en la nube: {tenants.length}</p>
+        </div>
+        <div className="flex gap-4">
+            <button onClick={fetchTenants} className="px-6 py-3 bg-white/5 hover:bg-white/10 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all border border-white/10">🔄 Recargar</button>
+            <button onClick={() => setIsCreating(true)} className="px-6 py-3 bg-brand-600 hover:bg-brand-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-lg">+ Registrar Empresa</button>
+        </div>
       </div>
+
+      {lastError && (
+          <div className="bg-red-500/10 border border-red-500/20 p-6 rounded-[1.5rem] flex items-center gap-4 animate-in slide-in-from-top-4">
+              <span className="text-2xl">🚨</span>
+              <div>
+                  <div className="text-red-400 font-black text-[10px] uppercase tracking-widest">Error de Base de Datos</div>
+                  <div className="text-red-200 text-xs mt-1">{lastError}</div>
+              </div>
+          </div>
+      )}
 
       {isCreating && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-xl z-[100] flex items-center justify-center p-6">
@@ -284,7 +306,12 @@ const AdminTenants = () => {
         </div>
       )}
 
-      <div className="bg-white/5 border border-white/5 rounded-[2.5rem] overflow-hidden shadow-2xl">
+      <div className="bg-white/5 border border-white/5 rounded-[2.5rem] overflow-hidden shadow-2xl relative">
+        {isLoading && (
+            <div className="absolute inset-0 bg-slate-950/50 backdrop-blur-sm z-10 flex items-center justify-center">
+                <div className="w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full animate-spin"></div>
+            </div>
+        )}
         <table className="w-full text-left">
           <thead className="bg-white/5 text-slate-500 text-[10px] font-black uppercase tracking-widest">
             <tr>
@@ -308,8 +335,8 @@ const AdminTenants = () => {
                 </td>
               </tr>
             ))}
-            {tenants.length === 0 && (
-              <tr><td colSpan={3} className="px-10 py-20 text-center text-slate-600 font-black uppercase tracking-widest text-xs italic">No hay empresas visibles (Revisa permisos)</td></tr>
+            {tenants.length === 0 && !isLoading && (
+              <tr><td colSpan={3} className="px-10 py-20 text-center text-slate-600 font-black uppercase tracking-widest text-xs italic">No hay empresas visibles. Pulsa "Recargar" o revisa tus permisos SQL.</td></tr>
             )}
           </tbody>
         </table>
@@ -488,7 +515,7 @@ const Signup = () => {
         </div>
         <h2 className="text-4xl font-black mb-10 text-gray-900 tracking-tighter leading-none">Únete a la Red</h2>
         <form onSubmit={handleSignup} className="space-y-6">
-          <Input label="Nombre completo" type="text" value={fullName} onChange={(e: any) => setFullName(e.target.value)} required placeholder="Tu Nombre" />
+          <Input label="Nombre completo" type="text" value={fullName} onChange={(e: any) => setFullName(e.target.value)} required placeholder="Tu Nom" />
           <Input label="Email" type="email" value={email} onChange={(e: any) => setEmail(e.target.value)} required placeholder="ejemplo@correo.com" />
           <Input label="Contraseña" type="password" value={password} onChange={(e: any) => setPassword(e.target.value)} required />
           <button type="submit" disabled={loading} className="w-full py-5 bg-brand-600 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest hover:bg-brand-700 transition-all shadow-xl">
@@ -541,7 +568,7 @@ const Landing = () => {
       </header>
       
       <main className="max-w-7xl mx-auto px-6 py-40 text-center">
-        <div className="inline-block px-4 py-1.5 bg-brand-50 text-brand-600 text-[10px] font-black uppercase tracking-widest rounded-full mb-8">Novedad: SaaS Multi-Tenant v1.6.2</div>
+        <div className="inline-block px-4 py-1.5 bg-brand-50 text-brand-600 text-[10px] font-black uppercase tracking-widest rounded-full mb-8">Novedad: SaaS Multi-Tenant v1.6.3</div>
         <h1 className="text-8xl font-black text-gray-900 mb-10 tracking-tighter leading-[0.9] animate-in slide-in-from-bottom-12 duration-1000">
            {content['home_hero_title'] || 'Controla tu negocio con precisión.'}
         </h1>
@@ -692,7 +719,6 @@ export default function App() {
   const [memberships, setMemberships] = useState<Membership[]>([]);
   const [loading, setLoading] = useState(true);
   const [dbHealthy, setDbHealthy] = useState<boolean | null>(null);
-  const [isDemoMode, setIsDemoMode] = useState(false);
   const [language, setLanguageState] = useState<Language>('es');
 
   const setLanguage = (lang: Language) => { setLanguageState(lang); localStorage.setItem('app_lang', lang); }
@@ -727,10 +753,9 @@ export default function App() {
   }, [dbHealthy]);
 
   const refreshProfile = async () => { if (session) await fetchProfileData(session.user.id); };
-  const signOut = async () => { if (isConfigured) await supabase.auth.signOut(); setIsDemoMode(false); setSession(null); setProfile(null); setMemberships([]); };
+  const signOut = async () => { if (isConfigured) await supabase.auth.signOut(); setSession(null); setProfile(null); setMemberships([]); };
   
   const enterDemoMode = (asAdmin = false) => { 
-    setIsDemoMode(true); 
     if (asAdmin) {
       setSession({ user: { id: 'admin', email: 'admin@system.com' } } as any);
       setProfile({ id: 'admin', email: 'admin@system.com', is_superadmin: true, full_name: 'Super Administrator' });
@@ -747,7 +772,7 @@ export default function App() {
 
   return (
     <AppContext.Provider value={{ 
-        session, profile, memberships, loading, isDemoMode, dbHealthy, language, setLanguage, 
+        session, profile, memberships, loading, isDemoMode: !!(session?.user?.id === 'demo' || session?.user?.id === 'admin'), dbHealthy, language, setLanguage, 
         t: t_func, refreshProfile, signOut, enterDemoMode 
     }}>
       <HashRouter>
