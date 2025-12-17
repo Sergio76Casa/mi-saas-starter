@@ -1,6 +1,6 @@
 import React, { useState, useEffect, createContext, useContext } from 'react';
 import { HashRouter, Routes, Route, Link, useNavigate, useParams, Navigate, Outlet, useLocation, useOutletContext } from 'react-router-dom';
-import { supabase, isConfigured, SUPABASE_URL } from './supabaseClient';
+import { supabase, isConfigured, SUPABASE_URL, saveManualConfig, clearManualConfig } from './supabaseClient';
 import { Membership, Profile, Tenant, Customer, Quote, QuoteItem, Language, PlatformContent, TenantContent } from './types';
 import { translations, formatCurrency, formatDate } from './i18n';
 import { Session } from '@supabase/supabase-js';
@@ -13,6 +13,7 @@ interface AppContextType {
   memberships: Membership[];
   loading: boolean;
   isDemoMode: boolean;
+  dbHealthy: boolean | null;
   language: Language;
   setLanguage: (lang: Language) => void;
   refreshProfile: () => Promise<void>;
@@ -39,30 +40,176 @@ const LoadingSpinner = () => (
 );
 
 const ConnectionStatusBadge = () => {
-  if (!isConfigured) return null;
+  const { dbHealthy } = useApp();
+  const isManual = !!localStorage.getItem('MANUAL_SUPABASE_URL');
+  
+  if (!isConfigured) return (
+    <div className="flex items-center gap-1.5 px-3 py-1 bg-amber-50 text-amber-700 text-[9px] font-black uppercase tracking-widest rounded-full border border-amber-200">
+      ⚠️ Config Missing
+    </div>
+  );
+
   return (
-    <div className="flex items-center gap-1.5 px-3 py-1 bg-green-50 text-green-700 text-[9px] font-black uppercase tracking-widest rounded-full border border-green-200 shadow-sm">
-      <span className="relative flex h-2 w-2">
-        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-        <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-      </span>
-      Supabase Live
+    <div className="flex flex-col items-end gap-1">
+      <div className={`flex items-center gap-1.5 px-3 py-1 ${dbHealthy === false ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'} text-[9px] font-black uppercase tracking-widest rounded-full border ${dbHealthy === false ? 'border-red-200' : 'border-green-200'} shadow-sm`}>
+        <span className="relative flex h-2 w-2">
+          {dbHealthy !== false && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>}
+          <span className={`relative inline-flex rounded-full h-2 w-2 ${dbHealthy === false ? 'bg-red-500' : 'bg-green-500'}`}></span>
+        </span>
+        {dbHealthy === null ? 'Connecting...' : dbHealthy ? 'Supabase Live' : 'Connection Error'}
+      </div>
+      {isManual && <span className="text-[8px] font-bold text-amber-600 uppercase tracking-tighter">Override Manual Activo</span>}
     </div>
   );
 };
 
-// Added missing AlertConfigMissing component to resolve error on line 334
 const AlertConfigMissing = () => {
-  const { t } = useApp();
+  const [showManual, setShowManual] = useState(false);
+  const [url, setUrl] = useState('');
+  const [key, setKey] = useState('');
+  const isVercelPreview = window.location.hostname.includes('vercel.app') && !window.location.hostname.includes('mi-saas-starter.vercel.app');
+  const isManual = !!localStorage.getItem('MANUAL_SUPABASE_URL');
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (url && key) saveManualConfig(url, key);
+  };
+
   return (
-    <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-xs font-medium leading-relaxed">
-      <div className="flex items-center gap-2 mb-1 font-black uppercase tracking-widest text-[10px]">
-        <span>⚠️</span> {t('demo_mode')}
+    <div className="mb-6 p-6 bg-amber-50 border border-amber-200 rounded-2xl text-amber-800 shadow-xl overflow-hidden relative">
+      <div className="flex items-center gap-2 mb-3 font-black uppercase tracking-widest text-[10px] text-amber-700">
+        <span>⚠️</span> Configuración no detectada
       </div>
-      La configuración de Supabase no es válida o falta. Puedes entrar en modo demo para probar la plataforma sin necesidad de servidor.
+      
+      <p className="mb-4 text-xs font-medium leading-relaxed">
+        {isVercelPreview 
+          ? "Estás en una URL de Preview. Vercel no ha inyectado las variables para este despliegue." 
+          : "Las variables de entorno no están llegando a la aplicación."}
+      </p>
+
+      {!showManual ? (
+        <div className="flex flex-col gap-2">
+          <button 
+            onClick={() => setShowManual(true)}
+            className="w-full py-2 bg-amber-200/50 hover:bg-amber-200 text-amber-900 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all"
+          >
+            🔧 Insertar Claves Manualmente
+          </button>
+          {isManual && (
+            <button 
+              onClick={clearManualConfig}
+              className="w-full py-2 bg-red-100 hover:bg-red-200 text-red-700 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all"
+            >
+              🗑️ Limpiar Override Manual
+            </button>
+          )}
+        </div>
+      ) : (
+        <form onSubmit={handleSubmit} className="space-y-3 bg-white/40 p-4 rounded-xl border border-amber-200">
+          <div>
+            <label className="block text-[9px] font-black uppercase tracking-widest mb-1">Supabase URL</label>
+            <input 
+              type="text" 
+              value={url} 
+              onChange={e => setUrl(e.target.value)}
+              placeholder="https://xxx.supabase.co"
+              className="w-full p-2 text-xs border border-amber-300 rounded focus:ring-1 focus:ring-amber-500 bg-white/80"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-[9px] font-black uppercase tracking-widest mb-1">Anon Key</label>
+            <input 
+              type="password" 
+              value={key} 
+              onChange={e => setKey(e.target.value)}
+              placeholder="eyJhbG..."
+              className="w-full p-2 text-xs border border-amber-300 rounded focus:ring-1 focus:ring-amber-500 bg-white/80"
+              required
+            />
+          </div>
+          <div className="flex gap-2 pt-2">
+            <button type="submit" className="flex-1 py-2 bg-brand-600 text-white text-[10px] font-black uppercase tracking-widest rounded-lg">Guardar y Conectar</button>
+            <button type="button" onClick={() => setShowManual(false)} className="px-4 py-2 text-[10px] font-black uppercase tracking-widest text-amber-700">Cerrar</button>
+          </div>
+          <p className="text-[8px] text-amber-600 text-center italic mt-2">Los datos se guardarán en tu navegador local.</p>
+        </form>
+      )}
     </div>
   );
 };
+
+// --- Pages: Platform Public ---
+
+const Landing = () => {
+  const { t, language, session, memberships, dbHealthy } = useApp();
+  const [content, setContent] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (!isConfigured || dbHealthy === false) return;
+    const fetchContent = async () => {
+      try {
+        const { data } = await supabase.from('platform_content').select('*');
+        if (data) {
+          const contentMap: Record<string, string> = {};
+          data.forEach((item: PlatformContent) => {
+             contentMap[item.key] = language === 'ca' ? item.ca : item.es;
+          });
+          setContent(contentMap);
+        }
+      } catch (e) {}
+    };
+    fetchContent();
+  }, [language, dbHealthy]);
+
+  const heroTitle = content['home_hero_title'] || t('home_hero_title_default');
+  const heroSubtitle = content['home_hero_subtitle'] || t('home_hero_subtitle_default');
+
+  const dashboardLink = memberships.length > 0 
+    ? `/t/${memberships[0].tenant?.slug}/dashboard` 
+    : '/onboarding';
+
+  return (
+    <div className="min-h-screen bg-white">
+      <header className="flex items-center justify-between px-8 py-5 border-b sticky top-0 bg-white/80 backdrop-blur-md z-50">
+        <div className="flex items-center gap-4">
+          <div className="text-2xl font-black text-brand-600 tracking-tighter">ACME<span className="text-gray-900">SAAS</span></div>
+          <ConnectionStatusBadge />
+        </div>
+        <div className="flex items-center space-x-6">
+          <LanguageSwitcher />
+          {session ? (
+              <Link to={dashboardLink} className="text-sm font-bold text-brand-600 hover:underline">{t('dashboard')}</Link>
+          ) : (
+              <>
+                  <Link to="/login" className="text-sm font-semibold text-gray-600 hover:text-brand-600 transition-colors">{t('login_nav')}</Link>
+                  <Link to="/signup" className="px-5 py-2.5 bg-brand-600 text-white text-sm font-bold rounded-full hover:bg-brand-700 shadow-md hover:shadow-lg transition-all">{t('start_cta')}</Link>
+              </>
+          )}
+        </div>
+      </header>
+      <main className="max-w-7xl mx-auto px-6 py-32 text-center">
+        {!isConfigured && (
+          <div className="max-w-md mx-auto">
+            <AlertConfigMissing />
+          </div>
+        )}
+        <h1 className="text-6xl font-black text-gray-900 mb-8 tracking-tight leading-tight">{heroTitle}</h1>
+        <p className="text-xl text-gray-600 mb-12 max-w-3xl mx-auto leading-relaxed">
+          {heroSubtitle}
+        </p>
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+          <Link to={session ? dashboardLink : "/signup"} className="w-full sm:w-auto px-8 py-4 bg-brand-600 text-white rounded-full hover:bg-brand-700 text-lg font-bold shadow-xl transition-all transform hover:-translate-y-1">
+              {session ? t('dashboard') : t('start_cta')}
+          </Link>
+          <Link to="/pricing" className="w-full sm:w-auto px-8 py-4 bg-white text-brand-600 border-2 border-brand-100 rounded-full hover:border-brand-500 text-lg font-bold transition-all">{t('pricing_nav')}</Link>
+        </div>
+      </main>
+    </div>
+  );
+};
+
+// ... (El resto de los componentes Button, Input, TenantLayout, Login, etc. siguen igual que antes)
 
 const Button = ({ children, onClick, variant = 'primary', className = '', type = 'button', disabled = false }: any) => {
   const base = "px-4 py-2 rounded-md font-medium transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 active:scale-95";
@@ -114,80 +261,6 @@ const LanguageSwitcher = () => {
     </div>
   );
 };
-
-// --- Pages: Platform Public ---
-
-const Landing = () => {
-  const { t, language, session, memberships } = useApp();
-  const [content, setContent] = useState<Record<string, string>>({});
-
-  useEffect(() => {
-    if (!isConfigured) return;
-    const fetchContent = async () => {
-      try {
-        const { data } = await supabase.from('platform_content').select('*');
-        if (data) {
-          const contentMap: Record<string, string> = {};
-          data.forEach((item: PlatformContent) => {
-             contentMap[item.key] = language === 'ca' ? item.ca : item.es;
-          });
-          setContent(contentMap);
-        }
-      } catch (e) {
-        console.error("Error loading platform content", e);
-      }
-    };
-    fetchContent();
-  }, [language]);
-
-  const heroTitle = content['home_hero_title'] || t('home_hero_title_default');
-  const heroSubtitle = content['home_hero_subtitle'] || t('home_hero_subtitle_default');
-
-  const dashboardLink = memberships.length > 0 
-    ? `/t/${memberships[0].tenant?.slug}/dashboard` 
-    : '/onboarding';
-
-  return (
-    <div className="min-h-screen bg-white">
-      <header className="flex items-center justify-between px-8 py-5 border-b sticky top-0 bg-white/80 backdrop-blur-md z-50">
-        <div className="flex items-center gap-4">
-          <div className="text-2xl font-black text-brand-600 tracking-tighter">ACME<span className="text-gray-900">SAAS</span></div>
-          <ConnectionStatusBadge />
-        </div>
-        <div className="flex items-center space-x-6">
-          <LanguageSwitcher />
-          {session ? (
-              <Link to={dashboardLink} className="text-sm font-bold text-brand-600 hover:underline">{t('dashboard')}</Link>
-          ) : (
-              <>
-                  <Link to="/login" className="text-sm font-semibold text-gray-600 hover:text-brand-600 transition-colors">{t('login_nav')}</Link>
-                  <Link to="/signup" className="px-5 py-2.5 bg-brand-600 text-white text-sm font-bold rounded-full hover:bg-brand-700 shadow-md hover:shadow-lg transition-all">{t('start_cta')}</Link>
-              </>
-          )}
-        </div>
-      </header>
-      <main className="max-w-7xl mx-auto px-6 py-32 text-center">
-        {!isConfigured && (
-          <div className="inline-flex items-center gap-2 px-4 py-2 bg-amber-50 text-amber-700 text-xs font-bold rounded-full mb-10 border border-amber-100 shadow-sm animate-pulse">
-            <span>⚠️</span> {t('demo_mode')} disponible (Variables no detectadas)
-          </div>
-        )}
-        <h1 className="text-6xl font-black text-gray-900 mb-8 tracking-tight leading-tight">{heroTitle}</h1>
-        <p className="text-xl text-gray-600 mb-12 max-w-3xl mx-auto leading-relaxed">
-          {heroSubtitle}
-        </p>
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-          <Link to={session ? dashboardLink : "/signup"} className="w-full sm:w-auto px-8 py-4 bg-brand-600 text-white rounded-full hover:bg-brand-700 text-lg font-bold shadow-xl transition-all transform hover:-translate-y-1">
-              {session ? t('dashboard') : t('start_cta')}
-          </Link>
-          <Link to="/pricing" className="w-full sm:w-auto px-8 py-4 bg-white text-brand-600 border-2 border-brand-100 rounded-full hover:border-brand-500 text-lg font-bold transition-all">{t('pricing_nav')}</Link>
-        </div>
-      </main>
-    </div>
-  );
-};
-
-// --- Tenant Admin Layout ---
 
 const TenantLayout = () => {
   const { slug } = useParams();
@@ -306,19 +379,17 @@ const TenantLayout = () => {
   );
 };
 
-// --- Auth Components ---
-
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const { refreshProfile, enterDemoMode, t } = useApp();
+  const { refreshProfile, enterDemoMode, t, dbHealthy } = useApp();
   const navigate = useNavigate();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isConfigured) {
-        alert("Configuración no detectada en el código. Si acabas de añadir las variables en Vercel, haz un 'Redeploy' del proyecto.");
+    if (!isConfigured || dbHealthy === false) {
+        alert("La conexión con Supabase no está activa.");
         return;
     }
     setLoading(true);
@@ -359,104 +430,9 @@ const Login = () => {
         <Button onClick={() => { enterDemoMode(); navigate('/t/demo/dashboard'); }} variant="secondary" className="w-full py-3 font-bold border-gray-200 text-gray-500 hover:text-brand-600 hover:border-brand-600 transition-all">
             🚀 {t('demo_mode')}
         </Button>
-        
-        <p className="mt-8 text-center text-sm text-gray-500 font-medium">
-          {t('no_account')} <Link to="/signup" className="text-brand-600 font-bold hover:underline">{t('signup_btn')}</Link>
-        </p>
       </div>
     </div>
   );
-};
-
-// --- Onboarding Component ---
-
-const Onboarding = () => {
-    const { t, session, refreshProfile, memberships } = useApp();
-    const navigate = useNavigate();
-    const [companyName, setCompanyName] = useState('');
-    const [slug, setSlug] = useState('');
-    const [loading, setLoading] = useState(false);
-
-    useEffect(() => {
-        if (memberships.length > 0) {
-            navigate(`/t/${memberships[0].tenant?.slug}/dashboard`);
-        }
-    }, [memberships, navigate]);
-
-    const handleCreate = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!session || !companyName || !slug) return;
-        setLoading(true);
-
-        try {
-            const finalSlug = slug.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-');
-            
-            const { data: tenant, error: tError } = await supabase
-                .from('tenants')
-                .insert([{ name: companyName, slug: finalSlug }])
-                .select()
-                .single();
-
-            if (tError) throw tError;
-
-            const { error: mError } = await supabase
-                .from('memberships')
-                .insert([{ 
-                    user_id: session.user.id, 
-                    tenant_id: tenant.id, 
-                    role: 'owner' 
-                }]);
-
-            if (mError) throw mError;
-
-            await refreshProfile();
-            navigate(`/t/${finalSlug}/dashboard`);
-        } catch (error: any) {
-            alert(error.message || "Error al crear la empresa. ¿Quizás el slug ya existe?");
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleNameChange = (val: string) => {
-        setCompanyName(val);
-        setSlug(val.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-'));
-    };
-
-    return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50 p-6">
-            <div className="max-w-md w-full bg-white p-10 rounded-3xl shadow-xl border border-gray-100">
-                <h2 className="text-3xl font-black mb-2 text-center text-gray-900 tracking-tight">{t('onboarding_title')}</h2>
-                <p className="text-gray-500 text-center mb-8 text-sm font-medium leading-relaxed">{t('onboarding_subtitle')}</p>
-                
-                <form onSubmit={handleCreate} className="space-y-6">
-                    <Input 
-                        label={t('company_name')} 
-                        value={companyName} 
-                        onChange={(e: any) => handleNameChange(e.target.value)} 
-                        placeholder="Ej: Mi Empresa S.L." 
-                        required 
-                    />
-                    <div>
-                        <Input 
-                            label={t('company_slug')} 
-                            value={slug} 
-                            onChange={(e: any) => setSlug(e.target.value.toLowerCase().replace(/\s+/g, '-'))} 
-                            placeholder="mi-empresa" 
-                            required 
-                        />
-                        <p className="mt-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest leading-relaxed">
-                            {t('slug_hint')}<span className="text-brand-600 underline font-black">{slug || '...'}</span>
-                        </p>
-                    </div>
-                    
-                    <Button type="submit" className="w-full py-4 text-lg shadow-lg shadow-brand-100" disabled={loading}>
-                        {loading ? t('loading') : t('create_company_btn')}
-                    </Button>
-                </form>
-            </div>
-        </div>
-    );
 };
 
 const Dashboard = () => {
@@ -484,101 +460,117 @@ const Dashboard = () => {
   );
 };
 
+const Onboarding = () => {
+    const { t, session, refreshProfile, memberships } = useApp();
+    const navigate = useNavigate();
+    const [companyName, setCompanyName] = useState('');
+    const [slug, setSlug] = useState('');
+    const [loading, setLoading] = useState(false);
+
+    useEffect(() => {
+        if (memberships.length > 0) {
+            navigate(`/t/${memberships[0].tenant?.slug}/dashboard`);
+        }
+    }, [memberships, navigate]);
+
+    const handleCreate = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!session || !companyName || !slug) return;
+        setLoading(true);
+
+        try {
+            const finalSlug = slug.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-');
+            const { data: tenant, error: tError } = await supabase.from('tenants').insert([{ name: companyName, slug: finalSlug }]).select().single();
+            if (tError) throw tError;
+
+            const { error: mError } = await supabase.from('memberships').insert([{ user_id: session.user.id, tenant_id: tenant.id, role: 'owner' }]);
+            if (mError) throw mError;
+
+            await refreshProfile();
+            navigate(`/t/${finalSlug}/dashboard`);
+        } catch (error: any) {
+            alert(error.message || "Error al crear la empresa.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <div className="min-h-screen flex items-center justify-center bg-gray-50 p-6">
+            <div className="max-w-md w-full bg-white p-10 rounded-3xl shadow-xl border border-gray-100">
+                <h2 className="text-3xl font-black mb-2 text-center text-gray-900 tracking-tight">{t('onboarding_title')}</h2>
+                <form onSubmit={handleCreate} className="space-y-6">
+                    <Input label={t('company_name')} value={companyName} onChange={(e: any) => setCompanyName(e.target.value)} required />
+                    <Input label={t('company_slug')} value={slug} onChange={(e: any) => setSlug(e.target.value)} required />
+                    <Button type="submit" className="w-full py-4 text-lg" disabled={loading}>{loading ? t('loading') : t('create_company_btn')}</Button>
+                </form>
+            </div>
+        </div>
+    );
+};
+
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [memberships, setMemberships] = useState<Membership[]>([]);
   const [loading, setLoading] = useState(true);
+  const [dbHealthy, setDbHealthy] = useState<boolean | null>(null);
   const [isDemoMode, setIsDemoMode] = useState(false);
   const [language, setLanguageState] = useState<Language>('es');
 
+  const setLanguage = (lang: Language) => { setLanguageState(lang); localStorage.setItem('app_lang', lang); }
+  const t_func = (key: keyof typeof translations['es']) => (translations[language] as any)[key] || key;
+
   useEffect(() => {
-    const saved = localStorage.getItem('app_lang') as Language;
-    if (saved) setLanguageState(saved);
+    if (!isConfigured) {
+        setDbHealthy(false);
+        return;
+    }
+    supabase.from('platform_content').select('count', { count: 'exact', head: true })
+      .then(({ error }) => {
+          if (error && error.code === 'PGRST301') setDbHealthy(true);
+          else if (error) setDbHealthy(false);
+          else setDbHealthy(true);
+      });
   }, []);
-
-  const setLanguage = (lang: Language) => {
-      setLanguageState(lang);
-      localStorage.setItem('app_lang', lang);
-  }
-
-  const t_func = (key: keyof typeof translations['es']) => {
-      return (translations[language] as any)[key] || key;
-  }
 
   const fetchProfileData = async (userId: string) => {
     if (!isConfigured || userId === 'demo') return;
     try {
         const { data: profileData } = await supabase.from('profiles').select('*').eq('id', userId).single();
         if (profileData) setProfile(profileData);
-
         const { data: membershipData } = await supabase.from('memberships').select('*, tenant:tenants(*)').eq('user_id', userId);
         if (membershipData) setMemberships(membershipData as any);
-    } catch (e) {
-        console.error("Error fetching user data", e);
-    }
+    } catch (e) {}
   };
 
   useEffect(() => {
-    if (!isConfigured) {
-        setLoading(false);
-        return;
-    }
+    if (!isConfigured) { setLoading(false); return; }
 
     supabase.auth.getSession().then(({ data: { session } }) => {
         setSession(session);
-        if (session) {
-            fetchProfileData(session.user.id).finally(() => setLoading(false));
-        } else {
-            setLoading(false);
-        }
-    }).catch(err => {
-        setLoading(false);
-    });
+        if (session) fetchProfileData(session.user.id).finally(() => setLoading(false));
+        else setLoading(false);
+    }).catch(() => setLoading(false));
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
         setSession(session);
-        if (session) {
-            fetchProfileData(session.user.id);
-        } else {
-            setProfile(null);
-            setMemberships([]);
-        }
+        if (session) fetchProfileData(session.user.id);
+        else { setProfile(null); setMemberships([]); }
     });
-
     return () => subscription.unsubscribe();
-  }, []);
+  }, [dbHealthy]);
 
-  const refreshProfile = async () => {
-    if (session && session.user.id !== 'demo') await fetchProfileData(session.user.id);
-  };
-
-  const signOut = async () => {
-    if (isConfigured) await supabase.auth.signOut();
-    setIsDemoMode(false);
-    setSession(null);
-    setProfile(null);
-    setMemberships([]);
-  };
-
-  const enterDemoMode = () => {
-    setIsDemoMode(true);
-    setSession({ user: { id: 'demo', email: 'demo@demo.com' } } as any);
-    setProfile({ id: 'demo', email: 'demo@demo.com', is_superadmin: false, full_name: 'Usuario Demo' });
-    setMemberships([{ 
-        id: 'm1', user_id: 'demo', tenant_id: 't1', role: 'owner', 
-        tenant: { id: 't1', name: 'Demo Corp', slug: 'demo', plan: 'pro', created_at: '' } 
-    }]);
-    setLoading(false);
-  };
+  const refreshProfile = async () => { if (session && session.user.id !== 'demo') await fetchProfileData(session.user.id); };
+  const signOut = async () => { if (isConfigured) await supabase.auth.signOut(); setIsDemoMode(false); setSession(null); setProfile(null); setMemberships([]); };
+  const enterDemoMode = () => { setIsDemoMode(true); setSession({ user: { id: 'demo', email: 'demo@demo.com' } } as any); setProfile({ id: 'demo', email: 'demo@demo.com', is_superadmin: false, full_name: 'Usuario Demo' }); setMemberships([{ id: 'm1', user_id: 'demo', tenant_id: 't1', role: 'owner', tenant: { id: 't1', name: 'Demo Corp', slug: 'demo', plan: 'pro', created_at: '' } }]); setLoading(false); };
 
   if (loading) return <LoadingSpinner />;
 
   return (
     <AppContext.Provider value={{ 
-        session, profile, memberships, loading, isDemoMode, language, setLanguage, 
-        t: t_func,
-        refreshProfile, signOut, enterDemoMode 
+        session, profile, memberships, loading, isDemoMode, dbHealthy, language, setLanguage, 
+        t: t_func, refreshProfile, signOut, enterDemoMode 
     }}>
       <HashRouter>
         <Routes>

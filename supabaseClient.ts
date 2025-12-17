@@ -1,42 +1,73 @@
 import { createClient } from '@supabase/supabase-js';
 
 const getEnv = (name: string): string => {
-  try {
-    // 1. Intentar acceder vía import.meta.env (Vite estándar)
-    if (typeof (import.meta as any) !== 'undefined' && (import.meta as any).env?.[name]) {
-      const val = (import.meta as any).env[name];
-      if (val && val !== 'undefined' && val !== 'null') return val;
-    }
-    
-    // 2. Intentar acceder vía process.env (Vercel/Node/Bundlers)
-    if (typeof process !== 'undefined' && process.env?.[name]) {
-      const val = process.env[name];
-      if (val && val !== 'undefined' && val !== 'null') return val;
-    }
+  if (typeof window === 'undefined') return '';
 
-    // 3. Búsqueda en window (algunas inyecciones directas de scripts)
-    if (typeof window !== 'undefined' && (window as any)._env_?.[name]) {
-      return (window as any)._env_[name];
-    }
-  } catch (e) {
-    // Silenciar errores de acceso
+  // Prioridad 0: LocalStorage (Configuración manual del usuario)
+  const manualValue = localStorage.getItem(`MANUAL_${name}`);
+  if (manualValue && manualValue !== 'undefined') return manualValue;
+
+  // Lista de posibles candidatos de variables de entorno
+  const candidates = [
+    name,
+    `VITE_${name}`,
+    `NEXT_PUBLIC_${name}`,
+    `REACT_APP_${name}`
+  ];
+
+  for (const candidate of candidates) {
+    try {
+      const val = (import.meta as any).env?.[candidate];
+      if (val && val !== 'undefined' && val !== 'null') return val;
+    } catch (e) {}
+
+    try {
+      const val = (process as any).env?.[candidate];
+      if (val && val !== 'undefined' && val !== 'null') return val;
+    } catch (e) {}
   }
+
   return '';
 };
 
-export const SUPABASE_URL = getEnv('VITE_SUPABASE_URL') || getEnv('NEXT_PUBLIC_SUPABASE_URL');
-export const SUPABASE_ANON_KEY = getEnv('VITE_SUPABASE_ANON_KEY') || getEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY');
+export const SUPABASE_URL = getEnv('SUPABASE_URL');
+export const SUPABASE_ANON_KEY = getEnv('SUPABASE_ANON_KEY');
 
-// Verificación estricta: No debe ser vacío ni el string literal 'placeholder'
+// DETECTAR SI ESTAMOS EN VERCEL PREVIEW
+const isVercelPreview = typeof window !== 'undefined' && 
+  window.location.hostname.includes('vercel.app') && 
+  !window.location.hostname.includes('mi-saas-starter.vercel.app');
+
+if (typeof window !== 'undefined') {
+  const isManual = !!localStorage.getItem('MANUAL_SUPABASE_URL');
+  console.group('%c🚀 Vercel Environment Debugger', 'color: #000; background: #fff; padding: 2px 5px; border-radius: 3px; font-weight: bold;');
+  console.log('Entorno:', isVercelPreview ? '🔍 PREVIEW' : '🌍 PRODUCTION/LOCAL');
+  console.log('Origen Config:', isManual ? '🛠️ MANUAL (LocalStorage)' : '🛰️ SISTEMA (Env Vars)');
+  console.log('URL de Supabase:', SUPABASE_URL ? '✅ Cargada' : '❌ NO DETECTADA');
+  console.groupEnd();
+}
+
 export const isConfigured = Boolean(
   SUPABASE_URL && 
   SUPABASE_ANON_KEY && 
-  SUPABASE_URL.startsWith('http') &&
-  SUPABASE_URL !== 'https://placeholder.supabase.co'
+  SUPABASE_URL.startsWith('http')
 );
 
-// Inicialización segura
 export const supabase = createClient(
   isConfigured ? SUPABASE_URL : 'https://placeholder.supabase.co', 
   isConfigured ? SUPABASE_ANON_KEY : 'placeholder'
 );
+
+// Función para guardar configuración manual
+export const saveManualConfig = (url: string, key: string) => {
+  localStorage.setItem('MANUAL_SUPABASE_URL', url.trim());
+  localStorage.setItem('MANUAL_SUPABASE_ANON_KEY', key.trim());
+  window.location.reload(); // Recargar para aplicar cambios
+};
+
+// Función para limpiar configuración manual
+export const clearManualConfig = () => {
+  localStorage.removeItem('MANUAL_SUPABASE_URL');
+  localStorage.removeItem('MANUAL_SUPABASE_ANON_KEY');
+  window.location.reload();
+};
