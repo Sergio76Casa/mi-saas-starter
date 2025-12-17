@@ -125,9 +125,9 @@ const Button = ({ children, onClick, variant = 'primary', className = '', type =
 };
 
 const Input = ({ label, ...props }: any) => (
-  <div className="mb-4">
-    <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
-    <input className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-all text-sm" {...props} />
+  <div className="mb-4 text-left">
+    <label className="block text-sm font-bold text-gray-700 mb-1">{label}</label>
+    <input className="w-full px-3 py-2 border border-gray-200 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-all text-sm bg-gray-50/50" {...props} />
   </div>
 );
 
@@ -247,7 +247,6 @@ const AdminTenants = () => {
         setLoading(false);
       });
     } else {
-      // Mock para demo
       setTenants([
         { id: '1', name: 'Demo Corp', slug: 'demo', plan: 'pro', created_at: new Date().toISOString() },
         { id: '2', name: 'Testing S.A.', slug: 'test', plan: 'free', created_at: new Date().toISOString() },
@@ -281,7 +280,6 @@ const AdminTenants = () => {
               <th className="px-6 py-4">Empresa</th>
               <th className="px-6 py-4">Slug / URL</th>
               <th className="px-6 py-4">Plan Actual</th>
-              <th className="px-6 py-4">Fecha Alta</th>
               <th className="px-6 py-4 text-right">Acciones</th>
             </tr>
           </thead>
@@ -304,7 +302,6 @@ const AdminTenants = () => {
                      <option value="enterprise">Enterprise</option>
                    </select>
                 </td>
-                <td className="px-6 py-4 text-xs text-slate-500">{new Date(t.created_at).toLocaleDateString()}</td>
                 <td className="px-6 py-4 text-right">
                    <button onClick={() => window.open(`#/t/${t.slug}/dashboard`, '_blank')} className="text-brand-500 hover:text-brand-400 text-[10px] font-black uppercase tracking-widest">Impersonar ↗</button>
                 </td>
@@ -492,12 +489,12 @@ const Login = () => {
     setLoading(true);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (!error) { await refreshProfile(); navigate('/'); } 
-    else { alert(error.message); setLoading(false); }
+    else { alert("Error de acceso: Comprueba tus credenciales o regístrate si es tu primera vez."); setLoading(false); }
   };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-      <div className="max-w-md w-full bg-white p-10 rounded-3xl shadow-xl border border-gray-100">
+      <div className="max-w-md w-full bg-white p-10 rounded-3xl shadow-2xl border border-gray-100 animate-in zoom-in-95 duration-300">
         <div className="flex justify-between items-center mb-8">
             <Link to="/" className="font-black text-brand-600 tracking-tighter">← ACME</Link>
             <div className="flex items-center gap-2"><ConnectionStatusBadge /><LanguageSwitcher /></div>
@@ -509,6 +506,10 @@ const Login = () => {
           <Input label={t('password')} type="password" value={password} onChange={(e: any) => setPassword(e.target.value)} required />
           <Button type="submit" className="w-full py-3 text-lg" disabled={loading || !isConfigured}>{loading ? t('loading') : t('login_btn')}</Button>
         </form>
+        <p className="mt-6 text-center text-sm font-medium text-gray-500">
+          {t('no_account')}{' '}
+          <Link to="/signup" className="text-brand-600 font-bold hover:underline">{t('signup_btn')}</Link>
+        </p>
         <div className="relative my-8">
             <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-100"></div></div>
             <div className="relative flex justify-center text-[10px] font-black uppercase tracking-widest"><span className="px-3 bg-white text-gray-400">O pruébalo gratis</span></div>
@@ -517,6 +518,53 @@ const Login = () => {
           <Button onClick={() => { enterDemoMode(); navigate('/t/demo/dashboard'); }} variant="secondary" className="text-xs font-bold border-gray-200">🚀 {t('demo_mode')}</Button>
           <Button onClick={() => { enterDemoMode(true); navigate('/admin/dashboard'); }} variant="ghost" className="text-xs font-bold bg-slate-100">🛡️ SuperAdmin Demo</Button>
         </div>
+      </div>
+    </div>
+  );
+};
+
+const Signup = () => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [loading, setLoading] = useState(false);
+  const { t, dbHealthy } = useApp();
+  const navigate = useNavigate();
+
+  const handleSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isConfigured || dbHealthy === false) { alert("Conexión inactiva."); return; }
+    setLoading(true);
+    const { error } = await supabase.auth.signUp({ 
+      email, 
+      password,
+      options: { data: { full_name: fullName } }
+    });
+    if (!error) { 
+      alert("¡Cuenta creada! Revisa tu email para confirmar (si está activado) o inicia sesión."); 
+      navigate('/login'); 
+    } 
+    else { alert(error.message); setLoading(false); }
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+      <div className="max-w-md w-full bg-white p-10 rounded-3xl shadow-2xl border border-gray-100 animate-in slide-in-from-bottom-4 duration-300">
+        <div className="flex justify-between items-center mb-8">
+            <Link to="/" className="font-black text-brand-600 tracking-tighter">← ACME</Link>
+            <LanguageSwitcher />
+        </div>
+        <h2 className="text-3xl font-black mb-8 text-center text-gray-900 tracking-tight">{t('signup_title')}</h2>
+        <form onSubmit={handleSignup} className="space-y-4">
+          <Input label={t('fullname')} type="text" value={fullName} onChange={(e: any) => setFullName(e.target.value)} required placeholder="Tu Nombre" />
+          <Input label={t('email')} type="email" value={email} onChange={(e: any) => setEmail(e.target.value)} required placeholder="ejemplo@correo.com" />
+          <Input label={t('password')} type="password" value={password} onChange={(e: any) => setPassword(e.target.value)} required />
+          <Button type="submit" className="w-full py-3 text-lg" disabled={loading || !isConfigured}>{loading ? t('loading') : t('signup_btn')}</Button>
+        </form>
+        <p className="mt-6 text-center text-sm font-medium text-gray-500">
+          {t('have_account')}{' '}
+          <Link to="/login" className="text-brand-600 font-bold hover:underline">{t('login_btn')}</Link>
+        </p>
       </div>
     </div>
   );
@@ -636,12 +684,13 @@ const Onboarding = () => {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50 p-6">
+        <div className="min-h-screen flex items-center justify-center bg-gray-50 p-6 text-center">
             <div className="max-w-md w-full bg-white p-10 rounded-3xl shadow-xl border border-gray-100">
-                <h2 className="text-3xl font-black mb-2 text-center text-gray-900 tracking-tight">{t('onboarding_title')}</h2>
+                <h2 className="text-3xl font-black mb-2 text-gray-900 tracking-tight">{t('onboarding_title')}</h2>
+                <p className="mb-8 text-gray-500 text-sm font-medium">{t('onboarding_subtitle')}</p>
                 <form onSubmit={handleCreate} className="space-y-6">
-                    <Input label={t('company_name')} value={companyName} onChange={(e: any) => setCompanyName(e.target.value)} required />
-                    <Input label={t('company_slug')} value={slug} onChange={(e: any) => setSlug(e.target.value)} required />
+                    <Input label={t('company_name')} value={companyName} onChange={(e: any) => setCompanyName(e.target.value)} required placeholder="Ej: Mi Empresa S.L." />
+                    <Input label={t('company_slug')} value={slug} onChange={(e: any) => setSlug(e.target.value)} required placeholder="mi-empresa" />
                     <Button type="submit" className="w-full py-4 text-lg" disabled={loading}>{loading ? t('loading') : t('create_company_btn')}</Button>
                 </form>
             </div>
@@ -725,7 +774,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Landing />} />
           <Route path="/login" element={<Login />} />
-          <Route path="/signup" element={<div className="min-h-screen flex items-center justify-center bg-gray-50"><Link to="/login" className="text-brand-600 font-bold">Volver al Login</Link></div>} />
+          <Route path="/signup" element={<Signup />} />
           <Route path="/onboarding" element={session ? <Onboarding /> : <Navigate to="/login" />} />
           
           {/* Tenant Routes */}
