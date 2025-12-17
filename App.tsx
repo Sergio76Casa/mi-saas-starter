@@ -35,7 +35,7 @@ const useApp = () => {
 const LoadingSpinner = () => (
   <div className="flex h-screen w-full flex-col items-center justify-center bg-gray-50">
     <div className="h-16 w-16 animate-spin rounded-full border-4 border-brand-500 border-t-transparent shadow-xl"></div>
-    <p className="mt-6 text-gray-500 font-black uppercase tracking-widest text-[10px] animate-pulse italic">Conectando con la infraestructura...</p>
+    <p className="mt-6 text-gray-500 font-black uppercase tracking-widest text-[10px] animate-pulse italic">Cargando infraestructura...</p>
   </div>
 );
 
@@ -44,7 +44,7 @@ const ConnectionStatusBadge = () => {
   
   if (!isConfigured) return (
     <div className="flex items-center gap-1.5 px-3 py-1 bg-red-50 text-red-700 text-[9px] font-black uppercase tracking-widest rounded-full border border-red-200">
-      ⚠️ Error de Configuración
+      ⚠️ Sin Configurar
     </div>
   );
 
@@ -54,7 +54,7 @@ const ConnectionStatusBadge = () => {
         {dbHealthy && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>}
         <span className={`relative inline-flex rounded-full h-2 w-2 ${dbHealthy ? 'bg-green-500' : 'bg-amber-500'}`}></span>
       </span>
-      {dbHealthy ? 'Supabase Online' : 'Conectando...'}
+      {dbHealthy ? 'Supabase Online' : 'Problemas de Enlace'}
     </div>
   );
 };
@@ -82,7 +82,7 @@ const LanguageSwitcher = () => {
 const Input = ({ label, ...props }: any) => (
   <div className="mb-4 text-left">
     <label className="block text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1.5 ml-1">{label}</label>
-    <input className="w-full px-4 py-3 border border-gray-100 rounded-2xl shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-500 transition-all text-sm bg-gray-50/50 placeholder:text-gray-300" {...props} />
+    <input className="w-full px-4 py-3 border border-gray-100 rounded-2xl shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-500 transition-all text-sm bg-gray-50/50" {...props} />
   </div>
 );
 
@@ -93,7 +93,7 @@ const SuperAdminFloatingBar = () => {
   return (
     <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] animate-in slide-in-from-bottom-10 duration-500">
       <Link to="/admin/dashboard" className="flex items-center gap-3 px-6 py-3 bg-slate-900 text-white rounded-full shadow-2xl border border-white/10 hover:scale-105 transition-all group">
-        <span className="text-[10px] font-black uppercase tracking-[0.2em]">Acceder a Administración Central</span>
+        <span className="text-[10px] font-black uppercase tracking-[0.2em]">Panel de Control Central</span>
         <span className="group-hover:translate-x-1 transition-transform">→</span>
       </Link>
     </div>
@@ -146,7 +146,7 @@ const AdminLayout = () => {
       <main className="flex-1 flex flex-col h-screen overflow-hidden">
         <header className="h-24 bg-white/[0.02] border-b border-white/5 flex items-center justify-between px-10 shrink-0">
           <div className="flex flex-col">
-            <h2 className="text-xl font-black text-white tracking-tight">SuperAdmin Panel</h2>
+            <h2 className="text-xl font-black text-white tracking-tight">SuperAdmin Control</h2>
             <div className="flex items-center gap-2">
                <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
                <span className="text-[9px] font-black uppercase text-slate-500 tracking-widest">Servidor Online</span>
@@ -157,7 +157,7 @@ const AdminLayout = () => {
             <div className="h-12 w-12 bg-gradient-to-tr from-brand-600 to-brand-400 text-white rounded-2xl flex items-center justify-center font-black shadow-xl text-sm">SA</div>
           </div>
         </header>
-        <div className="flex-1 overflow-auto p-12">
+        <div className="flex-1 overflow-auto p-12 bg-[radial-gradient(circle_at_top_right,_rgba(34,197,94,0.05),_transparent)]">
           <Outlet />
         </div>
       </main>
@@ -182,12 +182,26 @@ const AdminDashboard = () => {
           </div>
         ))}
       </div>
-      <div className="bg-brand-600/10 border border-brand-500/20 rounded-[2.5rem] p-10">
-        <h3 className="text-xs font-black text-brand-500 uppercase tracking-widest mb-4">¡Bienvenido Jefe!</h3>
-        <p className="text-sm text-slate-300 leading-relaxed font-medium">
-          Desde aquí puedes controlar cada aspecto de la plataforma. Usa la sección **CMS** para cambiar los textos de la landing 
-          o **Tenants** para crear y gestionar empresas individuales.
+
+      <div className="bg-red-900/10 border border-red-500/30 rounded-[2.5rem] p-10 relative overflow-hidden">
+        <div className="absolute top-0 right-0 p-8 opacity-10 text-6xl">🛠️</div>
+        <h3 className="text-sm font-black text-red-400 uppercase tracking-widest mb-6">¿Errores de RLS / Permisos?</h3>
+        <p className="text-sm text-slate-300 leading-relaxed font-medium mb-8 max-w-2xl">
+          Si al crear un Tenant recibes el error "new row violates row-level security policy", es porque tu base de datos está bloqueando el acceso.
+          Copia este código y ejecútalo en el **SQL Editor** de tu panel de Supabase:
         </p>
+        <div className="bg-black/60 rounded-[1.5rem] p-8 border border-white/5 font-mono text-[10px] text-brand-400 overflow-x-auto select-all shadow-inner leading-relaxed">
+{`-- 1. Permitir que usuarios autenticados creen empresas
+CREATE POLICY "Allow individual insert" ON tenants FOR INSERT TO authenticated WITH CHECK (true);
+
+-- 2. Permitir que SuperAdmins gestionen todo
+CREATE POLICY "Allow superadmin everything" ON tenants FOR ALL TO authenticated 
+USING ((SELECT is_superadmin FROM profiles WHERE id = auth.uid()) = true);
+
+-- 3. Permitir que cada usuario vea su empresa
+CREATE POLICY "Allow user view own tenant" ON tenants FOR SELECT TO authenticated 
+USING (EXISTS (SELECT 1 FROM memberships WHERE memberships.tenant_id = tenants.id AND memberships.user_id = auth.uid()));`}
+        </div>
       </div>
     </div>
   );
@@ -210,8 +224,10 @@ const AdminTenants = () => {
   const handleCreateTenant = async () => {
     if (!newTenant.name || !newTenant.slug) return alert("Rellena nombre y slug");
     const { error } = await supabase.from('tenants').insert([newTenant]);
-    if (error) alert("Error: " + error.message);
-    else {
+    if (error) {
+      console.error(error);
+      alert("⚠️ ERROR DE PERMISOS: " + error.message + "\n\nRevisa la guía de RLS en el Dashboard del Admin.");
+    } else {
       setIsCreating(false);
       setNewTenant({ name: '', slug: '', plan: 'free' });
       fetchTenants();
@@ -232,7 +248,7 @@ const AdminTenants = () => {
               <h4 className="text-xl font-black text-white mb-6">Nuevo Registro</h4>
               <div className="space-y-4">
                  <input placeholder="Nombre de Empresa" className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white text-sm" value={newTenant.name} onChange={e => setNewTenant({...newTenant, name: e.target.value})} />
-                 <input placeholder="url-personalizada" className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white text-sm" value={newTenant.slug} onChange={e => setNewTenant({...newTenant, slug: e.target.value.toLowerCase().replace(/ /g, '-')})} />
+                 <input placeholder="url-personalizada" className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white text-sm" value={newTenant.slug} onChange={e => setNewTenant({...newTenant, slug: e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, '-')})} />
                  <select className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white text-sm" value={newTenant.plan} onChange={e => setNewTenant({...newTenant, plan: e.target.value as any})}>
                     <option value="free">Plan Free</option>
                     <option value="pro">Plan Pro</option>
@@ -247,7 +263,7 @@ const AdminTenants = () => {
         </div>
       )}
 
-      <div className="bg-white/5 border border-white/5 rounded-[2.5rem] overflow-hidden">
+      <div className="bg-white/5 border border-white/5 rounded-[2.5rem] overflow-hidden shadow-2xl">
         <table className="w-full text-left">
           <thead className="bg-white/5 text-slate-500 text-[10px] font-black uppercase tracking-widest">
             <tr>
@@ -302,17 +318,18 @@ const AdminCMS = () => {
     ];
     const { error } = await supabase.from('platform_content').upsert(defaults);
     if (!error) { fetchCMS(); alert("CMS Inicializado correctamente."); }
+    else alert("Error al inicializar. Revisa tus políticas de RLS.");
   };
 
   const handleSave = async () => {
     if (!editing) return;
     setIsSaving(true);
     const { error } = await supabase.from('platform_content').upsert([editing]);
-    if (error) alert("Error al guardar: " + error.message);
+    if (error) alert("Error: " + error.message);
     else {
       await fetchCMS();
       setEditing(null);
-      alert("¡Cambios publicados en la Landing Page!");
+      alert("¡Cambios publicados!");
     }
     setIsSaving(false);
   };
@@ -322,26 +339,20 @@ const AdminCMS = () => {
       <div className="flex justify-between items-center">
         <h3 className="text-2xl font-black text-white tracking-tight">Editor Global (CMS)</h3>
         {content.length === 0 && (
-          <button onClick={seedCMS} className="px-6 py-3 bg-brand-600 text-white text-[10px] font-black uppercase rounded-xl">Inicializar Datos por Defecto</button>
+          <button onClick={seedCMS} className="px-6 py-3 bg-brand-600 text-white text-[10px] font-black uppercase rounded-xl">Inicializar Datos</button>
         )}
       </div>
       
       {editing && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-xl z-[100] flex items-center justify-center p-6">
            <div className="bg-slate-900 border border-white/10 p-12 rounded-[3rem] w-full max-w-xl shadow-2xl">
-              <h4 className="text-xl font-black text-white mb-8">Editando: <span className="text-brand-500 uppercase text-xs font-mono">{editing.key}</span></h4>
+              <h4 className="text-xl font-black text-white mb-8">Nodo: <span className="text-brand-500 text-xs font-mono">{editing.key}</span></h4>
               <div className="space-y-6">
-                 <div>
-                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 italic">Español (ES)</label>
-                    <textarea value={editing.es} onChange={e => setEditing({...editing, es: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-2xl p-6 text-sm text-slate-200 h-32 outline-none focus:ring-2 focus:ring-brand-500" />
-                 </div>
-                 <div>
-                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 italic">Català (CA)</label>
-                    <textarea value={editing.ca} onChange={e => setEditing({...editing, ca: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-2xl p-6 text-sm text-slate-200 h-32 outline-none focus:ring-2 focus:ring-brand-500" />
-                 </div>
+                 <textarea value={editing.es} onChange={e => setEditing({...editing, es: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-2xl p-6 text-sm text-slate-200 h-32 outline-none focus:ring-2 focus:ring-brand-500" placeholder="Español" />
+                 <textarea value={editing.ca} onChange={e => setEditing({...editing, ca: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-2xl p-6 text-sm text-slate-200 h-32 outline-none focus:ring-2 focus:ring-brand-500" placeholder="Català" />
               </div>
               <div className="flex gap-4 mt-10">
-                 <button onClick={handleSave} disabled={isSaving} className="flex-1 py-4 bg-brand-600 text-white rounded-2xl font-black text-[10px] uppercase shadow-xl">{isSaving ? 'Guardando...' : 'Publicar Ahora'}</button>
+                 <button onClick={handleSave} disabled={isSaving} className="flex-1 py-4 bg-brand-600 text-white rounded-2xl font-black text-[10px] uppercase shadow-xl">{isSaving ? 'Guardando...' : 'Publicar'}</button>
                  <button onClick={() => setEditing(null)} className="px-8 py-4 text-slate-400 font-black text-[10px] uppercase">Cerrar</button>
               </div>
            </div>
@@ -353,7 +364,7 @@ const AdminCMS = () => {
           <thead className="bg-white/5 text-slate-500 text-[10px] font-black uppercase tracking-widest">
             <tr>
               <th className="px-10 py-6">Clave</th>
-              <th className="px-10 py-6">Valor Actual (ES)</th>
+              <th className="px-10 py-6">Visualización ES</th>
               <th className="px-10 py-6 text-right">Acción</th>
             </tr>
           </thead>
@@ -363,7 +374,7 @@ const AdminCMS = () => {
                 <td className="px-10 py-6 font-mono text-[10px] text-brand-400 font-black uppercase tracking-widest">{item.key}</td>
                 <td className="px-10 py-6 text-sm text-slate-300 truncate max-w-md">{item.es}</td>
                 <td className="px-10 py-6 text-right">
-                  <button onClick={() => setEditing(item)} className="px-5 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-[9px] font-black uppercase tracking-widest transition-all">Editar Nodo</button>
+                  <button onClick={() => setEditing(item)} className="px-5 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-[9px] font-black uppercase tracking-widest transition-all">Editar</button>
                 </td>
               </tr>
             ))}
@@ -509,7 +520,7 @@ const Landing = () => {
       </header>
       
       <main className="max-w-7xl mx-auto px-6 py-40 text-center">
-        <div className="inline-block px-4 py-1.5 bg-brand-50 text-brand-600 text-[10px] font-black uppercase tracking-widest rounded-full mb-8">Novedad: SaaS Multi-Tenant v1.5</div>
+        <div className="inline-block px-4 py-1.5 bg-brand-50 text-brand-600 text-[10px] font-black uppercase tracking-widest rounded-full mb-8">Novedad: SaaS Multi-Tenant v1.6</div>
         <h1 className="text-8xl font-black text-gray-900 mb-10 tracking-tighter leading-[0.9] animate-in slide-in-from-bottom-12 duration-1000">
            {content['home_hero_title'] || 'Controla tu negocio con precisión.'}
         </h1>
@@ -626,8 +637,10 @@ const Onboarding = () => {
         e.preventDefault();
         setLoading(true);
         const finalSlug = slug.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-');
-        const { data: tenant } = await supabase.from('tenants').insert([{ name, slug: finalSlug }]).select().single();
-        if (tenant) {
+        const { data: tenant, error } = await supabase.from('tenants').insert([{ name, slug: finalSlug }]).select().single();
+        if (error) {
+           alert("⚠️ ERROR DE PERMISOS (RLS): " + error.message + "\n\nContacta con el administrador del sistema.");
+        } else if (tenant) {
             await supabase.from('memberships').insert([{ user_id: session?.user.id, tenant_id: tenant.id, role: 'owner' }]);
             await refreshProfile();
             navigate(`/t/${finalSlug}/dashboard`);
