@@ -100,6 +100,83 @@ const SuperAdminFloatingBar = () => {
   );
 };
 
+// --- Public Client Website Component ---
+
+const PublicTenantWebsite = () => {
+  const { slug } = useParams();
+  const { dbHealthy, language } = useApp();
+  const [tenant, setTenant] = useState<Tenant | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchTenant = async () => {
+      if (!isConfigured || !dbHealthy) { setLoading(false); return; }
+      const { data, error } = await supabase.from('tenants').select('*').eq('slug', slug).single();
+      if (data) setTenant(data);
+      setLoading(false);
+    };
+    fetchTenant();
+  }, [slug, dbHealthy]);
+
+  if (loading) return <LoadingSpinner />;
+  if (!tenant) return (
+    <div className="min-h-screen flex items-center justify-center bg-white p-12 text-center">
+       <div>
+         <h1 className="text-9xl font-black text-gray-100 mb-4">404</h1>
+         <p className="text-gray-400 font-black uppercase tracking-widest text-xs italic">Empresa no encontrada</p>
+         <Link to="/" className="mt-10 inline-block text-brand-600 font-black uppercase text-[10px] underline tracking-widest">Volver al inicio</Link>
+       </div>
+    </div>
+  );
+
+  return (
+    <div className="min-h-screen bg-white font-sans selection:bg-brand-500 selection:text-white">
+      <nav className="flex items-center justify-between px-10 py-8 sticky top-0 bg-white/80 backdrop-blur-xl z-50">
+        <div className="text-2xl font-black text-gray-900 italic tracking-tighter uppercase">{tenant.name}</div>
+        <div className="flex items-center gap-10">
+           <a href="#services" className="text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-gray-900 transition-colors">Servicios</a>
+           <a href="#contact" className="px-8 py-3 bg-gray-900 text-white rounded-full text-[10px] font-black uppercase tracking-widest shadow-xl hover:scale-105 transition-all">Contacto</a>
+        </div>
+      </nav>
+      
+      <main className="max-w-7xl mx-auto px-10">
+        <section className="py-40 text-center">
+          <div className="inline-block px-4 py-1.5 bg-brand-50 text-brand-600 rounded-full text-[9px] font-black uppercase tracking-[0.2em] mb-8 border border-brand-100">Bienvenido a nuestra web</div>
+          <h1 className="text-[8rem] font-black text-gray-900 tracking-tighter leading-[0.85] mb-12 uppercase">{tenant.name}</h1>
+          <p className="text-xl text-gray-400 max-w-2xl mx-auto font-medium leading-relaxed italic">Expertos en soluciones profesionales. Calidad, compromiso y resultados garantizados para cada uno de nuestros clientes.</p>
+        </section>
+
+        <section id="services" className="py-32 grid grid-cols-1 md:grid-cols-3 gap-10">
+           {[
+            { t: 'Calidad Premium', d: 'Utilizamos los mejores materiales y procesos del mercado.', i: '💎' },
+            { t: 'Atención 24/7', d: 'Estamos siempre disponibles para resolver tus dudas.', i: '⚡' },
+            { t: 'Resultados', d: 'Nuestra prioridad es que tu negocio crezca con nosotros.', i: '📈' }
+           ].map((s, i) => (
+             <div key={i} className="bg-gray-50 p-12 rounded-[3.5rem] border border-gray-100 hover:shadow-2xl transition-all group">
+                <div className="text-4xl mb-6 grayscale group-hover:grayscale-0 transition-all">{s.i}</div>
+                <h3 className="text-xl font-black text-gray-900 mb-4">{s.t}</h3>
+                <p className="text-gray-500 font-medium leading-relaxed">{s.d}</p>
+             </div>
+           ))}
+        </section>
+
+        <section id="contact" className="py-40">
+           <div className="bg-gray-900 rounded-[4.5rem] p-24 text-center text-white relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-brand-500/20 blur-[100px]"></div>
+              <h2 className="text-6xl font-black tracking-tighter mb-8 italic">¿Hablamos?</h2>
+              <p className="text-slate-400 text-lg mb-12 max-w-xl mx-auto">Pide tu presupuesto sin compromiso hoy mismo.</p>
+              <button className="px-12 py-6 bg-white text-gray-900 rounded-[2.5rem] font-black uppercase tracking-widest shadow-2xl hover:bg-brand-500 hover:text-white transition-all">Enviar Mensaje</button>
+           </div>
+        </section>
+      </main>
+
+      <footer className="py-20 border-t border-gray-50 text-center">
+         <div className="text-[10px] font-black uppercase tracking-widest text-gray-300">© 2024 {tenant.name} · Powered by ACME SaaS</div>
+      </footer>
+    </div>
+  );
+};
+
 // --- Tenant Operations Components ---
 
 const Customers = () => {
@@ -440,14 +517,17 @@ const AdminTenants = () => {
         )}
         <table className="w-full text-left">
           <thead className="bg-white/5 text-slate-500 text-[10px] font-black uppercase tracking-widest">
-            <tr><th className="px-10 py-6">Empresa</th><th className="px-10 py-6">Licencia</th><th className="px-10 py-6 text-right">Acceso</th></tr>
+            <tr><th className="px-10 py-6">Empresa</th><th className="px-10 py-6">Licencia</th><th className="px-10 py-6 text-right">Acciones</th></tr>
           </thead>
           <tbody className="divide-y divide-white/5">
             {tenants.map(t => (
               <tr key={t.id} className="hover:bg-white/[0.02] transition-colors">
                 <td className="px-10 py-6"><div className="font-black text-white">{t.name}</div><div className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">/{t.slug}</div></td>
                 <td className="px-10 py-6"><span className={`px-4 py-1.5 text-[9px] font-black uppercase rounded-full border ${t.plan === 'pro' ? 'bg-brand-500/10 text-brand-500 border-brand-500/20' : 'bg-slate-800 text-slate-400 border-white/5'}`}>{t.plan}</span></td>
-                <td className="px-10 py-6 text-right"><Link to={`/t/${t.slug}/dashboard`} className="px-5 py-2.5 bg-white/5 hover:bg-white/10 text-white text-[9px] font-black uppercase tracking-widest rounded-xl transition-all border border-white/5">Impersonar →</Link></td>
+                <td className="px-10 py-6 text-right flex gap-3 justify-end">
+                   <a href={`#/c/${t.slug}`} target="_blank" rel="noreferrer" className="px-5 py-2.5 bg-brand-600/10 hover:bg-brand-600 text-brand-600 hover:text-white text-[9px] font-black uppercase tracking-widest rounded-xl transition-all border border-brand-500/20">Ver Web ↗</a>
+                   <Link to={`/t/${t.slug}/dashboard`} className="px-5 py-2.5 bg-white/5 hover:bg-white/10 text-white text-[9px] font-black uppercase tracking-widest rounded-xl transition-all border border-white/5">Panel →</Link>
+                </td>
               </tr>
             ))}
             {tenants.length === 0 && !isLoading && (
@@ -678,7 +758,10 @@ const TenantLayout = () => {
       <main className="flex-1 flex flex-col h-screen overflow-hidden">
         <header className="h-24 bg-white border-b border-gray-100 flex items-center justify-between px-12 shrink-0">
              <h2 className="text-2xl font-black text-gray-900 tracking-tight">{currentTenant.name}</h2>
-             {profile?.is_superadmin && <Link to="/admin/dashboard" className="px-4 py-2 bg-slate-900 text-white text-[9px] font-black uppercase rounded-full shadow-lg">SYSTEM ADMIN</Link>}
+             <div className="flex gap-4">
+                <a href={`#/c/${slug}`} target="_blank" rel="noreferrer" className="px-4 py-2 bg-gray-50 text-gray-400 text-[9px] font-black uppercase rounded-full border border-gray-100 hover:text-gray-900 transition-all">Ver Web Pública ↗</a>
+                {profile?.is_superadmin && <Link to="/admin/dashboard" className="px-4 py-2 bg-slate-900 text-white text-[9px] font-black uppercase rounded-full shadow-lg">SYSTEM ADMIN</Link>}
+             </div>
         </header>
         <div className="flex-1 overflow-auto p-12"><Outlet context={{ tenant: currentTenant }} /></div>
       </main>
@@ -719,7 +802,6 @@ const Onboarding = () => {
     const [slug, setSlug] = useState('');
     const [loading, setLoading] = useState(false);
 
-    // Auto-generar slug a partir del nombre
     const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const val = e.target.value;
         setName(val);
@@ -753,7 +835,7 @@ const Onboarding = () => {
                         
                         <div className="bg-gray-50 p-4 rounded-2xl text-left border border-gray-100 mb-6">
                             <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Previsualización URL</span>
-                            <p className="text-[10px] font-mono text-brand-600 truncate mt-1">acme-saas.com/#/t/{slug || '...'}</p>
+                            <p className="text-[10px] font-mono text-brand-600 truncate mt-1">acme-saas.com/#/c/{slug || '...'}</p>
                         </div>
 
                         <button type="submit" disabled={loading} className="w-full py-5 bg-slate-900 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest hover:bg-black transition-all shadow-xl">
@@ -839,6 +921,7 @@ export default function App() {
           <Route path="/" element={<Landing />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
+          <Route path="/c/:slug" element={<PublicTenantWebsite />} />
           <Route path="/onboarding" element={session ? <Onboarding /> : <Navigate to="/login" />} />
           <Route path="/t/:slug" element={<TenantLayout />}>
             <Route path="dashboard" element={<Dashboard />} />
