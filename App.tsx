@@ -35,7 +35,7 @@ const useApp = () => {
 const LoadingSpinner = () => (
   <div className="flex h-screen w-full flex-col items-center justify-center bg-gray-50">
     <div className="h-16 w-16 animate-spin rounded-full border-4 border-brand-500 border-t-transparent shadow-xl"></div>
-    <p className="mt-6 text-gray-500 font-black uppercase tracking-widest text-[10px] animate-pulse italic">Cargando infraestructura...</p>
+    <p className="mt-6 text-gray-500 font-black uppercase tracking-widest text-[10px] animate-pulse italic">Sincronizando con la nube...</p>
   </div>
 );
 
@@ -44,7 +44,7 @@ const ConnectionStatusBadge = () => {
   
   if (!isConfigured) return (
     <div className="flex items-center gap-1.5 px-3 py-1 bg-red-50 text-red-700 text-[9px] font-black uppercase tracking-widest rounded-full border border-red-200">
-      ⚠️ Sin Configurar
+      ⚠️ Error Config
     </div>
   );
 
@@ -54,7 +54,7 @@ const ConnectionStatusBadge = () => {
         {dbHealthy && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>}
         <span className={`relative inline-flex rounded-full h-2 w-2 ${dbHealthy ? 'bg-green-500' : 'bg-amber-500'}`}></span>
       </span>
-      {dbHealthy ? 'Supabase Online' : 'Problemas de Enlace'}
+      {dbHealthy ? 'Enlace Activo' : 'Reconectando'}
     </div>
   );
 };
@@ -62,7 +62,7 @@ const ConnectionStatusBadge = () => {
 const LanguageSwitcher = () => {
   const { language, setLanguage } = useApp();
   return (
-    <div className="flex bg-gray-100 p-1 rounded-xl">
+    <div className="flex bg-gray-100 p-1 rounded-xl shadow-inner">
       <button 
         onClick={() => setLanguage('es')} 
         className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${language === 'es' ? 'bg-white text-brand-600 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
@@ -93,7 +93,7 @@ const SuperAdminFloatingBar = () => {
   return (
     <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] animate-in slide-in-from-bottom-10 duration-500">
       <Link to="/admin/dashboard" className="flex items-center gap-3 px-6 py-3 bg-slate-900 text-white rounded-full shadow-2xl border border-white/10 hover:scale-105 transition-all group">
-        <span className="text-[10px] font-black uppercase tracking-[0.2em]">Panel de Control Central</span>
+        <span className="text-[10px] font-black uppercase tracking-[0.2em]">Panel del Sistema Central</span>
         <span className="group-hover:translate-x-1 transition-transform">→</span>
       </Link>
     </div>
@@ -146,10 +146,10 @@ const AdminLayout = () => {
       <main className="flex-1 flex flex-col h-screen overflow-hidden">
         <header className="h-24 bg-white/[0.02] border-b border-white/5 flex items-center justify-between px-10 shrink-0">
           <div className="flex flex-col">
-            <h2 className="text-xl font-black text-white tracking-tight">SuperAdmin Control</h2>
+            <h2 className="text-xl font-black text-white tracking-tight">Consola de Control</h2>
             <div className="flex items-center gap-2">
                <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-               <span className="text-[9px] font-black uppercase text-slate-500 tracking-widest">Servidor Online</span>
+               <span className="text-[9px] font-black uppercase text-slate-500 tracking-widest">Servidor Operativo</span>
             </div>
           </div>
           <div className="flex items-center gap-6">
@@ -166,6 +166,18 @@ const AdminLayout = () => {
 };
 
 const AdminDashboard = () => {
+  const { session, profile } = useApp();
+  const [dbAdminStatus, setDbAdminStatus] = useState<'checking' | 'admin' | 'restricted'>('checking');
+
+  useEffect(() => {
+    const checkRealAdmin = async () => {
+      if (!session) return;
+      const { data } = await supabase.from('profiles').select('is_superadmin').eq('id', session.user.id).single();
+      setDbAdminStatus(data?.is_superadmin ? 'admin' : 'restricted');
+    };
+    checkRealAdmin();
+  }, [session]);
+
   return (
     <div className="space-y-12 animate-in fade-in duration-700">
       <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
@@ -183,25 +195,34 @@ const AdminDashboard = () => {
         ))}
       </div>
 
-      <div className="bg-red-900/10 border border-red-500/30 rounded-[2.5rem] p-10 relative overflow-hidden">
-        <div className="absolute top-0 right-0 p-8 opacity-10 text-6xl">🛠️</div>
-        <h3 className="text-sm font-black text-red-400 uppercase tracking-widest mb-6">¿Errores de RLS / Permisos?</h3>
-        <p className="text-sm text-slate-300 leading-relaxed font-medium mb-8 max-w-2xl">
-          Si al crear un Tenant recibes el error "new row violates row-level security policy", es porque tu base de datos está bloqueando el acceso.
-          Copia este código y ejecútalo en el **SQL Editor** de tu panel de Supabase:
-        </p>
-        <div className="bg-black/60 rounded-[1.5rem] p-8 border border-white/5 font-mono text-[10px] text-brand-400 overflow-x-auto select-all shadow-inner leading-relaxed">
-{`-- 1. Permitir que usuarios autenticados creen empresas
-CREATE POLICY "Allow individual insert" ON tenants FOR INSERT TO authenticated WITH CHECK (true);
+      <div className="bg-brand-900/10 border border-brand-500/30 rounded-[2.5rem] p-10 relative overflow-hidden">
+         <div className="flex items-center justify-between mb-8">
+           <h3 className="text-sm font-black text-brand-400 uppercase tracking-widest">Inspector de Privilegios</h3>
+           <div className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase ${dbAdminStatus === 'admin' ? 'bg-green-500/20 text-green-400 border border-green-500/30' : 'bg-red-500/20 text-red-400 border border-red-500/30'}`}>
+             {dbAdminStatus === 'checking' ? 'Verificando...' : dbAdminStatus === 'admin' ? '✓ SuperAdmin Reconocido' : '❌ Acceso Limitado en DB'}
+           </div>
+         </div>
+         {dbAdminStatus === 'restricted' && (
+           <div className="bg-red-500/10 border border-red-500/20 p-6 rounded-2xl mb-8">
+             <p className="text-sm text-red-200 font-medium">
+               ⚠️ Tu sesión actual tiene permisos de Admin en la interfaz, pero **la Base de Datos no te reconoce como SuperAdmin**. 
+               Por eso no ves los registros creados. Ejecuta el comando de abajo para arreglarlo.
+             </p>
+           </div>
+         )}
+         <p className="text-xs text-slate-400 mb-6 italic">Ejecuta esto en el SQL Editor si no ves las empresas creadas:</p>
+         <div className="bg-black/60 rounded-[1.5rem] p-8 border border-white/5 font-mono text-[10px] text-brand-400 overflow-x-auto select-all shadow-inner leading-relaxed whitespace-pre">
+{`UPDATE profiles SET is_superadmin = true WHERE email = '${session?.user?.email}';
 
--- 2. Permitir que SuperAdmins gestionen todo
-CREATE POLICY "Allow superadmin everything" ON tenants FOR ALL TO authenticated 
-USING ((SELECT is_superadmin FROM profiles WHERE id = auth.uid()) = true);
+DROP POLICY IF EXISTS "Users can view their tenants" ON tenants;
 
--- 3. Permitir que cada usuario vea su empresa
-CREATE POLICY "Allow user view own tenant" ON tenants FOR SELECT TO authenticated 
-USING (EXISTS (SELECT 1 FROM memberships WHERE memberships.tenant_id = tenants.id AND memberships.user_id = auth.uid()));`}
-        </div>
+CREATE POLICY "Users can view their tenants" ON tenants FOR SELECT TO authenticated 
+USING (
+  (SELECT is_superadmin FROM profiles WHERE id = auth.uid()) = true
+  OR 
+  id IN (SELECT tenant_id FROM memberships WHERE user_id = auth.uid())
+);`}
+         </div>
       </div>
     </div>
   );
@@ -215,7 +236,8 @@ const AdminTenants = () => {
 
   const fetchTenants = async () => {
     if (!dbHealthy) return;
-    const { data } = await supabase.from('tenants').select('*').order('created_at', { ascending: false });
+    const { data, error } = await supabase.from('tenants').select('*').order('created_at', { ascending: false });
+    if (error) console.error("Error fetching:", error);
     if (data) setTenants(data as any);
   };
 
@@ -225,13 +247,12 @@ const AdminTenants = () => {
     if (!newTenant.name || !newTenant.slug) return alert("Rellena nombre y slug");
     const { error } = await supabase.from('tenants').insert([newTenant]);
     if (error) {
-      console.error(error);
-      alert("⚠️ ERROR DE PERMISOS: " + error.message + "\n\nRevisa la guía de RLS en el Dashboard del Admin.");
+      alert("⚠️ ERROR: " + error.message);
     } else {
       setIsCreating(false);
       setNewTenant({ name: '', slug: '', plan: 'free' });
-      fetchTenants();
-      alert("¡Tenant creado con éxito!");
+      await fetchTenants(); // Recargar lista
+      alert("¡Tenant creado! Si no aparece en la lista inferior, revisa el Inspector de Privilegios en el Dashboard.");
     }
   };
 
@@ -288,7 +309,7 @@ const AdminTenants = () => {
               </tr>
             ))}
             {tenants.length === 0 && (
-              <tr><td colSpan={3} className="px-10 py-20 text-center text-slate-600 font-black uppercase tracking-widest text-xs italic">No hay empresas registradas</td></tr>
+              <tr><td colSpan={3} className="px-10 py-20 text-center text-slate-600 font-black uppercase tracking-widest text-xs italic">No hay empresas visibles (Revisa permisos)</td></tr>
             )}
           </tbody>
         </table>
@@ -520,7 +541,7 @@ const Landing = () => {
       </header>
       
       <main className="max-w-7xl mx-auto px-6 py-40 text-center">
-        <div className="inline-block px-4 py-1.5 bg-brand-50 text-brand-600 text-[10px] font-black uppercase tracking-widest rounded-full mb-8">Novedad: SaaS Multi-Tenant v1.6</div>
+        <div className="inline-block px-4 py-1.5 bg-brand-50 text-brand-600 text-[10px] font-black uppercase tracking-widest rounded-full mb-8">Novedad: SaaS Multi-Tenant v1.6.2</div>
         <h1 className="text-8xl font-black text-gray-900 mb-10 tracking-tighter leading-[0.9] animate-in slide-in-from-bottom-12 duration-1000">
            {content['home_hero_title'] || 'Controla tu negocio con precisión.'}
         </h1>
@@ -567,8 +588,8 @@ const TenantLayout = () => {
           <div className="font-black text-xl truncate text-brand-600 tracking-tighter uppercase italic">{currentTenant.name}</div>
         </div>
         <div className="p-6">
-           <div className="bg-gray-50 p-4 rounded-3xl border border-gray-100">
-              <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-2">Workspace actual</label>
+           <div className="bg-gray-50 p-4 rounded-3xl border border-gray-100 shadow-inner">
+              <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-2">Espacio de Trabajo</label>
               <select className="w-full text-sm bg-transparent border-none font-black text-gray-800 focus:ring-0 p-0 cursor-pointer" value={slug} onChange={(e) => navigate(`/t/${e.target.value}/dashboard`)}>
                 {memberships.map(m => <option key={m.tenant_id} value={m.tenant?.slug}>{m.tenant?.name}</option>)}
               </select>
@@ -612,7 +633,7 @@ const Dashboard = () => {
             { l: t('active_quotes'), v: '18', i: '⏳' },
             { l: t('total_customers'), v: '124', i: '👥' },
           ].map((s, i) => (
-            <div key={i} className="bg-white p-10 rounded-[2.8rem] shadow-sm border border-gray-50 hover:shadow-2xl transition-all group">
+            <div key={i} className="bg-white p-10 rounded-[2.8rem] shadow-sm border border-gray-100 hover:shadow-2xl transition-all group">
               <div className="w-14 h-14 bg-gray-50 text-gray-900 rounded-2xl flex items-center justify-center text-2xl mb-6 group-hover:bg-brand-600 group-hover:text-white transition-all">{s.i}</div>
               <h3 className="text-gray-400 text-[10px] font-black uppercase tracking-widest">{s.l}</h3>
               <p className="text-4xl font-black mt-2 text-gray-900 tracking-tighter">{s.v}</p>
