@@ -1,6 +1,6 @@
-import React, { useState, useEffect, createContext, useContext, useCallback } from 'react';
+import React, { useState, useEffect, createContext, useContext } from 'react';
 import { HashRouter, Routes, Route, Link, useNavigate, useParams, Navigate, Outlet, useLocation, useOutletContext } from 'react-router-dom';
-import { supabase } from './supabaseClient';
+import { supabase, isConfigured, SUPABASE_URL } from './supabaseClient';
 import { Membership, Profile, Tenant, Customer, Quote, QuoteItem, Language, PlatformContent, TenantContent } from './types';
 import { translations, formatCurrency, formatDate } from './i18n';
 import { Session } from '@supabase/supabase-js';
@@ -38,6 +38,16 @@ const LoadingSpinner = () => (
   </div>
 );
 
+const AlertConfigMissing = () => (
+  <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-2xl flex items-start gap-3">
+    <span className="text-xl text-amber-500">⚠️</span>
+    <div className="text-xs text-amber-800 leading-relaxed">
+      <p className="font-bold mb-1">Configuración pendiente</p>
+      <p>Has añadido las variables en Vercel, pero debes hacer un <strong>Redeploy</strong> desde el panel para que el código las reconozca.</p>
+    </div>
+  </div>
+);
+
 const Button = ({ children, onClick, variant = 'primary', className = '', type = 'button', disabled = false }: any) => {
   const base = "px-4 py-2 rounded-md font-medium transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 active:scale-95";
   const variants = {
@@ -63,7 +73,7 @@ const Input = ({ label, ...props }: any) => (
   <div className="mb-4">
     <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
     <input 
-      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-all" 
+      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-all text-sm" 
       {...props} 
     />
   </div>
@@ -72,16 +82,16 @@ const Input = ({ label, ...props }: any) => (
 const LanguageSwitcher = () => {
   const { language, setLanguage } = useApp();
   return (
-    <div className="flex items-center space-x-1 bg-gray-100 p-1 rounded-lg text-xs font-bold">
+    <div className="flex items-center space-x-1 bg-gray-100 p-1 rounded-lg text-[10px] font-black">
       <button 
         onClick={() => setLanguage('es')} 
-        className={`px-3 py-1.5 rounded-md transition-all ${language === 'es' ? 'bg-white text-brand-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+        className={`px-3 py-1.5 rounded-md transition-all ${language === 'es' ? 'bg-white text-brand-700 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
       >
         ES
       </button>
       <button 
         onClick={() => setLanguage('ca')} 
-        className={`px-3 py-1.5 rounded-md transition-all ${language === 'ca' ? 'bg-white text-brand-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+        className={`px-3 py-1.5 rounded-md transition-all ${language === 'ca' ? 'bg-white text-brand-700 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
       >
         CA
       </button>
@@ -92,10 +102,11 @@ const LanguageSwitcher = () => {
 // --- Pages: Platform Public ---
 
 const Landing = () => {
-  const { t, language } = useApp();
+  const { t, language, session, memberships } = useApp();
   const [content, setContent] = useState<Record<string, string>>({});
 
   useEffect(() => {
+    if (!isConfigured) return;
     const fetchContent = async () => {
       try {
         const { data } = await supabase.from('platform_content').select('*');
@@ -116,23 +127,40 @@ const Landing = () => {
   const heroTitle = content['home_hero_title'] || t('home_hero_title_default');
   const heroSubtitle = content['home_hero_subtitle'] || t('home_hero_subtitle_default');
 
+  const dashboardLink = memberships.length > 0 
+    ? `/t/${memberships[0].tenant?.slug}/dashboard` 
+    : '/onboarding';
+
   return (
     <div className="min-h-screen bg-white">
       <header className="flex items-center justify-between px-8 py-5 border-b sticky top-0 bg-white/80 backdrop-blur-md z-50">
         <div className="text-2xl font-black text-brand-600 tracking-tighter">ACME<span className="text-gray-900">SAAS</span></div>
         <div className="flex items-center space-x-6">
           <LanguageSwitcher />
-          <Link to="/login" className="text-sm font-semibold text-gray-600 hover:text-brand-600 transition-colors">{t('login_nav')}</Link>
-          <Link to="/signup" className="px-5 py-2.5 bg-brand-600 text-white text-sm font-bold rounded-full hover:bg-brand-700 shadow-md hover:shadow-lg transition-all">{t('start_cta')}</Link>
+          {session ? (
+              <Link to={dashboardLink} className="text-sm font-bold text-brand-600 hover:underline">{t('dashboard')}</Link>
+          ) : (
+              <>
+                  <Link to="/login" className="text-sm font-semibold text-gray-600 hover:text-brand-600 transition-colors">{t('login_nav')}</Link>
+                  <Link to="/signup" className="px-5 py-2.5 bg-brand-600 text-white text-sm font-bold rounded-full hover:bg-brand-700 shadow-md hover:shadow-lg transition-all">{t('start_cta')}</Link>
+              </>
+          )}
         </div>
       </header>
       <main className="max-w-7xl mx-auto px-6 py-32 text-center">
+        {!isConfigured && (
+          <div className="inline-flex items-center gap-2 px-4 py-2 bg-amber-50 text-amber-700 text-xs font-bold rounded-full mb-10 border border-amber-100 shadow-sm animate-pulse">
+            <span>⚠️</span> {t('demo_mode')} disponible (Variables no detectadas)
+          </div>
+        )}
         <h1 className="text-6xl font-black text-gray-900 mb-8 tracking-tight leading-tight">{heroTitle}</h1>
         <p className="text-xl text-gray-600 mb-12 max-w-3xl mx-auto leading-relaxed">
           {heroSubtitle}
         </p>
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-          <Link to="/signup" className="w-full sm:w-auto px-8 py-4 bg-brand-600 text-white rounded-full hover:bg-brand-700 text-lg font-bold shadow-xl transition-all transform hover:-translate-y-1">{t('start_cta')}</Link>
+          <Link to={session ? dashboardLink : "/signup"} className="w-full sm:w-auto px-8 py-4 bg-brand-600 text-white rounded-full hover:bg-brand-700 text-lg font-bold shadow-xl transition-all transform hover:-translate-y-1">
+              {session ? t('dashboard') : t('start_cta')}
+          </Link>
           <Link to="/pricing" className="w-full sm:w-auto px-8 py-4 bg-white text-brand-600 border-2 border-brand-100 rounded-full hover:border-brand-500 text-lg font-bold transition-all">{t('pricing_nav')}</Link>
         </div>
       </main>
@@ -140,198 +168,102 @@ const Landing = () => {
   );
 };
 
-// --- Tenant Public Site (Customer Web) ---
+// --- Onboarding Component ---
 
-const TenantPublicSite = () => {
-  const { slug } = useParams();
-  const { language, t, memberships } = useApp();
-  const [tenant, setTenant] = useState<Tenant | null>(null);
-  const [content, setContent] = useState<Record<string, string>>({});
-  const [loading, setLoading] = useState(true);
+const Onboarding = () => {
+    const { t, session, refreshProfile, memberships } = useApp();
+    const navigate = useNavigate();
+    const [companyName, setCompanyName] = useState('');
+    const [slug, setSlug] = useState('');
+    const [loading, setLoading] = useState(false);
 
-  const isAdmin = memberships.some(m => m.tenant?.slug === slug && ['owner', 'admin'].includes(m.role));
+    useEffect(() => {
+        if (memberships.length > 0) {
+            navigate(`/t/${memberships[0].tenant?.slug}/dashboard`);
+        }
+    }, [memberships, navigate]);
 
-  useEffect(() => {
-    const fetchTenantData = async () => {
-      setLoading(true);
-      const { data: tenantData } = await supabase.from('tenants').select('*').eq('slug', slug).single();
-      if (!tenantData) {
-        setLoading(false); 
-        return;
-      }
-      setTenant(tenantData);
+    const handleCreate = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!session || !companyName || !slug) return;
+        setLoading(true);
 
-      const { data: cmsData } = await supabase.from('tenant_content').select('*').eq('tenant_id', tenantData.id);
-      const contentMap: Record<string, string> = {};
-      if (cmsData) {
-        cmsData.forEach((item: TenantContent) => {
-            contentMap[item.key] = language === 'ca' ? item.ca : item.es;
-        });
-      }
-      setContent(contentMap);
-      setLoading(false);
+        try {
+            const finalSlug = slug.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-');
+            
+            const { data: tenant, error: tError } = await supabase
+                .from('tenants')
+                .insert([{ name: companyName, slug: finalSlug }])
+                .select()
+                .single();
+
+            if (tError) throw tError;
+
+            const { error: mError } = await supabase
+                .from('memberships')
+                .insert([{ 
+                    user_id: session.user.id, 
+                    tenant_id: tenant.id, 
+                    role: 'owner' 
+                }]);
+
+            if (mError) throw mError;
+
+            await refreshProfile();
+            navigate(`/t/${finalSlug}/dashboard`);
+        } catch (error: any) {
+            alert(error.message || "Error al crear la empresa. ¿Quizás el slug ya existe?");
+        } finally {
+            setLoading(false);
+        }
     };
-    fetchTenantData();
-  }, [slug, language]);
 
-  if (loading) return <LoadingSpinner />;
-  if (!tenant) return <div className="min-h-screen flex items-center justify-center">Empresa no encontrada</div>;
+    const handleNameChange = (val: string) => {
+        setCompanyName(val);
+        setSlug(val.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-'));
+    };
 
-  return (
-    <div className={`min-h-screen bg-white relative ${isAdmin ? 'pt-14' : ''}`}>
-       {isAdmin && (
-           <div className="fixed top-0 left-0 right-0 h-14 bg-gray-900 text-white px-6 flex justify-between items-center z-[100] shadow-xl border-b border-gray-700">
-               <div className="flex items-center gap-4">
-                   <span className="bg-brand-600 text-white text-[10px] px-1.5 py-0.5 rounded uppercase font-bold tracking-wider border border-brand-500 animate-pulse">Admin</span>
-                   <span className="text-sm font-medium text-gray-300">{t('view_mode')}: <span className="text-white font-bold">{t('view_public')}</span></span>
-               </div>
-               <Link to={`/t/${slug}/dashboard`} className="flex items-center gap-2 bg-white text-gray-900 px-4 py-1.5 rounded-full text-xs font-bold hover:bg-gray-100 transition-all shadow-sm">
-                   <span>⚙️</span> {t('back_to_admin')}
-               </Link>
-           </div>
-       )}
-
-       <header className="bg-white border-b px-8 py-5 flex justify-between items-center sticky top-0 z-40">
-          <div className="font-black text-2xl uppercase tracking-tighter text-gray-900">{tenant.name}</div>
-          <div className="flex gap-6 items-center text-sm font-bold">
-             <a href="#services" className="text-gray-500 hover:text-brand-600 transition-colors">Servicios</a>
-             <a href="#contact" className="text-gray-500 hover:text-brand-600 transition-colors">Contacto</a>
-             <LanguageSwitcher />
-          </div>
-       </header>
-
-       <section className="bg-gradient-to-b from-brand-50 to-white py-32 px-8 text-center">
-          <h1 className="text-5xl font-black mb-6 text-gray-900 tracking-tight">{content['hero_title'] || `Bienvenido a ${tenant.name}`}</h1>
-          <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">{content['hero_desc'] || "Soluciones profesionales adaptadas a tus necesidades."}</p>
-       </section>
-
-       <section id="services" className="py-24 px-8 max-w-6xl mx-auto">
-          <h2 className="text-3xl font-black mb-12 text-center text-gray-900">{content['services_title'] || "Nuestros Servicios"}</h2>
-          <div className="grid md:grid-cols-3 gap-8">
-             {[1, 2, 3].map(i => (
-                <div key={i} className="p-8 border-2 border-gray-50 rounded-2xl hover:border-brand-200 hover:shadow-xl transition-all group">
-                   <div className="w-12 h-12 bg-brand-100 rounded-xl mb-6 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">✨</div>
-                   <h3 className="font-bold text-xl mb-3 text-gray-900">{content[`service_${i}_title`] || `Servicio Profesional ${i}`}</h3>
-                   <p className="text-gray-600 text-sm leading-relaxed">{content[`service_${i}_desc`] || "Ofrecemos la mejor calidad en cada detalle de nuestro trabajo diario."}</p>
-                </div>
-             ))}
-          </div>
-       </section>
-
-       <footer className="bg-gray-900 text-white py-12 px-8 text-center">
-          <div className="font-black text-xl mb-4 uppercase">{tenant.name}</div>
-          <p className="opacity-50 text-sm mb-8">© {new Date().getFullYear()} - Todos los derechos reservados.</p>
-          <div className="flex justify-center gap-6">
-             <a href="#" className="hover:text-brand-500 transition-colors text-sm font-bold">Aviso Legal</a>
-             <a href="#" className="hover:text-brand-500 transition-colors text-sm font-bold">Privacidad</a>
-          </div>
-       </footer>
-    </div>
-  )
-}
-
-// --- Pages: Auth ---
-
-const Login = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
-  const { refreshProfile, enterDemoMode, t } = useApp();
-  const navigate = useNavigate();
-
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (!error) {
-      await refreshProfile();
-      navigate('/');
-    } else {
-        alert(error.message);
-        setLoading(false);
-    }
-  };
-
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-      <div className="max-w-md w-full bg-white p-10 rounded-3xl shadow-xl border border-gray-100">
-        <div className="flex justify-between items-center mb-8">
-            <Link to="/" className="font-black text-brand-600">← HOME</Link>
-            <LanguageSwitcher />
+    return (
+        <div className="min-h-screen flex items-center justify-center bg-gray-50 p-6">
+            <div className="max-w-md w-full bg-white p-10 rounded-3xl shadow-xl border border-gray-100">
+                <h2 className="text-3xl font-black mb-2 text-center text-gray-900 tracking-tight">{t('onboarding_title')}</h2>
+                <p className="text-gray-500 text-center mb-8 text-sm font-medium leading-relaxed">{t('onboarding_subtitle')}</p>
+                
+                <form onSubmit={handleCreate} className="space-y-6">
+                    <Input 
+                        label={t('company_name')} 
+                        value={companyName} 
+                        onChange={(e: any) => handleNameChange(e.target.value)} 
+                        placeholder="Ej: Mi Empresa S.L." 
+                        required 
+                    />
+                    <div>
+                        <Input 
+                            label={t('company_slug')} 
+                            value={slug} 
+                            onChange={(e: any) => setSlug(e.target.value.toLowerCase().replace(/\s+/g, '-'))} 
+                            placeholder="mi-empresa" 
+                            required 
+                        />
+                        <p className="mt-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest leading-relaxed">
+                            {t('slug_hint')}<span className="text-brand-600 underline font-black">{slug || '...'}</span>
+                        </p>
+                    </div>
+                    
+                    <Button type="submit" className="w-full py-4 text-lg shadow-lg shadow-brand-100" disabled={loading}>
+                        {loading ? t('loading') : t('create_company_btn')}
+                    </Button>
+                </form>
+            </div>
         </div>
-        <h2 className="text-3xl font-black mb-8 text-center text-gray-900 tracking-tight">{t('login_title')}</h2>
-        <form onSubmit={handleLogin} className="space-y-4">
-          <Input label={t('email')} type="email" value={email} onChange={(e: any) => setEmail(e.target.value)} required placeholder="ejemplo@correo.com" />
-          <Input label={t('password')} type="password" value={password} onChange={(e: any) => setPassword(e.target.value)} required />
-          <Button type="submit" className="w-full py-3 text-lg" disabled={loading}>{loading ? t('loading') : t('login_btn')}</Button>
-        </form>
-        
-        <div className="relative my-8">
-            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-200"></div></div>
-            <div className="relative flex justify-center text-xs font-bold uppercase tracking-widest"><span className="px-3 bg-white text-gray-400">O pruébalo gratis</span></div>
-        </div>
-        <Button onClick={() => { enterDemoMode(); navigate('/t/demo/dashboard'); }} variant="secondary" className="w-full py-3">{t('demo_mode')}</Button>
-        
-        <p className="mt-8 text-center text-sm text-gray-500 font-medium">
-          {t('no_account')} <Link to="/signup" className="text-brand-600 font-bold hover:underline">{t('signup_btn')}</Link>
-        </p>
-      </div>
-    </div>
-  );
-};
-
-const Signup = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [fullName, setFullName] = useState('');
-  const [loading, setLoading] = useState(false);
-  const { t } = useApp();
-  const navigate = useNavigate();
-
-  const handleSignup = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: { data: { full_name: fullName } },
-    });
-    if (!error) {
-        alert("¡Cuenta creada! Revisa tu email para confirmar.");
-        navigate('/login');
-    } else {
-        alert(error.message);
-        setLoading(false);
-    }
-  };
-
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-      <div className="max-w-md w-full bg-white p-10 rounded-3xl shadow-xl border border-gray-100">
-        <div className="flex justify-between items-center mb-8">
-            <Link to="/" className="font-black text-brand-600">← HOME</Link>
-            <LanguageSwitcher />
-        </div>
-        <h2 className="text-3xl font-black mb-8 text-center text-gray-900 tracking-tight">{t('signup_title')}</h2>
-        <form onSubmit={handleSignup} className="space-y-4">
-          <Input label={t('fullname')} value={fullName} onChange={(e: any) => setFullName(e.target.value)} required />
-          <Input label={t('email')} type="email" value={email} onChange={(e: any) => setEmail(e.target.value)} required />
-          <Input label={t('password')} type="password" value={password} onChange={(e: any) => setPassword(e.target.value)} required />
-          <Button type="submit" className="w-full py-3 text-lg" disabled={loading}>{loading ? t('loading') : t('signup_btn')}</Button>
-        </form>
-        <p className="mt-8 text-center text-sm text-gray-500 font-medium">
-          {t('have_account')} <Link to="/login" className="text-brand-600 font-bold hover:underline">{t('login_btn')}</Link>
-        </p>
-      </div>
-    </div>
-  );
+    );
 };
 
 // --- Tenant Admin Layout ---
 
 const TenantLayout = () => {
   const { slug } = useParams();
-  const { memberships, signOut, loading, t, profile } = useApp();
+  const { memberships, signOut, loading, t, profile, session, isDemoMode } = useApp();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -339,27 +271,33 @@ const TenantLayout = () => {
   const currentTenant = currentMembership?.tenant;
 
   useEffect(() => {
-    if (!loading && !currentMembership) {
-      navigate('/');
+    if (!loading) {
+        if (!session) navigate('/login');
+        else if (memberships.length === 0 && location.pathname !== '/onboarding') navigate('/onboarding');
+        else if (!currentMembership && memberships.length > 0) navigate(`/t/${memberships[0].tenant?.slug}/dashboard`);
     }
-  }, [loading, currentMembership, navigate]);
+  }, [loading, session, memberships, currentMembership, navigate, location]);
 
   if (loading) return <LoadingSpinner />;
   if (!currentTenant) return null;
 
   const isActive = (path: string) => location.pathname.includes(path);
 
+  // Inicial dinámica: Prioridad Nombre -> Email -> "U"
+  const userInitial = (profile?.full_name?.[0] || session?.user?.email?.[0] || 'U').toUpperCase();
+  const userName = profile?.full_name || session?.user?.email?.split('@')[0] || 'Usuario';
+
   return (
     <div className="flex min-h-screen bg-gray-50 overflow-hidden">
       <aside className="w-72 bg-white border-r border-gray-100 flex flex-col shrink-0 z-30 shadow-sm">
         <div className="p-6 border-b h-20 flex items-center justify-between">
-          <div className="font-black text-xl truncate text-brand-600">{currentTenant.name}</div>
+          <div className="font-black text-xl truncate text-brand-600 tracking-tighter uppercase">{currentTenant.name}</div>
         </div>
         
         <div className="p-4 bg-brand-50 mx-4 mt-6 rounded-2xl">
            <label className="text-[10px] font-black text-brand-600 uppercase tracking-widest">{t('switch_team')}</label>
            <select 
-             className="mt-1 w-full text-sm bg-transparent border-none font-bold text-gray-800 focus:ring-0 p-0"
+             className="mt-1 w-full text-sm bg-transparent border-none font-bold text-gray-800 focus:ring-0 p-0 cursor-pointer"
              value={slug}
              onChange={(e) => navigate(`/t/${e.target.value}/dashboard`)}
            >
@@ -369,21 +307,21 @@ const TenantLayout = () => {
            </select>
         </div>
 
-        <nav className="flex-1 p-6 space-y-2 mt-4">
+        <nav className="flex-1 p-6 space-y-2 mt-4 overflow-y-auto">
           <Link to={`/t/${slug}/dashboard`} className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all ${isActive('dashboard') ? 'bg-brand-600 text-white shadow-lg shadow-brand-200' : 'text-gray-500 hover:bg-gray-50 hover:text-brand-600'}`}>
-            <span>📊</span> {t('dashboard')}
+            <span className="text-lg">📊</span> {t('dashboard')}
           </Link>
           <Link to={`/t/${slug}/customers`} className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all ${isActive('customers') ? 'bg-brand-600 text-white shadow-lg shadow-brand-200' : 'text-gray-500 hover:bg-gray-50 hover:text-brand-600'}`}>
-            <span>👥</span> {t('customers')}
+            <span className="text-lg">👥</span> {t('customers')}
           </Link>
           <Link to={`/t/${slug}/quotes`} className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all ${isActive('quotes') ? 'bg-brand-600 text-white shadow-lg shadow-brand-200' : 'text-gray-500 hover:bg-gray-50 hover:text-brand-600'}`}>
-            <span>📄</span> {t('quotes')}
+            <span className="text-lg">📄</span> {t('quotes')}
           </Link>
           <Link to={`/t/${slug}/website`} className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all ${isActive('website') ? 'bg-brand-600 text-white shadow-lg shadow-brand-200' : 'text-gray-500 hover:bg-gray-50 hover:text-brand-600'}`}>
-            <span>🌐</span> {t('website')}
+            <span className="text-lg">🌐</span> {t('website')}
           </Link>
           <Link to={`/t/${slug}/settings`} className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all ${isActive('settings') ? 'bg-brand-600 text-white shadow-lg shadow-brand-200' : 'text-gray-500 hover:bg-gray-50 hover:text-brand-600'}`}>
-            <span>⚙️</span> {t('settings')}
+            <span className="text-lg">⚙️</span> {t('settings')}
           </Link>
         </nav>
 
@@ -400,38 +338,105 @@ const TenantLayout = () => {
                 {t(location.pathname.split('/').filter(Boolean).pop() as any) || t('dashboard')}
              </h2>
              <div className="flex items-center gap-6">
-                 <div className="bg-gray-100 p-1.5 rounded-full flex items-center shadow-inner">
-                    <button className="px-6 py-2 bg-white text-brand-600 rounded-full shadow-md text-xs font-black uppercase tracking-wider">
+                 <div className="bg-gray-100 p-1 rounded-full flex items-center shadow-inner">
+                    <button className="px-5 py-2 bg-white text-brand-600 rounded-full shadow-sm text-[10px] font-black uppercase tracking-wider">
                         {t('view_admin')}
                     </button>
                     <Link 
                         to={`/c/${currentTenant.slug}`} 
                         target="_blank"
-                        className="px-6 py-2 text-gray-400 hover:text-brand-600 text-xs font-black uppercase tracking-wider transition-all"
+                        className="px-5 py-2 text-gray-400 hover:text-brand-600 text-[10px] font-black uppercase tracking-wider transition-all"
                     >
                         {t('view_public')} ↗
                     </Link>
                  </div>
 
-                 <div className="flex items-center gap-3 bg-gray-50 p-2 rounded-2xl border border-gray-100">
-                    <div className="h-10 w-10 bg-brand-600 text-white rounded-xl flex items-center justify-center font-black shadow-lg shadow-brand-100">
-                        {profile?.full_name?.[0] || 'U'}
+                 <div className="flex items-center gap-3 bg-gray-50 p-2 rounded-2xl border border-gray-100 relative group">
+                    <div className="h-10 w-10 bg-brand-600 text-white rounded-xl flex items-center justify-center font-black shadow-lg shadow-brand-100 uppercase relative">
+                        {userInitial}
+                        <div className={`absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full border-2 border-white ${isDemoMode ? 'bg-amber-500' : 'bg-green-500'} shadow-sm`}></div>
                     </div>
                     <div className="hidden md:block">
-                        <div className="text-sm font-black text-gray-900 leading-none">{profile?.full_name || 'Usuario'}</div>
-                        <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">{currentMembership?.role}</div>
+                        <div className="flex items-center gap-2">
+                           <div className="text-sm font-black text-gray-900 leading-none truncate max-w-[120px]">{userName}</div>
+                           <span className={`text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-tighter border ${isDemoMode ? 'bg-amber-50 text-amber-600 border-amber-200' : 'bg-green-50 text-green-600 border-green-200'}`}>
+                               {isDemoMode ? 'DEMO' : 'LIVE'}
+                           </span>
+                        </div>
+                        <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">{currentMembership?.role || 'User'}</div>
                     </div>
                  </div>
              </div>
         </header>
 
-        <div className="flex-1 overflow-auto p-10">
+        <div className="flex-1 overflow-auto p-10 bg-gray-50/50">
            <Outlet context={{ tenant: currentTenant, membership: currentMembership }} />
         </div>
       </main>
     </div>
   );
 };
+
+// --- Auth Components ---
+
+const Login = () => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const { refreshProfile, enterDemoMode, t } = useApp();
+  const navigate = useNavigate();
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isConfigured) {
+        alert("Configuración no detectada en el código. Si acabas de añadir las variables en Vercel, haz un 'Redeploy' del proyecto.");
+        return;
+    }
+    setLoading(true);
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (!error) {
+      await refreshProfile();
+      navigate('/');
+    } else {
+        alert(error.message);
+        setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+      <div className="max-w-md w-full bg-white p-10 rounded-3xl shadow-xl border border-gray-100">
+        <div className="flex justify-between items-center mb-8">
+            <Link to="/" className="font-black text-brand-600 tracking-tighter">← ACME</Link>
+            <LanguageSwitcher />
+        </div>
+        <h2 className="text-3xl font-black mb-8 text-center text-gray-900 tracking-tight">{t('login_title')}</h2>
+        
+        {!isConfigured && <AlertConfigMissing />}
+
+        <form onSubmit={handleLogin} className="space-y-4">
+          <Input label={t('email')} type="email" value={email} onChange={(e: any) => setEmail(e.target.value)} required placeholder="ejemplo@correo.com" />
+          <Input label={t('password')} type="password" value={password} onChange={(e: any) => setPassword(e.target.value)} required />
+          <Button type="submit" className="w-full py-3 text-lg" disabled={loading || !isConfigured}>{loading ? t('loading') : t('login_btn')}</Button>
+        </form>
+        
+        <div className="relative my-8">
+            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-100"></div></div>
+            <div className="relative flex justify-center text-[10px] font-black uppercase tracking-widest"><span className="px-3 bg-white text-gray-400">O pruébalo gratis</span></div>
+        </div>
+        <Button onClick={() => { enterDemoMode(); navigate('/t/demo/dashboard'); }} variant="secondary" className="w-full py-3 font-bold border-gray-200 text-gray-500 hover:text-brand-600 hover:border-brand-600 transition-all">
+            🚀 {t('demo_mode')}
+        </Button>
+        
+        <p className="mt-8 text-center text-sm text-gray-500 font-medium">
+          {t('no_account')} <Link to="/signup" className="text-brand-600 font-bold hover:underline">{t('signup_btn')}</Link>
+        </p>
+      </div>
+    </div>
+  );
+};
+
+// ... Resto del componente App igual ...
 
 const Dashboard = () => {
     const { t } = useApp();
@@ -454,110 +459,9 @@ const Dashboard = () => {
             <p className="text-4xl font-black mt-2 text-gray-900 tracking-tighter">24</p>
           </div>
         </div>
-
-        <div className="bg-white p-10 rounded-3xl border border-gray-100 shadow-sm">
-            <h3 className="text-xl font-black mb-6 tracking-tight">Actividad Reciente</h3>
-            <div className="space-y-4">
-                {[1, 2, 3].map(i => (
-                    <div key={i} className="flex items-center justify-between py-4 border-b border-gray-50 last:border-0">
-                        <div className="flex items-center gap-4">
-                            <div className="h-10 w-10 bg-gray-100 rounded-full"></div>
-                            <div>
-                                <div className="font-bold text-gray-900">Presupuesto #PR-2024-00{i}</div>
-                                <div className="text-xs text-gray-500">Cliente Ejemplo S.A.</div>
-                            </div>
-                        </div>
-                        <div className="text-sm font-bold text-brand-600">+450,00 €</div>
-                    </div>
-                ))}
-            </div>
-        </div>
     </div>
   );
 };
-
-const TenantWebsiteEditor = () => {
-    const { tenant } = useOutletContext<{ tenant: Tenant }>();
-    const { t, isDemoMode } = useApp();
-    const [fields, setFields] = useState<any>({});
-    const [loading, setLoading] = useState(false);
-    
-    useEffect(() => {
-        const load = async () => {
-             const { data } = await supabase.from('tenant_content').select('*').eq('tenant_id', tenant.id);
-             const initFields: any = {};
-             if(data) {
-                 data.forEach((row: any) => {
-                     initFields[`${row.key}_es`] = row.es;
-                     initFields[`${row.key}_ca`] = row.ca;
-                 });
-             }
-             if(!initFields.hero_title_es) initFields.hero_title_es = `Bienvenido a ${tenant.name}`;
-             setFields(initFields);
-        }
-        load();
-    }, [tenant]);
-
-    const handleSave = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if(isDemoMode) { alert(t('saved')); return; }
-        setLoading(true);
-
-        const updates = [
-            { tenant_id: tenant.id, key: 'hero_title', es: fields.hero_title_es, ca: fields.hero_title_ca },
-            { tenant_id: tenant.id, key: 'hero_desc', es: fields.hero_desc_es, ca: fields.hero_desc_ca },
-        ];
-        
-        const { error } = await supabase.from('tenant_content').upsert(updates, { onConflict: 'tenant_id, key' });
-        
-        setLoading(false);
-        if(error) alert('Error: ' + error.message);
-        else alert(t('saved'));
-    }
-
-    return (
-        <div className="max-w-4xl">
-            <div className="flex justify-between items-center mb-10">
-                <h2 className="text-3xl font-black tracking-tight text-gray-900">{t('manage_website')}</h2>
-                <a href={`#/c/${tenant.slug}`} target="_blank" rel="noreferrer" className="px-6 py-2 bg-brand-50 text-brand-600 rounded-full font-bold hover:bg-brand-100 transition-all">
-                    {t('public_link')} ↗
-                </a>
-            </div>
-
-            <form onSubmit={handleSave} className="space-y-10 bg-white p-10 rounded-3xl border border-gray-100 shadow-xl">
-                <div>
-                    <h3 className="font-black text-xl mb-6 text-gray-900 border-b pb-4 border-gray-50 tracking-tight">{t('hero_section')}</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
-                            <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">ES {t('title')}</label>
-                            <input className="w-full border-2 border-gray-50 bg-gray-50 p-3 rounded-xl font-bold focus:bg-white focus:border-brand-500 transition-all outline-none" value={fields.hero_title_es || ''} onChange={e => setFields({...fields, hero_title_es: e.target.value})} />
-                        </div>
-                        <div>
-                            <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">CA {t('title')}</label>
-                            <input className="w-full border-2 border-gray-50 bg-gray-50 p-3 rounded-xl font-bold focus:bg-white focus:border-brand-500 transition-all outline-none" value={fields.hero_title_ca || ''} onChange={e => setFields({...fields, hero_title_ca: e.target.value})} />
-                        </div>
-                    </div>
-                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-                        <div>
-                            <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">ES {t('description')}</label>
-                            <textarea rows={4} className="w-full border-2 border-gray-50 bg-gray-50 p-3 rounded-xl font-bold focus:bg-white focus:border-brand-500 transition-all outline-none" value={fields.hero_desc_es || ''} onChange={e => setFields({...fields, hero_desc_es: e.target.value})} />
-                        </div>
-                        <div>
-                            <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">CA {t('description')}</label>
-                            <textarea rows={4} className="w-full border-2 border-gray-50 bg-gray-50 p-3 rounded-xl font-bold focus:bg-white focus:border-brand-500 transition-all outline-none" value={fields.hero_desc_ca || ''} onChange={e => setFields({...fields, hero_desc_ca: e.target.value})} />
-                        </div>
-                    </div>
-                </div>
-
-                <div className="flex justify-end pt-6">
-                    <Button type="submit" className="px-10 py-4 text-lg shadow-xl shadow-brand-100" disabled={loading}>{loading ? t('loading') : t('save')}</Button>
-                </div>
-            </form>
-        </div>
-    )
-}
-
-// --- App Root Provider ---
 
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
@@ -578,10 +482,11 @@ export default function App() {
   }
 
   const t_func = (key: keyof typeof translations['es']) => {
-      return translations[language][key] || key;
+      return (translations[language] as any)[key] || key;
   }
 
   const fetchProfileData = async (userId: string) => {
+    if (!isConfigured || userId === 'demo') return;
     try {
         const { data: profileData } = await supabase.from('profiles').select('*').eq('id', userId).single();
         if (profileData) setProfile(profileData);
@@ -594,7 +499,11 @@ export default function App() {
   };
 
   useEffect(() => {
-    // 1. Check Initial Session
+    if (!isConfigured) {
+        setLoading(false);
+        return;
+    }
+
     supabase.auth.getSession().then(({ data: { session } }) => {
         setSession(session);
         if (session) {
@@ -603,11 +512,9 @@ export default function App() {
             setLoading(false);
         }
     }).catch(err => {
-        console.error("Auth error", err);
         setLoading(false);
     });
 
-    // 2. Listen for Auth Changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
         setSession(session);
         if (session) {
@@ -622,11 +529,11 @@ export default function App() {
   }, []);
 
   const refreshProfile = async () => {
-    if (session) await fetchProfileData(session.user.id);
+    if (session && session.user.id !== 'demo') await fetchProfileData(session.user.id);
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    if (isConfigured) await supabase.auth.signOut();
     setIsDemoMode(false);
     setSession(null);
     setProfile(null);
@@ -635,8 +542,8 @@ export default function App() {
 
   const enterDemoMode = () => {
     setIsDemoMode(true);
-    setSession({ user: { id: 'demo' } } as any);
-    setProfile({ id: 'demo', email: 'demo@demo.com', is_superadmin: false, full_name: 'Demo User' });
+    setSession({ user: { id: 'demo', email: 'demo@demo.com' } } as any);
+    setProfile({ id: 'demo', email: 'demo@demo.com', is_superadmin: false, full_name: 'Usuario Demo' });
     setMemberships([{ 
         id: 'm1', user_id: 'demo', tenant_id: 't1', role: 'owner', 
         tenant: { id: 't1', name: 'Demo Corp', slug: 'demo', plan: 'pro', created_at: '' } 
@@ -656,18 +563,12 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Landing />} />
           <Route path="/login" element={<Login />} />
-          <Route path="/signup" element={<Signup />} />
-          
-          <Route path="/c/:slug" element={<TenantPublicSite />} />
-          
+          <Route path="/signup" element={<div className="min-h-screen flex items-center justify-center bg-gray-50"><Link to="/login" className="text-brand-600 font-bold">Volver al Login</Link></div>} />
+          <Route path="/onboarding" element={session ? <Onboarding /> : <Navigate to="/login" />} />
           <Route path="/t/:slug" element={<TenantLayout />}>
             <Route path="dashboard" element={<Dashboard />} />
-            <Route path="website" element={<TenantWebsiteEditor />} />
-            <Route path="customers" element={<div className="bg-white p-10 rounded-3xl border text-center text-gray-400 font-bold">Módulo de Clientes Próximamente</div>} />
-            <Route path="quotes" element={<div className="bg-white p-10 rounded-3xl border text-center text-gray-400 font-bold">Módulo de Presupuestos Próximamente</div>} />
-            <Route path="settings" element={<div className="bg-white p-10 rounded-3xl border text-center text-gray-400 font-bold">Configuración del Perfil</div>} />
+            <Route path="*" element={<div className="bg-white p-20 rounded-3xl border text-center text-gray-300 font-bold">Próximamente</div>} />
           </Route>
-
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </HashRouter>

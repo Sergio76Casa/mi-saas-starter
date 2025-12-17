@@ -1,3 +1,4 @@
+
 import { Language } from './types';
 
 export const translations = {
@@ -28,6 +29,14 @@ export const translations = {
     no_account: "¿No tienes una cuenta?",
     have_account: "¿Ya tienes cuenta?",
     demo_mode: "Entrar en Modo Demo",
+
+    // Onboarding
+    onboarding_title: "Crea tu Workspace",
+    onboarding_subtitle: "Para empezar, necesitamos configurar tu empresa o equipo.",
+    company_name: "Nombre de la Empresa",
+    company_slug: "URL de tu web (Slug)",
+    create_company_btn: "Crear y Empezar",
+    slug_hint: "Tu web será: acmesaas.com/c/",
     
     // Platform Public
     start_cta: "Empezar",
@@ -107,6 +116,14 @@ export const translations = {
     no_account: "¿No tens un compte?",
     have_account: "¿Ja tens compte?",
     demo_mode: "Entrar en Mode Demo",
+
+    // Onboarding
+    onboarding_title: "Crea el teu Workspace",
+    onboarding_subtitle: "Per començar, hem de configurar la teva empresa o equip.",
+    company_name: "Nom de l'Empresa",
+    company_slug: "URL de la teva web (Slug)",
+    create_company_btn: "Crear i Començar",
+    slug_hint: "La teva web serà: acmesaas.com/c/",
     
     // Platform Public
     start_cta: "Començar",
