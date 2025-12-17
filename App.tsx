@@ -62,7 +62,7 @@ const ConnectionStatusBadge = () => {
 const LanguageSwitcher = () => {
   const { language, setLanguage } = useApp();
   return (
-    <div className="flex bg-gray-100 p-1 rounded-xl shadow-inner">
+    <div className="flex bg-gray-100 p-1 rounded-xl shadow-inner border border-gray-200/50">
       <button 
         onClick={() => setLanguage('es')} 
         className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${language === 'es' ? 'bg-white text-brand-600 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
@@ -104,14 +104,14 @@ const SuperAdminFloatingBar = () => {
 
 const PublicTenantWebsite = () => {
   const { slug } = useParams();
-  const { dbHealthy, language } = useApp();
+  const { dbHealthy, t } = useApp();
   const [tenant, setTenant] = useState<Tenant | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchTenant = async () => {
       if (!isConfigured || !dbHealthy) { setLoading(false); return; }
-      const { data, error } = await supabase.from('tenants').select('*').eq('slug', slug).single();
+      const { data } = await supabase.from('tenants').select('*').eq('slug', slug).single();
       if (data) setTenant(data);
       setLoading(false);
     };
@@ -121,7 +121,7 @@ const PublicTenantWebsite = () => {
   if (loading) return <LoadingSpinner />;
   if (!tenant) return (
     <div className="min-h-screen flex items-center justify-center bg-white p-12 text-center">
-       <div>
+       <div className="animate-in fade-in zoom-in duration-500">
          <h1 className="text-9xl font-black text-gray-100 mb-4">404</h1>
          <p className="text-gray-400 font-black uppercase tracking-widest text-xs italic">Empresa no encontrada</p>
          <Link to="/" className="mt-10 inline-block text-brand-600 font-black uppercase text-[10px] underline tracking-widest">Volver al inicio</Link>
@@ -130,48 +130,60 @@ const PublicTenantWebsite = () => {
   );
 
   return (
-    <div className="min-h-screen bg-white font-sans selection:bg-brand-500 selection:text-white">
-      <nav className="flex items-center justify-between px-10 py-8 sticky top-0 bg-white/80 backdrop-blur-xl z-50">
+    <div className="min-h-screen bg-white font-sans selection:bg-brand-500 selection:text-white animate-in fade-in duration-1000">
+      <nav className="flex items-center justify-between px-10 py-8 sticky top-0 bg-white/80 backdrop-blur-xl z-50 border-b border-gray-50">
         <div className="text-2xl font-black text-gray-900 italic tracking-tighter uppercase">{tenant.name}</div>
         <div className="flex items-center gap-10">
-           <a href="#services" className="text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-gray-900 transition-colors">Servicios</a>
-           <a href="#contact" className="px-8 py-3 bg-gray-900 text-white rounded-full text-[10px] font-black uppercase tracking-widest shadow-xl hover:scale-105 transition-all">Contacto</a>
+           <a href="#services" className="text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-gray-900 transition-colors">{t('services_section')}</a>
+           <LanguageSwitcher />
+           <a href="#contact" className="px-8 py-3 bg-gray-900 text-white rounded-full text-[10px] font-black uppercase tracking-widest shadow-xl hover:scale-105 transition-all">{t('contact_section')}</a>
         </div>
       </nav>
       
       <main className="max-w-7xl mx-auto px-10">
         <section className="py-40 text-center">
-          <div className="inline-block px-4 py-1.5 bg-brand-50 text-brand-600 rounded-full text-[9px] font-black uppercase tracking-[0.2em] mb-8 border border-brand-100">Bienvenido a nuestra web</div>
-          <h1 className="text-[8rem] font-black text-gray-900 tracking-tighter leading-[0.85] mb-12 uppercase">{tenant.name}</h1>
-          <p className="text-xl text-gray-400 max-w-2xl mx-auto font-medium leading-relaxed italic">Expertos en soluciones profesionales. Calidad, compromiso y resultados garantizados para cada uno de nuestros clientes.</p>
+          <div className="inline-block px-6 py-2 bg-brand-50 text-brand-600 rounded-full text-[10px] font-black uppercase tracking-[0.2em] mb-10 border border-brand-100 shadow-sm">
+             ✨ {t('welcome_web') || 'Bienvenidos'}
+          </div>
+          <h1 className="text-[7rem] md:text-[9rem] font-black text-gray-900 tracking-tighter leading-[0.8] mb-12 uppercase">{tenant.name}</h1>
+          <p className="text-2xl text-gray-400 max-w-3xl mx-auto font-medium leading-relaxed italic opacity-80">
+            {t('home_hero_subtitle_default')}
+          </p>
         </section>
 
-        <section id="services" className="py-32 grid grid-cols-1 md:grid-cols-3 gap-10">
+        <section id="services" className="py-32 grid grid-cols-1 md:grid-cols-3 gap-12">
            {[
-            { t: 'Calidad Premium', d: 'Utilizamos los mejores materiales y procesos del mercado.', i: '💎' },
-            { t: 'Atención 24/7', d: 'Estamos siempre disponibles para resolver tus dudas.', i: '⚡' },
-            { t: 'Resultados', d: 'Nuestra prioridad es que tu negocio crezca con nosotros.', i: '📈' }
+            { t: '💎 Calidad Premium', d: 'Utilizamos los mejores materiales y procesos del mercado.' },
+            { t: '⚡ Atención 24/7', d: 'Estamos siempre disponibles para resolver tus dudas.' },
+            { t: '📈 Crecimiento', d: 'Nuestra prioridad es que tu negocio crezca con nosotros.' }
            ].map((s, i) => (
-             <div key={i} className="bg-gray-50 p-12 rounded-[3.5rem] border border-gray-100 hover:shadow-2xl transition-all group">
-                <div className="text-4xl mb-6 grayscale group-hover:grayscale-0 transition-all">{s.i}</div>
-                <h3 className="text-xl font-black text-gray-900 mb-4">{s.t}</h3>
-                <p className="text-gray-500 font-medium leading-relaxed">{s.d}</p>
+             <div key={i} className="bg-gray-50 p-16 rounded-[4rem] border border-gray-100 hover:shadow-[0_40px_80px_-20px_rgba(0,0,0,0.08)] transition-all group cursor-default">
+                <h3 className="text-2xl font-black text-gray-900 mb-6">{s.t}</h3>
+                <p className="text-gray-500 font-medium leading-relaxed text-lg">{s.d}</p>
              </div>
            ))}
         </section>
 
         <section id="contact" className="py-40">
-           <div className="bg-gray-900 rounded-[4.5rem] p-24 text-center text-white relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-64 h-64 bg-brand-500/20 blur-[100px]"></div>
-              <h2 className="text-6xl font-black tracking-tighter mb-8 italic">¿Hablamos?</h2>
-              <p className="text-slate-400 text-lg mb-12 max-w-xl mx-auto">Pide tu presupuesto sin compromiso hoy mismo.</p>
-              <button className="px-12 py-6 bg-white text-gray-900 rounded-[2.5rem] font-black uppercase tracking-widest shadow-2xl hover:bg-brand-500 hover:text-white transition-all">Enviar Mensaje</button>
+           <div className="bg-gray-900 rounded-[5rem] p-32 text-center text-white relative overflow-hidden shadow-2xl">
+              <div className="absolute top-0 right-0 w-96 h-96 bg-brand-500/20 blur-[120px] rounded-full"></div>
+              <div className="absolute bottom-0 left-0 w-64 h-64 bg-blue-500/10 blur-[100px] rounded-full"></div>
+              <h2 className="text-7xl font-black tracking-tighter mb-10 italic">¿Hablamos?</h2>
+              <p className="text-slate-400 text-xl mb-16 max-w-xl mx-auto font-light leading-relaxed">
+                Estamos listos para llevar tu proyecto al siguiente nivel. Contáctanos hoy mismo.
+              </p>
+              <button className="px-16 py-7 bg-white text-gray-900 rounded-[3rem] font-black uppercase tracking-[0.15em] text-xs shadow-2xl hover:bg-brand-500 hover:text-white transition-all transform hover:scale-105 active:scale-95">
+                Enviar Mensaje
+              </button>
            </div>
         </section>
       </main>
 
-      <footer className="py-20 border-t border-gray-50 text-center">
-         <div className="text-[10px] font-black uppercase tracking-widest text-gray-300">© 2024 {tenant.name} · Powered by ACME SaaS</div>
+      <footer className="py-24 border-t border-gray-50 text-center bg-gray-50/30">
+         <div className="text-2xl font-black text-gray-200 mb-6 tracking-tighter italic uppercase">{tenant.name}</div>
+         <div className="text-[10px] font-black uppercase tracking-widest text-gray-400">
+            © 2024 · {tenant.name} · SaaS Multi-tenant Infrastructure
+         </div>
       </footer>
     </div>
   );
@@ -203,7 +215,7 @@ const Customers = () => {
     <div className="space-y-8 animate-in fade-in duration-500">
       <div className="flex justify-between items-center">
         <h3 className="text-3xl font-black text-gray-900 tracking-tighter">{t('customers')}</h3>
-        <button onClick={() => setIsCreating(true)} className="px-6 py-3 bg-brand-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg">+ Nuevo Cliente</button>
+        <button onClick={() => setIsCreating(true)} className="px-6 py-3 bg-brand-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg hover:shadow-brand-500/20 transition-all">+ Nuevo Cliente</button>
       </div>
 
       {isCreating && (
@@ -229,8 +241,8 @@ const Customers = () => {
             {customers.map(c => (
               <tr key={c.id} className="hover:bg-gray-50/50 transition-colors">
                 <td className="px-10 py-6 font-black text-gray-900">{c.name}</td>
-                <td className="px-10 py-6 text-sm text-gray-500">{c.email} <br/> <span className="text-[10px]">{c.phone}</span></td>
-                <td className="px-10 py-6 text-right"><button className="text-brand-600 font-black text-[9px] uppercase">Ver Ficha</button></td>
+                <td className="px-10 py-6 text-sm text-gray-500">{c.email} <br/> <span className="text-[10px] font-bold text-gray-400">{c.phone}</span></td>
+                <td className="px-10 py-6 text-right"><button className="text-brand-600 font-black text-[9px] uppercase tracking-widest">Ver Ficha</button></td>
               </tr>
             ))}
           </tbody>
@@ -860,7 +872,9 @@ export default function App() {
   const [memberships, setMemberships] = useState<Membership[]>([]);
   const [loading, setLoading] = useState(true);
   const [dbHealthy, setDbHealthy] = useState<boolean | null>(null);
-  const [language, setLanguageState] = useState<Language>('es');
+  const [language, setLanguageState] = useState<Language>(() => {
+    return (localStorage.getItem('app_lang') as Language) || 'es';
+  });
 
   const setLanguage = (lang: Language) => { setLanguageState(lang); localStorage.setItem('app_lang', lang); }
   const t_func = (key: keyof typeof translations['es']) => (translations[language] as any)[key] || key;
