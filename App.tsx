@@ -38,15 +38,31 @@ const LoadingSpinner = () => (
   </div>
 );
 
-const AlertConfigMissing = () => (
-  <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-2xl flex items-start gap-3">
-    <span className="text-xl text-amber-500">⚠️</span>
-    <div className="text-xs text-amber-800 leading-relaxed">
-      <p className="font-bold mb-1">Configuración pendiente</p>
-      <p>Has añadido las variables en Vercel, pero debes hacer un <strong>Redeploy</strong> desde el panel para que el código las reconozca.</p>
+const ConnectionStatusBadge = () => {
+  if (!isConfigured) return null;
+  return (
+    <div className="flex items-center gap-1.5 px-3 py-1 bg-green-50 text-green-700 text-[9px] font-black uppercase tracking-widest rounded-full border border-green-200 shadow-sm">
+      <span className="relative flex h-2 w-2">
+        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+        <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+      </span>
+      Supabase Live
     </div>
-  </div>
-);
+  );
+};
+
+// Added missing AlertConfigMissing component to resolve error on line 334
+const AlertConfigMissing = () => {
+  const { t } = useApp();
+  return (
+    <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-xs font-medium leading-relaxed">
+      <div className="flex items-center gap-2 mb-1 font-black uppercase tracking-widest text-[10px]">
+        <span>⚠️</span> {t('demo_mode')}
+      </div>
+      La configuración de Supabase no es válida o falta. Puedes entrar en modo demo para probar la plataforma sin necesidad de servidor.
+    </div>
+  );
+};
 
 const Button = ({ children, onClick, variant = 'primary', className = '', type = 'button', disabled = false }: any) => {
   const base = "px-4 py-2 rounded-md font-medium transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 active:scale-95";
@@ -134,7 +150,10 @@ const Landing = () => {
   return (
     <div className="min-h-screen bg-white">
       <header className="flex items-center justify-between px-8 py-5 border-b sticky top-0 bg-white/80 backdrop-blur-md z-50">
-        <div className="text-2xl font-black text-brand-600 tracking-tighter">ACME<span className="text-gray-900">SAAS</span></div>
+        <div className="flex items-center gap-4">
+          <div className="text-2xl font-black text-brand-600 tracking-tighter">ACME<span className="text-gray-900">SAAS</span></div>
+          <ConnectionStatusBadge />
+        </div>
         <div className="flex items-center space-x-6">
           <LanguageSwitcher />
           {session ? (
@@ -164,6 +183,187 @@ const Landing = () => {
           <Link to="/pricing" className="w-full sm:w-auto px-8 py-4 bg-white text-brand-600 border-2 border-brand-100 rounded-full hover:border-brand-500 text-lg font-bold transition-all">{t('pricing_nav')}</Link>
         </div>
       </main>
+    </div>
+  );
+};
+
+// --- Tenant Admin Layout ---
+
+const TenantLayout = () => {
+  const { slug } = useParams();
+  const { memberships, signOut, loading, t, profile, session, isDemoMode } = useApp();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const currentMembership = memberships.find(m => m.tenant?.slug === slug);
+  const currentTenant = currentMembership?.tenant;
+
+  useEffect(() => {
+    if (!loading) {
+        if (!session) navigate('/login');
+        else if (memberships.length === 0 && location.pathname !== '/onboarding') navigate('/onboarding');
+        else if (!currentMembership && memberships.length > 0) navigate(`/t/${memberships[0].tenant?.slug}/dashboard`);
+    }
+  }, [loading, session, memberships, currentMembership, navigate, location]);
+
+  if (loading) return <LoadingSpinner />;
+  if (!currentTenant) return null;
+
+  const isActive = (path: string) => location.pathname.includes(path);
+
+  const userInitial = (profile?.full_name?.[0] || session?.user?.email?.[0] || 'U').toUpperCase();
+  const userName = profile?.full_name || session?.user?.email?.split('@')[0] || 'Usuario';
+
+  return (
+    <div className="flex min-h-screen bg-gray-50 overflow-hidden">
+      <aside className="w-72 bg-white border-r border-gray-100 flex flex-col shrink-0 z-30 shadow-sm">
+        <div className="p-6 border-b h-20 flex items-center justify-between">
+          <div className="font-black text-xl truncate text-brand-600 tracking-tighter uppercase">{currentTenant.name}</div>
+        </div>
+        
+        <div className="p-4 bg-brand-50 mx-4 mt-6 rounded-2xl">
+           <label className="text-[10px] font-black text-brand-600 uppercase tracking-widest">{t('switch_team')}</label>
+           <select 
+             className="mt-1 w-full text-sm bg-transparent border-none font-bold text-gray-800 focus:ring-0 p-0 cursor-pointer"
+             value={slug}
+             onChange={(e) => navigate(`/t/${e.target.value}/dashboard`)}
+           >
+             {memberships.map(m => (
+               <option key={m.tenant_id} value={m.tenant?.slug}>{m.tenant?.name}</option>
+             ))}
+           </select>
+        </div>
+
+        <nav className="flex-1 p-6 space-y-2 mt-4 overflow-y-auto">
+          <Link to={`/t/${slug}/dashboard`} className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all ${isActive('dashboard') ? 'bg-brand-600 text-white shadow-lg shadow-brand-200' : 'text-gray-500 hover:bg-gray-50 hover:text-brand-600'}`}>
+            <span className="text-lg">📊</span> {t('dashboard')}
+          </Link>
+          <Link to={`/t/${slug}/customers`} className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all ${isActive('customers') ? 'bg-brand-600 text-white shadow-lg shadow-brand-200' : 'text-gray-500 hover:bg-gray-50 hover:text-brand-600'}`}>
+            <span className="text-lg">👥</span> {t('customers')}
+          </Link>
+          <Link to={`/t/${slug}/quotes`} className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all ${isActive('quotes') ? 'bg-brand-600 text-white shadow-lg shadow-brand-200' : 'text-gray-500 hover:bg-gray-50 hover:text-brand-600'}`}>
+            <span className="text-lg">📄</span> {t('quotes')}
+          </Link>
+          <Link to={`/t/${slug}/website`} className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all ${isActive('website') ? 'bg-brand-600 text-white shadow-lg shadow-brand-200' : 'text-gray-500 hover:bg-gray-50 hover:text-brand-600'}`}>
+            <span className="text-lg">🌐</span> {t('website')}
+          </Link>
+          <Link to={`/t/${slug}/settings`} className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all ${isActive('settings') ? 'bg-brand-600 text-white shadow-lg shadow-brand-200' : 'text-gray-500 hover:bg-gray-50 hover:text-brand-600'}`}>
+            <span className="text-lg">⚙️</span> {t('settings')}
+          </Link>
+        </nav>
+
+        <div className="p-6 border-t border-gray-50">
+          <button onClick={signOut} className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-red-500 hover:bg-red-50 rounded-xl transition-colors">
+            <span>🚪</span> {t('logout')}
+          </button>
+        </div>
+      </aside>
+
+      <main className="flex-1 flex flex-col h-screen overflow-hidden">
+        <header className="h-20 bg-white border-b border-gray-100 flex items-center justify-between px-10 shrink-0 z-20 shadow-sm">
+             <div className="flex items-center gap-4">
+               <h2 className="text-xl font-black text-gray-900 capitalize tracking-tight">
+                  {t(location.pathname.split('/').filter(Boolean).pop() as any) || t('dashboard')}
+               </h2>
+               <span className={`text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest border shadow-sm ${isDemoMode ? 'bg-amber-100 text-amber-700 border-amber-200' : 'bg-green-100 text-green-700 border-green-200'}`}>
+                   {isDemoMode ? 'Demo Workspace' : 'Supabase Live Cloud'}
+               </span>
+             </div>
+             <div className="flex items-center gap-6">
+                 <div className="bg-gray-100 p-1 rounded-full flex items-center shadow-inner">
+                    <button className="px-5 py-2 bg-white text-brand-600 rounded-full shadow-sm text-[10px] font-black uppercase tracking-wider">
+                        {t('view_admin')}
+                    </button>
+                    <Link 
+                        to={`/c/${currentTenant.slug}`} 
+                        target="_blank"
+                        className="px-5 py-2 text-gray-400 hover:text-brand-600 text-[10px] font-black uppercase tracking-wider transition-all"
+                    >
+                        {t('view_public')} ↗
+                    </Link>
+                 </div>
+
+                 <div className="flex items-center gap-3 bg-gray-50 p-2 rounded-2xl border border-gray-100 relative group">
+                    <div className={`h-10 w-10 ${isDemoMode ? 'bg-amber-500' : 'bg-brand-600'} text-white rounded-xl flex items-center justify-center font-black shadow-lg shadow-brand-100 uppercase relative transition-colors`}>
+                        {userInitial}
+                        <div className={`absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full border-2 border-white ${isDemoMode ? 'bg-amber-500' : 'bg-green-500'} shadow-sm`}></div>
+                    </div>
+                    <div className="hidden md:block">
+                        <div className="flex items-center gap-2">
+                           <div className="text-sm font-black text-gray-900 leading-none truncate max-w-[120px]">{userName}</div>
+                        </div>
+                        <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">{currentMembership?.role || 'User'}</div>
+                    </div>
+                 </div>
+             </div>
+        </header>
+
+        <div className="flex-1 overflow-auto p-10 bg-gray-50/50">
+           <Outlet context={{ tenant: currentTenant, membership: currentMembership }} />
+        </div>
+      </main>
+    </div>
+  );
+};
+
+// --- Auth Components ---
+
+const Login = () => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const { refreshProfile, enterDemoMode, t } = useApp();
+  const navigate = useNavigate();
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isConfigured) {
+        alert("Configuración no detectada en el código. Si acabas de añadir las variables en Vercel, haz un 'Redeploy' del proyecto.");
+        return;
+    }
+    setLoading(true);
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (!error) {
+      await refreshProfile();
+      navigate('/');
+    } else {
+        alert(error.message);
+        setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+      <div className="max-w-md w-full bg-white p-10 rounded-3xl shadow-xl border border-gray-100">
+        <div className="flex justify-between items-center mb-8">
+            <Link to="/" className="font-black text-brand-600 tracking-tighter">← ACME</Link>
+            <div className="flex items-center gap-2">
+               <ConnectionStatusBadge />
+               <LanguageSwitcher />
+            </div>
+        </div>
+        <h2 className="text-3xl font-black mb-8 text-center text-gray-900 tracking-tight">{t('login_title')}</h2>
+        
+        {!isConfigured && <AlertConfigMissing />}
+
+        <form onSubmit={handleLogin} className="space-y-4">
+          <Input label={t('email')} type="email" value={email} onChange={(e: any) => setEmail(e.target.value)} required placeholder="ejemplo@correo.com" />
+          <Input label={t('password')} type="password" value={password} onChange={(e: any) => setPassword(e.target.value)} required />
+          <Button type="submit" className="w-full py-3 text-lg" disabled={loading || !isConfigured}>{loading ? t('loading') : t('login_btn')}</Button>
+        </form>
+        
+        <div className="relative my-8">
+            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-100"></div></div>
+            <div className="relative flex justify-center text-[10px] font-black uppercase tracking-widest"><span className="px-3 bg-white text-gray-400">O pruébalo gratis</span></div>
+        </div>
+        <Button onClick={() => { enterDemoMode(); navigate('/t/demo/dashboard'); }} variant="secondary" className="w-full py-3 font-bold border-gray-200 text-gray-500 hover:text-brand-600 hover:border-brand-600 transition-all">
+            🚀 {t('demo_mode')}
+        </Button>
+        
+        <p className="mt-8 text-center text-sm text-gray-500 font-medium">
+          {t('no_account')} <Link to="/signup" className="text-brand-600 font-bold hover:underline">{t('signup_btn')}</Link>
+        </p>
+      </div>
     </div>
   );
 };
@@ -258,185 +458,6 @@ const Onboarding = () => {
         </div>
     );
 };
-
-// --- Tenant Admin Layout ---
-
-const TenantLayout = () => {
-  const { slug } = useParams();
-  const { memberships, signOut, loading, t, profile, session, isDemoMode } = useApp();
-  const navigate = useNavigate();
-  const location = useLocation();
-
-  const currentMembership = memberships.find(m => m.tenant?.slug === slug);
-  const currentTenant = currentMembership?.tenant;
-
-  useEffect(() => {
-    if (!loading) {
-        if (!session) navigate('/login');
-        else if (memberships.length === 0 && location.pathname !== '/onboarding') navigate('/onboarding');
-        else if (!currentMembership && memberships.length > 0) navigate(`/t/${memberships[0].tenant?.slug}/dashboard`);
-    }
-  }, [loading, session, memberships, currentMembership, navigate, location]);
-
-  if (loading) return <LoadingSpinner />;
-  if (!currentTenant) return null;
-
-  const isActive = (path: string) => location.pathname.includes(path);
-
-  // Inicial dinámica: Prioridad Nombre -> Email -> "U"
-  const userInitial = (profile?.full_name?.[0] || session?.user?.email?.[0] || 'U').toUpperCase();
-  const userName = profile?.full_name || session?.user?.email?.split('@')[0] || 'Usuario';
-
-  return (
-    <div className="flex min-h-screen bg-gray-50 overflow-hidden">
-      <aside className="w-72 bg-white border-r border-gray-100 flex flex-col shrink-0 z-30 shadow-sm">
-        <div className="p-6 border-b h-20 flex items-center justify-between">
-          <div className="font-black text-xl truncate text-brand-600 tracking-tighter uppercase">{currentTenant.name}</div>
-        </div>
-        
-        <div className="p-4 bg-brand-50 mx-4 mt-6 rounded-2xl">
-           <label className="text-[10px] font-black text-brand-600 uppercase tracking-widest">{t('switch_team')}</label>
-           <select 
-             className="mt-1 w-full text-sm bg-transparent border-none font-bold text-gray-800 focus:ring-0 p-0 cursor-pointer"
-             value={slug}
-             onChange={(e) => navigate(`/t/${e.target.value}/dashboard`)}
-           >
-             {memberships.map(m => (
-               <option key={m.tenant_id} value={m.tenant?.slug}>{m.tenant?.name}</option>
-             ))}
-           </select>
-        </div>
-
-        <nav className="flex-1 p-6 space-y-2 mt-4 overflow-y-auto">
-          <Link to={`/t/${slug}/dashboard`} className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all ${isActive('dashboard') ? 'bg-brand-600 text-white shadow-lg shadow-brand-200' : 'text-gray-500 hover:bg-gray-50 hover:text-brand-600'}`}>
-            <span className="text-lg">📊</span> {t('dashboard')}
-          </Link>
-          <Link to={`/t/${slug}/customers`} className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all ${isActive('customers') ? 'bg-brand-600 text-white shadow-lg shadow-brand-200' : 'text-gray-500 hover:bg-gray-50 hover:text-brand-600'}`}>
-            <span className="text-lg">👥</span> {t('customers')}
-          </Link>
-          <Link to={`/t/${slug}/quotes`} className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all ${isActive('quotes') ? 'bg-brand-600 text-white shadow-lg shadow-brand-200' : 'text-gray-500 hover:bg-gray-50 hover:text-brand-600'}`}>
-            <span className="text-lg">📄</span> {t('quotes')}
-          </Link>
-          <Link to={`/t/${slug}/website`} className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all ${isActive('website') ? 'bg-brand-600 text-white shadow-lg shadow-brand-200' : 'text-gray-500 hover:bg-gray-50 hover:text-brand-600'}`}>
-            <span className="text-lg">🌐</span> {t('website')}
-          </Link>
-          <Link to={`/t/${slug}/settings`} className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all ${isActive('settings') ? 'bg-brand-600 text-white shadow-lg shadow-brand-200' : 'text-gray-500 hover:bg-gray-50 hover:text-brand-600'}`}>
-            <span className="text-lg">⚙️</span> {t('settings')}
-          </Link>
-        </nav>
-
-        <div className="p-6 border-t border-gray-50">
-          <button onClick={signOut} className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-red-500 hover:bg-red-50 rounded-xl transition-colors">
-            <span>🚪</span> {t('logout')}
-          </button>
-        </div>
-      </aside>
-
-      <main className="flex-1 flex flex-col h-screen overflow-hidden">
-        <header className="h-20 bg-white border-b border-gray-100 flex items-center justify-between px-10 shrink-0 z-20 shadow-sm">
-             <h2 className="text-xl font-black text-gray-900 capitalize tracking-tight">
-                {t(location.pathname.split('/').filter(Boolean).pop() as any) || t('dashboard')}
-             </h2>
-             <div className="flex items-center gap-6">
-                 <div className="bg-gray-100 p-1 rounded-full flex items-center shadow-inner">
-                    <button className="px-5 py-2 bg-white text-brand-600 rounded-full shadow-sm text-[10px] font-black uppercase tracking-wider">
-                        {t('view_admin')}
-                    </button>
-                    <Link 
-                        to={`/c/${currentTenant.slug}`} 
-                        target="_blank"
-                        className="px-5 py-2 text-gray-400 hover:text-brand-600 text-[10px] font-black uppercase tracking-wider transition-all"
-                    >
-                        {t('view_public')} ↗
-                    </Link>
-                 </div>
-
-                 <div className="flex items-center gap-3 bg-gray-50 p-2 rounded-2xl border border-gray-100 relative group">
-                    <div className="h-10 w-10 bg-brand-600 text-white rounded-xl flex items-center justify-center font-black shadow-lg shadow-brand-100 uppercase relative">
-                        {userInitial}
-                        <div className={`absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full border-2 border-white ${isDemoMode ? 'bg-amber-500' : 'bg-green-500'} shadow-sm`}></div>
-                    </div>
-                    <div className="hidden md:block">
-                        <div className="flex items-center gap-2">
-                           <div className="text-sm font-black text-gray-900 leading-none truncate max-w-[120px]">{userName}</div>
-                           <span className={`text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-tighter border ${isDemoMode ? 'bg-amber-50 text-amber-600 border-amber-200' : 'bg-green-50 text-green-600 border-green-200'}`}>
-                               {isDemoMode ? 'DEMO' : 'LIVE'}
-                           </span>
-                        </div>
-                        <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">{currentMembership?.role || 'User'}</div>
-                    </div>
-                 </div>
-             </div>
-        </header>
-
-        <div className="flex-1 overflow-auto p-10 bg-gray-50/50">
-           <Outlet context={{ tenant: currentTenant, membership: currentMembership }} />
-        </div>
-      </main>
-    </div>
-  );
-};
-
-// --- Auth Components ---
-
-const Login = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
-  const { refreshProfile, enterDemoMode, t } = useApp();
-  const navigate = useNavigate();
-
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!isConfigured) {
-        alert("Configuración no detectada en el código. Si acabas de añadir las variables en Vercel, haz un 'Redeploy' del proyecto.");
-        return;
-    }
-    setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (!error) {
-      await refreshProfile();
-      navigate('/');
-    } else {
-        alert(error.message);
-        setLoading(false);
-    }
-  };
-
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-      <div className="max-w-md w-full bg-white p-10 rounded-3xl shadow-xl border border-gray-100">
-        <div className="flex justify-between items-center mb-8">
-            <Link to="/" className="font-black text-brand-600 tracking-tighter">← ACME</Link>
-            <LanguageSwitcher />
-        </div>
-        <h2 className="text-3xl font-black mb-8 text-center text-gray-900 tracking-tight">{t('login_title')}</h2>
-        
-        {!isConfigured && <AlertConfigMissing />}
-
-        <form onSubmit={handleLogin} className="space-y-4">
-          <Input label={t('email')} type="email" value={email} onChange={(e: any) => setEmail(e.target.value)} required placeholder="ejemplo@correo.com" />
-          <Input label={t('password')} type="password" value={password} onChange={(e: any) => setPassword(e.target.value)} required />
-          <Button type="submit" className="w-full py-3 text-lg" disabled={loading || !isConfigured}>{loading ? t('loading') : t('login_btn')}</Button>
-        </form>
-        
-        <div className="relative my-8">
-            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-100"></div></div>
-            <div className="relative flex justify-center text-[10px] font-black uppercase tracking-widest"><span className="px-3 bg-white text-gray-400">O pruébalo gratis</span></div>
-        </div>
-        <Button onClick={() => { enterDemoMode(); navigate('/t/demo/dashboard'); }} variant="secondary" className="w-full py-3 font-bold border-gray-200 text-gray-500 hover:text-brand-600 hover:border-brand-600 transition-all">
-            🚀 {t('demo_mode')}
-        </Button>
-        
-        <p className="mt-8 text-center text-sm text-gray-500 font-medium">
-          {t('no_account')} <Link to="/signup" className="text-brand-600 font-bold hover:underline">{t('signup_btn')}</Link>
-        </p>
-      </div>
-    </div>
-  );
-};
-
-// ... Resto del componente App igual ...
 
 const Dashboard = () => {
     const { t } = useApp();
