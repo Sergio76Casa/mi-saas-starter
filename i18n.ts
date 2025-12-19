@@ -3,7 +3,6 @@ import { Language } from './types';
 
 export const translations = {
   es: {
-    // General
     loading: "Cargando...",
     save: "Guardar",
     saved: "Guardado",
@@ -17,8 +16,6 @@ export const translations = {
     total: "Total",
     created: "Creado",
     language: "Idioma",
-    
-    // Auth
     login_title: "Inicia sesión en tu cuenta",
     signup_title: "Crea tu cuenta",
     email: "Correo Electrónico",
@@ -29,23 +26,17 @@ export const translations = {
     no_account: "¿No tienes una cuenta?",
     have_account: "¿Ya tienes cuenta?",
     demo_mode: "Entrar en Modo Demo",
-
-    // Onboarding
     onboarding_title: "Crea tu Workspace",
     onboarding_subtitle: "Para empezar, necesitamos configurar tu empresa o equipo.",
     company_name: "Nombre de la Empresa",
     company_slug: "URL de tu web (Slug)",
     create_company_btn: "Crear y Empezar",
     slug_hint: "Tu web será: acmesaas.com/c/",
-    
-    // Platform Public
     start_cta: "Empezar",
     login_nav: "Iniciar Sesión",
     pricing_nav: "Precios",
-    home_hero_title_default: "Gestiona tu negocio sin esfuerzo.",
+    home_hero_title_default: "Gestiona tu negocio con precisión.",
     home_hero_subtitle_default: "La plataforma todo en uno para presupuestos y gestión.",
-    
-    // Dashboard & Admin
     dashboard: "Panel de Control",
     customers: "Clientes",
     quotes: "Presupuestos",
@@ -53,13 +44,8 @@ export const translations = {
     website: "Mi Web Pública",
     admin_panel: "Superadmin",
     logout: "Cerrar Sesión",
-    switch_team: "Cambiar Equipo",
-    view_mode: "Modo de Vista",
     view_admin: "Panel Admin",
     view_public: "Ver Web",
-    back_to_admin: "Volver al Admin",
-    
-    // Tenant Website Management
     manage_website: "Gestionar Web Pública",
     public_link: "Enlace Público",
     hero_section: "Sección Hero (Inicio)",
@@ -67,8 +53,6 @@ export const translations = {
     contact_section: "Sección Contacto",
     title: "Título",
     description: "Descripción",
-    
-    // Quotes
     new_quote: "Nuevo Presupuesto",
     quote_details: "Detalle Presupuesto",
     bill_to: "Facturar a",
@@ -83,14 +67,22 @@ export const translations = {
     view_as_client: "Ver como Cliente",
     quote_accepted_msg: "¡Presupuesto Aceptado!",
     quote_rejected_msg: "Presupuesto Rechazado",
-    
-    // Stats
     total_revenue: "Ingresos Totales",
     active_quotes: "Presupuestos Activos",
     total_customers: "Clientes Totales",
+    // New technical fields
+    dni: "DNI/NIF",
+    address: "Dirección",
+    population: "Población",
+    maintenance_no: "Nº Mant/Rep",
+    valid_until: "Válido hasta",
+    financing: "Financiación",
+    monthly_fee: "Cuota mensual",
+    add_product: "Añadir Producto",
+    installation_kit: "Kit Instalación",
+    extra_materials: "Materiales Extras",
   },
   ca: {
-    // General
     loading: "Carregant...",
     save: "Desar",
     saved: "Desat",
@@ -104,8 +96,6 @@ export const translations = {
     total: "Total",
     created: "Creat",
     language: "Idioma",
-    
-    // Auth
     login_title: "Inicia sessió al teu compte",
     signup_title: "Crea el teu compte",
     email: "Correu Electrònic",
@@ -114,25 +104,19 @@ export const translations = {
     login_btn: "Entrar",
     signup_btn: "Registrar-se",
     no_account: "¿No tens un compte?",
-    have_account: "¿Ja tens compte?",
+    have_account: "¿Ya tens compte?",
     demo_mode: "Entrar en Mode Demo",
-
-    // Onboarding
     onboarding_title: "Crea el teu Workspace",
     onboarding_subtitle: "Per començar, hem de configurar la teva empresa o equip.",
     company_name: "Nom de l'Empresa",
     company_slug: "URL de la teva web (Slug)",
     create_company_btn: "Crear i Començar",
     slug_hint: "La teva web serà: acmesaas.com/c/",
-    
-    // Platform Public
     start_cta: "Començar",
     login_nav: "Iniciar Sessió",
     pricing_nav: "Preus",
     home_hero_title_default: "Gestiona el teu negoci sense esforç.",
     home_hero_subtitle_default: "La plataforma tot en un per a pressupostos i gestió.",
-    
-    // Dashboard & Admin
     dashboard: "Tauler de Control",
     customers: "Clients",
     quotes: "Pressupostos",
@@ -140,13 +124,8 @@ export const translations = {
     website: "La Meva Web Pública",
     admin_panel: "Superadmin",
     logout: "Tancar Sessió",
-    switch_team: "Canviar d'Equip",
-    view_mode: "Mode de Vista",
     view_admin: "Tauler Admin",
     view_public: "Veure Web",
-    back_to_admin: "Tornar a l'Admin",
-    
-    // Tenant Website Management
     manage_website: "Gestionar Web Pública",
     public_link: "Enllaç Públic",
     hero_section: "Secció Hero (Inici)",
@@ -154,8 +133,6 @@ export const translations = {
     contact_section: "Secció Contacte",
     title: "Títol",
     description: "Descripció",
-    
-    // Quotes
     new_quote: "Nou Pressupost",
     quote_details: "Detall Pressupost",
     bill_to: "Facturar a",
@@ -170,11 +147,20 @@ export const translations = {
     view_as_client: "Veure com a Client",
     quote_accepted_msg: "Pressupost Acceptat!",
     quote_rejected_msg: "Pressupost Rebutjat",
-    
-    // Stats
     total_revenue: "Ingressos Totals",
     active_quotes: "Pressupostos Actius",
     total_customers: "Clients Totals",
+    // New technical fields
+    dni: "DNI/NIF",
+    address: "Adreça",
+    population: "Població",
+    maintenance_no: "Nº Mant/Rep",
+    valid_until: "Vàlid fins",
+    financing: "Finançament",
+    monthly_fee: "Quota mensual",
+    add_product: "Afegir Producte",
+    installation_kit: "Kit Instal·lació",
+    extra_materials: "Materials Extras",
   }
 };
 

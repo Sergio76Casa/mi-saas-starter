@@ -27,9 +27,14 @@ export interface Membership {
 export interface Customer {
   id: string;
   tenant_id: string;
+  created_by?: string;
+  referred_by?: string;
   name: string;
   email: string;
   phone?: string;
+  address?: string;
+  dni?: string;
+  population?: string;
   created_at: string;
 }
 
@@ -37,11 +42,27 @@ export interface Quote {
   id: string;
   tenant_id: string;
   customer_id: string;
+  created_by: string;
+  quote_no: string; // Formato YYYY-0001
   customer?: Customer;
+  
+  // Datos capturados en el presupuesto (pueden diferir del perfil del cliente)
+  client_name: string;
+  client_dni: string;
+  client_address: string;
+  client_population: string;
+  client_email: string;
+  client_phone: string;
+  maintenance_no?: string;
+  
   total_amount: number;
-  status: 'draft' | 'sent' | 'accepted' | 'rejected';
+  status: 'draft' | 'sent' | 'viewed' | 'accepted' | 'rejected' | 'expired';
   created_at: string;
-  valid_until?: string;
+  valid_until: string;
+  
+  financing_months?: number;
+  financing_fee?: number;
+  
   items?: QuoteItem[];
 }
 
@@ -55,14 +76,7 @@ export interface QuoteItem {
 }
 
 export interface PlatformContent {
-  key: string; // e.g., 'home_hero_title'
-  es: string;
-  ca: string;
-}
-
-export interface TenantContent {
-  tenant_id: string;
-  key: string; // e.g., 'about_us_text'
+  key: string; 
   es: string;
   ca: string;
 }
