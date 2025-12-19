@@ -8,10 +8,10 @@ import { Session } from '@supabase/supabase-js';
 
 // --- PDF Specific Data ---
 const PDF_PRODUCTS = [
-  { name: 'COMFEE CF 09', price: 829.00 },
-  { name: 'COMFEE CF 12', price: 889.00 },
-  { name: 'COMFEE CF 18', price: 1139.00 },
-  { name: 'COMFEE CF 2X1', price: 1489.00 },
+  { id: 'cf09', name: 'COMFEE CF 09', price: 829.00, desc: 'Eficiencia A++ en refrigeración, ideal para estancias pequeñas.' },
+  { id: 'cf12', name: 'COMFEE CF 12', price: 889.00, desc: 'Clasificación A++, perfecto equilibrio entre potencia y consumo.' },
+  { id: 'cf18', name: 'COMFEE CF 18', price: 1139.00, desc: 'Alta capacidad de refrigeración (4601 kcal/h) para grandes espacios.' },
+  { id: 'cf2x1', name: 'COMFEE CF 2X1', price: 1489.00, desc: 'Sistema multi-split para climatizar dos estancias con una unidad exterior.' },
 ];
 
 const PDF_KITS = [
@@ -136,6 +136,7 @@ const SuperAdminFloatingBar = () => {
 const QuoteEditor = () => {
   const { tenant } = useOutletContext<{ tenant: Tenant }>();
   const { id } = useParams();
+  const [searchParams] = useSearchParams();
   const { t, session, language } = useApp();
   const navigate = useNavigate();
 
@@ -157,28 +158,6 @@ const QuoteEditor = () => {
     financing_months: 12
   });
 
-  useEffect(() => {
-    const fetchCustomers = async () => {
-      const { data } = await supabase.from('customers').select('*').eq('tenant_id', tenant.id).order('name');
-      if (data) setCustomers(data);
-    };
-    fetchCustomers();
-    
-    if (id && id !== 'new') {
-      // Logic for editing existing quote could go here
-    }
-  }, [tenant.id, id]);
-
-  const subtotal = useMemo(() => {
-    return (formData.items || []).reduce((acc, item) => acc + (item.quantity * item.unit_price), 0);
-  }, [formData.items]);
-
-  const monthlyFee = useMemo(() => {
-    if (!formData.financing_months) return 0;
-    const coeff = FINANCING_COEFFICIENTS[formData.financing_months];
-    return subtotal * coeff;
-  }, [subtotal, formData.financing_months]);
-
   const addItem = (description: string, price: number) => {
     const newItem: QuoteItem = {
       id: Math.random().toString(36).substr(2, 9),
@@ -190,6 +169,37 @@ const QuoteEditor = () => {
     };
     setFormData(prev => ({ ...prev, items: [...(prev.items || []), newItem] }));
   };
+
+  useEffect(() => {
+    const fetchCustomers = async () => {
+      const { data } = await supabase.from('customers').select('*').eq('tenant_id', tenant.id).order('name');
+      if (data) setCustomers(data);
+    };
+    fetchCustomers();
+    
+    // Check for pre-selected product from URL
+    const productId = searchParams.get('productId');
+    if (productId && id === 'new') {
+      const product = PDF_PRODUCTS.find(p => p.id === productId);
+      if (product) {
+        addItem(product.name, product.price);
+      }
+    }
+    
+    if (id && id !== 'new') {
+      // Logic for editing existing quote could go here
+    }
+  }, [tenant.id, id, searchParams]);
+
+  const subtotal = useMemo(() => {
+    return (formData.items || []).reduce((acc, item) => acc + (item.quantity * item.unit_price), 0);
+  }, [formData.items]);
+
+  const monthlyFee = useMemo(() => {
+    if (!formData.financing_months) return 0;
+    const coeff = FINANCING_COEFFICIENTS[formData.financing_months];
+    return subtotal * coeff;
+  }, [subtotal, formData.financing_months]);
 
   const updateItemQty = (id: string, qty: number) => {
     setFormData(prev => ({
@@ -411,7 +421,7 @@ const QuoteEditor = () => {
 const PublicTenantWebsite = () => {
   const { slug } = useParams();
   const [searchParams] = useSearchParams();
-  const { dbHealthy, t, session, memberships, profile } = useApp();
+  const { dbHealthy, t, session, memberships, profile, language } = useApp();
   const [tenant, setTenant] = useState<Tenant | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -448,6 +458,7 @@ const PublicTenantWebsite = () => {
       <nav className="flex items-center justify-between px-10 py-8 sticky top-0 bg-white/80 backdrop-blur-xl z-50 border-b border-gray-50">
         <div className="text-2xl font-black text-gray-900 italic tracking-tighter uppercase">{tenant.name}</div>
         <div className="flex items-center gap-10">
+           <a href="#catalog" className="text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-gray-900 transition-colors">Catálogo</a>
            <a href="#services" className="text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-gray-900 transition-colors">{t('services_section')}</a>
            <LanguageSwitcher />
            {hasAdminAccess ? (
@@ -468,6 +479,33 @@ const PublicTenantWebsite = () => {
           <h1 className="text-[7rem] md:text-[9rem] font-black text-gray-900 tracking-tighter leading-[0.8] mb-12 uppercase">{tenant.name}</h1>
           <p className="text-2xl text-gray-400 max-w-3xl mx-auto font-medium leading-relaxed italic opacity-80">{t('home_hero_subtitle_default')}</p>
         </section>
+
+        {/* Product Catalog Grid */}
+        <section id="catalog" className="py-32 scroll-mt-24">
+          <div className="mb-16 text-center">
+             <h2 className="text-5xl font-black text-gray-900 tracking-tight uppercase mb-4 italic">Nuestra Gama Midea & Comfee</h2>
+             <p className="text-gray-400 font-bold uppercase tracking-widest text-xs italic">Selecciona el equipo ideal para tu hogar</p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+            {PDF_PRODUCTS.map(product => (
+              <div key={product.id} className="bg-white border border-gray-100 rounded-[3rem] p-10 shadow-sm hover:shadow-2xl transition-all flex flex-col group">
+                 <div className="w-16 h-16 bg-brand-50 rounded-2xl flex items-center justify-center text-3xl mb-8 group-hover:scale-110 transition-transform">❄️</div>
+                 <h3 className="text-xl font-black text-gray-900 mb-4">{product.name}</h3>
+                 <p className="text-gray-400 text-sm leading-relaxed mb-10 flex-1">{product.desc}</p>
+                 <div className="flex flex-col gap-6">
+                    <span className="text-2xl font-black text-brand-600">{formatCurrency(product.price, language)}</span>
+                    <Link 
+                      to={`/t/${slug}/quotes/new?productId=${product.id}`}
+                      className="w-full py-4 bg-slate-900 text-white text-center rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-brand-600 transition-all shadow-xl"
+                    >
+                      Solicitar Presupuesto
+                    </Link>
+                 </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
         <section id="services" className="py-32 grid grid-cols-1 md:grid-cols-3 gap-12">
            {[
             { t: '💎 Calidad Premium', d: 'Utilizamos los mejores materiales y procesos del mercado.' },
@@ -480,6 +518,7 @@ const PublicTenantWebsite = () => {
              </div>
            ))}
         </section>
+
         <section id="contact" className="py-40">
            <div className="bg-gray-900 rounded-[5rem] p-32 text-center text-white relative overflow-hidden shadow-2xl">
               <div className="absolute top-0 right-0 w-96 h-96 bg-brand-500/20 blur-[120px] rounded-full"></div>
