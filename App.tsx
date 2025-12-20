@@ -414,10 +414,13 @@ const PublicTenantWebsite = () => {
   const [tenant, setTenant] = useState<Tenant | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // States for Wizard
+  // States for Wizard & UI
   const [view, setView] = useState<'landing' | 'wizard'>('landing');
   const [step, setStep] = useState(1);
   const [brandFilter, setBrandFilter] = useState('');
+  const [typeFilter, setTypeFilter] = useState('Todos');
+  const [maxPrice, setMaxPrice] = useState(2100);
+
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
   const [selectedKit, setSelectedKit] = useState<any>(null);
   const [selectedExtras, setSelectedExtras] = useState<string[]>([]);
@@ -473,8 +476,8 @@ const PublicTenantWebsite = () => {
     const canvas = canvasRef.current;
     if (!canvas) return { x: 0, y: 0 };
     const rect = canvas.getBoundingClientRect();
-    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
-    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+    const clientX = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
+    const clientY = 'touches' in e ? e.touches[0].clientY : (e as React.MouseEvent).clientY;
     return { x: clientX - rect.left, y: clientY - rect.top };
   };
 
@@ -516,50 +519,85 @@ const PublicTenantWebsite = () => {
     </div>
   );
 
-  const filteredProducts = PDF_PRODUCTS.filter(p => !brandFilter || p.name.includes(brandFilter));
+  const filteredProducts = PDF_PRODUCTS.filter(p => {
+    const matchesBrand = !brandFilter || p.name.includes(brandFilter);
+    const matchesPrice = p.price <= maxPrice;
+    return matchesBrand && matchesPrice;
+  });
+
   const subtotal = (selectedProduct?.price || 0) + (selectedKit?.price || 0) + selectedExtras.reduce((acc, n) => acc + (PDF_EXTRAS.find(e => e.name === n)?.price || 0), 0);
 
   return (
-    <div className="min-h-screen bg-white text-slate-900 selection:bg-blue-600 selection:text-white">
-      {/* Header */}
-      <nav className="flex items-center justify-between px-10 py-8 sticky top-0 bg-white/80 backdrop-blur-xl z-[60] border-b border-slate-50">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+    <div className="min-h-screen bg-white text-slate-900 selection:bg-blue-600/20">
+      {/* Header Estilo Imagen */}
+      <nav className="flex items-center justify-between px-6 md:px-16 py-6 sticky top-0 bg-white/90 backdrop-blur-md z-[60] border-b border-slate-100">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-white shadow-sm rounded-lg flex items-center justify-center overflow-hidden border border-slate-50 relative">
+             <div className="w-6 h-6 bg-blue-500 rounded-full blur-[2px] opacity-20 absolute"></div>
+             <svg className="w-8 h-8 text-blue-600 relative" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L4.5 20.29L5.21 21L12 18L18.79 21L19.5 20.29L12 2Z"/></svg>
           </div>
-          <span className="text-2xl font-black italic tracking-tighter uppercase">{tenant.name}</span>
+          <div className="flex flex-col -gap-1">
+             <span className="text-xl font-black italic tracking-tighter uppercase leading-none">eco-efficient</span>
+             <span className="text-[7px] font-bold text-slate-400 uppercase tracking-widest leading-none ml-1">Instal·lacions Integrals</span>
+          </div>
         </div>
-        <div className="flex items-center gap-6">
-          <LanguageSwitcher />
-          {view === 'wizard' && <button onClick={() => setView('landing')} className="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-blue-600">Cancelar</button>}
+        <div className="flex items-center gap-10">
+          <div className="hidden lg:flex items-center gap-8">
+            <button onClick={() => setView('landing')} className={`px-4 py-2 rounded-lg text-[13px] font-bold transition-all ${view === 'landing' ? 'bg-blue-50 text-blue-600' : 'text-slate-500 hover:text-blue-600'}`}>Inicio</button>
+            <a href="#catalog" className="text-[13px] font-bold text-slate-500 hover:text-blue-600 transition-colors">Productos</a>
+            <button className="text-[13px] font-bold text-slate-500 hover:text-blue-600 transition-colors">Contacto</button>
+          </div>
+          <div className="h-6 w-px bg-slate-200 hidden md:block"></div>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-1 text-[11px] font-bold text-slate-600 cursor-pointer">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/></svg>
+              ES
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"/></svg>
+            </div>
+            <button className="p-2 text-slate-400 hover:text-slate-900 transition-colors">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+            </button>
+          </div>
         </div>
       </nav>
 
       {view === 'landing' ? (
-        <main className="animate-in fade-in duration-1000">
-          {/* Hero Section */}
-          <section className="relative pt-40 pb-56 px-6 text-center overflow-hidden">
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full -z-10 opacity-30">
-              <div className="absolute top-20 left-1/4 w-96 h-96 bg-blue-600/20 blur-[120px] rounded-full"></div>
-              <div className="absolute bottom-20 right-1/4 w-80 h-80 bg-slate-300/30 blur-[100px] rounded-full"></div>
-            </div>
-            <div className="inline-block px-5 py-2 bg-blue-50 text-blue-600 rounded-full text-[10px] font-black uppercase tracking-[0.2em] mb-12 border border-blue-100">✨ Climatización Multi-tenant</div>
-            <h1 className="text-7xl md:text-[9.5rem] font-black tracking-tighter leading-[0.85] mb-16 uppercase italic">Eco<span className="text-blue-600">Quote</span></h1>
-            <p className="text-xl md:text-3xl text-slate-400 max-w-4xl mx-auto font-medium italic mb-20 leading-relaxed">Configura tu instalación ideal y recibe un presupuesto oficial en segundos.</p>
-            <div className="flex flex-wrap justify-center gap-8">
-               <a href="#catalog" className="px-14 py-7 bg-blue-600 text-white rounded-[2.5rem] font-black uppercase text-xs tracking-widest hover:scale-105 transition-all shadow-2xl shadow-blue-600/20 active:scale-95">Solicitar Presupuesto</a>
-               <button onClick={handleShare} className="px-14 py-7 bg-slate-50 text-slate-600 rounded-[2.5rem] font-black uppercase text-xs tracking-widest hover:bg-slate-100 transition-all flex items-center gap-3">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 100 0m0 0a3 3 0 100 0m0 6a3 3 0 100 0m0 0a3 3 0 100 0"/></svg>
-                  Compartir
-               </button>
-            </div>
-          </section>
+        <main className="animate-in fade-in duration-1000 pb-40">
+          {/* Hero Section Estilo Imagen */}
+          <div className="px-6 md:px-12 pt-6">
+            <section className="relative rounded-[2.5rem] h-[650px] overflow-hidden group shadow-2xl">
+              <img src="https://images.unsplash.com/photo-1556911220-e15b29be8c8f?q=80&w=2070&auto=format&fit=crop" className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" alt="Hero Background" />
+              <div className="absolute inset-0 bg-gradient-to-r from-slate-900/70 via-slate-900/30 to-transparent"></div>
+              <div className="relative h-full flex flex-col justify-center items-start px-12 md:px-24 max-w-4xl text-left">
+                <div className="flex items-center gap-2 px-4 py-1.5 bg-blue-600/90 text-white rounded-full text-[10px] font-black uppercase tracking-widest mb-8 border border-white/20">
+                  <div className="w-1.5 h-1.5 bg-white rounded-full animate-pulse"></div>
+                  Tecnología Inverter 2024
+                </div>
+                <h1 className="text-6xl md:text-8xl font-black text-white leading-[0.9] tracking-tighter mb-10 uppercase">
+                  Clima perfecto, <br/>
+                  <span className="text-blue-400 italic">Ahorro real.</span>
+                </h1>
+                <p className="text-lg md:text-xl text-white/80 max-w-xl font-medium leading-relaxed mb-12">
+                  Transforma tu hogar con nuestras soluciones de climatización de alta eficiencia. Instalación profesional, financiación a medida y las mejores marcas del mercado.
+                </p>
+                <div className="flex flex-wrap gap-4">
+                  <a href="#catalog" className="px-10 py-5 bg-blue-600 text-white rounded-2xl font-black uppercase text-[12px] tracking-widest hover:bg-blue-700 transition-all shadow-xl shadow-blue-600/30 flex items-center gap-3 active:scale-95">
+                    Ver Catálogo
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 14l-7 7m0 0l-7-7m7 7V3"/></svg>
+                  </a>
+                  <button onClick={() => { setView('wizard'); setStep(1); }} className="px-10 py-5 bg-white/10 backdrop-blur-md border border-white/30 text-white rounded-2xl font-black uppercase text-[12px] tracking-widest hover:bg-white/20 transition-all active:scale-95">
+                    Pedir Presupuesto
+                  </button>
+                </div>
+              </div>
+            </section>
+          </div>
 
           {/* Cómo funciona */}
-          <section className="py-40 bg-slate-50 px-10 border-y border-slate-100">
+          <section className="py-32 bg-slate-50 px-10 border-y border-slate-100 mt-20">
             <div className="max-w-7xl mx-auto">
               <div className="text-center mb-24">
-                <h2 className="text-5xl font-black tracking-tight uppercase italic leading-none">¿Cómo funciona?</h2>
+                <h2 className="text-5xl font-black tracking-tight uppercase italic leading-none mb-4">¿Cómo funciona?</h2>
                 <div className="w-24 h-2 bg-blue-600 mx-auto mt-6 rounded-full"></div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
@@ -568,7 +606,7 @@ const PublicTenantWebsite = () => {
                    { t: "2. Configura", d: "Añade kits de instalación y materiales adicionales personalizados.", i: "⚙️" },
                    { t: "3. Firma", d: "Valida tu presupuesto con firma digital y descárgalo al instante.", i: "✍️" }
                  ].map((s, i) => (
-                   <div key={i} className="bg-white p-14 rounded-[3.5rem] border border-slate-200/60 shadow-sm hover:shadow-2xl transition-all group">
+                   <div key={i} className="bg-white p-14 rounded-[3.5rem] border border-slate-200/60 shadow-sm hover:shadow-2xl transition-all group text-left">
                       <div className="text-5xl mb-10 group-hover:scale-125 transition-transform inline-block">{s.i}</div>
                       <h3 className="text-2xl font-black mb-6 uppercase italic leading-none">{s.t}</h3>
                       <p className="text-slate-400 font-medium italic leading-relaxed text-sm">{s.d}</p>
@@ -578,23 +616,57 @@ const PublicTenantWebsite = () => {
             </div>
           </section>
 
-          {/* Catalog */}
-          <section id="catalog" className="py-48 px-10 scroll-mt-24">
+          {/* Catalog Filtros Estilo Imagen */}
+          <section id="catalog" className="py-32 px-6 md:px-12 scroll-mt-24">
              <div className="max-w-7xl mx-auto">
-               <div className="flex flex-col md:flex-row justify-between items-end gap-10 mb-24">
-                  <div className="text-left">
-                     <h2 className="text-6xl font-black tracking-tighter uppercase italic leading-none mb-4">Gama HVAC</h2>
-                     <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px] italic">Sistemas Inverter de alta eficiencia</p>
-                  </div>
-                  <select value={brandFilter} onChange={(e) => setBrandFilter(e.target.value)} className="px-10 py-5 bg-slate-50 border border-slate-200 rounded-[1.8rem] text-[10px] font-black uppercase tracking-widest outline-none">
-                    <option value="">Todas las Unidades</option>
-                    <option value="CF">Modelos CF</option>
-                  </select>
+               <div className="text-left mb-16">
+                  <h2 className="text-4xl font-black tracking-tighter uppercase italic leading-none mb-2">Catálogo Destacado</h2>
+                  <p className="text-slate-400 font-bold text-sm">Encuentra el equipo ideal para tu hogar.</p>
                </div>
+               
+               {/* Barra de Filtros */}
+               <div className="bg-white border border-slate-100 rounded-[2.5rem] p-8 mb-20 shadow-sm flex flex-col md:flex-row items-center justify-between gap-10">
+                 <div className="flex flex-col gap-4 w-full md:w-auto">
+                   <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
+                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
+                     Tipo de Equipo
+                   </span>
+                   <div className="flex flex-wrap gap-2">
+                     {['Todos', 'Aire Acondicionado', 'Caldera', 'Termo Eléctrico'].map(t => (
+                       <button key={t} onClick={() => setTypeFilter(t)} className={`px-6 py-3 rounded-full text-[12px] font-bold transition-all ${typeFilter === t ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'}`}>{t}</button>
+                     ))}
+                   </div>
+                 </div>
+
+                 <div className="h-10 w-px bg-slate-100 hidden md:block"></div>
+
+                 <div className="flex flex-col gap-4 w-full md:w-auto">
+                   <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Marca</span>
+                   <select value={brandFilter} onChange={(e) => setBrandFilter(e.target.value)} className="px-6 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-[12px] font-bold text-slate-600 outline-none w-full md:w-56 appearance-none cursor-pointer">
+                     <option value="">Todas las marcas</option>
+                     <option value="COMFEE">Comfee</option>
+                   </select>
+                 </div>
+
+                 <div className="h-10 w-px bg-slate-100 hidden md:block"></div>
+
+                 <div className="flex flex-col gap-4 w-full md:w-auto flex-1 max-w-xs">
+                   <div className="flex justify-between items-center">
+                     <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Precio Máximo</span>
+                     <span className="text-[12px] font-black text-blue-600">{maxPrice} €</span>
+                   </div>
+                   <input type="range" min="0" max="3000" value={maxPrice} onChange={(e) => setMaxPrice(parseInt(e.target.value))} className="w-full accent-blue-600 h-1.5 bg-slate-100 rounded-lg" />
+                   <div className="flex justify-between text-[10px] font-bold text-slate-300"><span>0 €</span><span>3000 €</span></div>
+                 </div>
+               </div>
+
                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12">
                   {filteredProducts.map(p => (
-                    <div key={p.id} className="group bg-white rounded-[4rem] p-12 border border-slate-100 shadow-sm hover:shadow-2xl transition-all flex flex-col text-left">
-                       <div className="h-64 bg-slate-50 rounded-[3.5rem] mb-10 flex items-center justify-center relative shadow-inner">
+                    <div key={p.id} className="group bg-white rounded-[4rem] p-10 border border-slate-100 shadow-sm hover:shadow-2xl transition-all flex flex-col text-left">
+                       <div className="h-64 bg-slate-50 rounded-[3.5rem] mb-10 flex items-center justify-center relative shadow-inner overflow-hidden">
+                          <div className="absolute top-6 left-6 w-12 h-12 bg-white rounded-full shadow-sm flex items-center justify-center p-2 opacity-80">
+                            <span className="text-[8px] font-black text-slate-400">BRAND</span>
+                          </div>
                           <svg className="w-24 h-24 text-blue-100 group-hover:scale-110 transition-transform duration-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
                           <div className="absolute top-8 right-8 px-4 py-2 bg-white text-blue-600 rounded-full text-[9px] font-black uppercase tracking-widest shadow-sm">A+++</div>
                        </div>
@@ -603,10 +675,10 @@ const PublicTenantWebsite = () => {
                        <div className="flex items-center justify-between border-t border-slate-50 pt-10">
                           <div>
                              <span className="text-[9px] font-black uppercase text-slate-300 block mb-1">Precio desde</span>
-                             <span className="text-4xl font-black text-blue-600 tracking-tighter">{formatCurrency(p.price, language)}</span>
+                             <span className="text-4xl font-black text-slate-900 tracking-tighter">{formatCurrency(p.price, language)}</span>
                           </div>
-                          <button onClick={() => { setSelectedProduct(p); setView('wizard'); setStep(1); }} className="p-6 bg-slate-900 text-white rounded-3xl hover:bg-blue-600 transition-all shadow-xl active:scale-95">
-                             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4"/></svg>
+                          <button onClick={() => { setSelectedProduct(p); setView('wizard'); setStep(1); }} className="w-16 h-16 bg-blue-600 text-white rounded-[1.8rem] flex items-center justify-center hover:bg-slate-900 transition-all shadow-xl shadow-blue-600/20 active:scale-95">
+                             <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 4v16m8-8H4"/></svg>
                           </button>
                        </div>
                     </div>
@@ -619,11 +691,16 @@ const PublicTenantWebsite = () => {
         /* Wizard Section */
         <div className="max-w-5xl mx-auto py-24 px-8 animate-in slide-in-from-bottom-12 duration-700">
            <div className="mb-20 flex justify-between items-center bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm relative overflow-hidden">
-              <div className="absolute top-0 left-0 w-full h-1 bg-slate-50"><div className="h-full bg-blue-600 transition-all duration-700" style={{ width: `${(step / 5) * 100}%` }}></div></div>
+              <div className="absolute top-0 left-0 w-full h-1 bg-slate-50"><div className="h-full bg-blue-600 transition-all duration-700 shadow-[0_0_20px_rgba(37,99,235,0.4)]" style={{ width: `${(step / 5) * 100}%` }}></div></div>
               {[1, 2, 3, 4, 5].map(num => (
                 <div key={num} className="flex items-center gap-4 relative z-10">
                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black text-sm transition-all border-2 ${step === num ? 'bg-blue-600 border-blue-600 text-white shadow-xl scale-110' : step > num ? 'bg-blue-50 border-blue-100 text-blue-600' : 'bg-white border-slate-100 text-slate-200'}`}>
                       {step > num ? <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"/></svg> : num}
+                   </div>
+                   <div className="hidden lg:block text-left leading-none">
+                      <p className={`text-[10px] font-black uppercase tracking-widest ${step >= num ? 'text-slate-900' : 'text-slate-400'}`}>
+                        {num === 1 ? 'Producto' : num === 2 ? 'Instalación' : num === 3 ? 'Extras' : num === 4 ? 'Cliente' : 'Firma'}
+                      </p>
                    </div>
                 </div>
               ))}
@@ -634,9 +711,9 @@ const PublicTenantWebsite = () => {
                 <div className="animate-in fade-in duration-500 flex-1">
                    <h2 className="text-5xl font-black tracking-tighter mb-10 italic leading-none uppercase">{selectedProduct.name}</h2>
                    <p className="text-xl text-slate-400 font-medium italic leading-relaxed mb-12">{selectedProduct.desc}</p>
-                   <div className="grid grid-cols-2 gap-4">
+                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                       {[{l:'Garantía',v:'2 Años'},{l:'Eficiencia',v:'A+++'},{l:'Control',v:'WiFi'},{l:'Sonido',v:'Ultra'}].map((s,i) => (
-                        <div key={i} className="bg-slate-50 p-5 rounded-[2rem] border border-slate-100"><p className="text-[9px] font-black uppercase text-slate-400 mb-0.5">{s.l}</p><p className="text-sm font-black text-slate-900">{s.v}</p></div>
+                        <div key={i} className="bg-slate-50 p-6 rounded-[2rem] border border-slate-100"><p className="text-[9px] font-black uppercase text-slate-400 mb-0.5">{s.l}</p><p className="text-sm font-black text-slate-900">{s.v}</p></div>
                       ))}
                    </div>
                 </div>
@@ -647,7 +724,8 @@ const PublicTenantWebsite = () => {
                    <h2 className="text-5xl font-black tracking-tighter mb-12 italic leading-none uppercase">Instalación</h2>
                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                       {PDF_KITS.map(kit => (
-                        <button key={kit.name} onClick={() => setSelectedKit(kit)} className={`p-10 rounded-[3rem] border-2 text-left transition-all ${selectedKit?.name === kit.name ? 'border-blue-600 bg-blue-50/50 shadow-xl' : 'border-slate-100 hover:border-blue-200 bg-white'}`}>
+                        <button key={kit.name} onClick={() => setSelectedKit(kit)} className={`p-10 rounded-[3rem] border-2 text-left transition-all relative group ${selectedKit?.name === kit.name ? 'border-blue-600 bg-blue-50/50 shadow-xl' : 'border-slate-100 hover:border-blue-200 bg-white'}`}>
+                           {selectedKit?.name === kit.name && <div className="absolute top-8 right-8 w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"/></svg></div>}
                            <h3 className="font-black text-2xl text-slate-900 uppercase italic mb-2 leading-none">{kit.name}</h3>
                            <p className="text-3xl font-black text-blue-600">{formatCurrency(kit.price, language)}</p>
                         </button>
@@ -680,8 +758,10 @@ const PublicTenantWebsite = () => {
                       <div><Input label="Nombre Completo" value={formData.name} onChange={(e:any) => setFormData({...formData, name: e.target.value})} />{formErrors.name && <p className="text-[9px] text-red-500 font-black uppercase mt-1 ml-1">{formErrors.name}</p>}</div>
                       <div><Input label="Email" type="email" value={formData.email} onChange={(e:any) => setFormData({...formData, email: e.target.value})} />{formErrors.email && <p className="text-[9px] text-red-500 font-black uppercase mt-1 ml-1">{formErrors.email}</p>}</div>
                       <div><Input label="Teléfono (9+)" value={formData.phone} onChange={(e:any) => setFormData({...formData, phone: e.target.value.replace(/\D/g,'')})} />{formErrors.phone && <p className="text-[9px] text-red-500 font-black uppercase mt-1 ml-1">{formErrors.phone}</p>}</div>
-                      <div><Input label="CP (5 dígitos)" value={formData.cp} onChange={(e:any) => setFormData({...formData, cp: e.target.value.slice(0,5).replace(/\D/g,'')})} />{formErrors.cp && <p className="text-[9px] text-red-500 font-black uppercase mt-1 ml-1">{formErrors.cp}</p>}</div>
-                      <div><Input label="WO (8 dígitos)" value={formData.wo} onChange={(e:any) => setFormData({...formData, wo: e.target.value.slice(0,8).replace(/\D/g,'')})} />{formErrors.wo && <p className="text-[9px] text-red-500 font-black uppercase mt-1 ml-1">{formErrors.wo}</p>}</div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div><Input label="CP (5 dígitos)" value={formData.cp} onChange={(e:any) => setFormData({...formData, cp: e.target.value.slice(0,5).replace(/\D/g,'')})} />{formErrors.cp && <p className="text-[9px] text-red-500 font-black uppercase mt-1 ml-1">{formErrors.cp}</p>}</div>
+                        <div><Input label="WO (8 dígitos)" value={formData.wo} onChange={(e:any) => setFormData({...formData, wo: e.target.value.slice(0,8).replace(/\D/g,'')})} />{formErrors.wo && <p className="text-[9px] text-red-500 font-black uppercase mt-1 ml-1">{formErrors.wo}</p>}</div>
+                      </div>
                       <div className="md:col-span-2"><Input label="Dirección de Instalación" value={formData.address} onChange={(e:any) => setFormData({...formData, address: e.target.value})} />{formErrors.address && <p className="text-[9px] text-red-500 font-black uppercase mt-1 ml-1">{formErrors.address}</p>}</div>
                    </div>
                 </div>
@@ -693,10 +773,11 @@ const PublicTenantWebsite = () => {
                    <p className="text-slate-400 mb-12 font-medium italic">Firme en el recuadro para validar su presupuesto oficial.</p>
                    <div className="max-w-xl mx-auto border-4 border-slate-100 rounded-[3.5rem] bg-white shadow-inner mb-6 relative overflow-hidden h-80">
                       <canvas ref={canvasRef} width={600} height={320} className="w-full h-full cursor-crosshair touch-none" onMouseDown={startDrawing} onMouseMove={draw} onMouseUp={stopDrawing} onMouseLeave={stopDrawing} onTouchStart={startDrawing} onTouchMove={draw} onTouchEnd={stopDrawing} />
+                      {!isSigned && <div className="absolute inset-0 flex items-center justify-center pointer-events-none text-slate-100 text-6xl font-black opacity-30 uppercase italic">Firme Aquí</div>}
                    </div>
                    <button onClick={clearCanvas} className="text-red-500 font-black uppercase text-[10px] tracking-widest hover:underline mb-12">Limpiar Firma</button>
-                   <div className="max-w-xl mx-auto bg-slate-900 text-white p-10 rounded-[3rem] shadow-2xl relative overflow-hidden text-left mb-10">
-                      <div className="absolute top-0 right-0 w-32 h-32 bg-blue-600/20 blur-[60px] rounded-full"></div>
+                   <div className="max-w-xl mx-auto bg-slate-900 text-white p-10 rounded-[3rem] shadow-2xl relative overflow-hidden text-left mb-10 group">
+                      <div className="absolute top-0 right-0 w-32 h-32 bg-blue-600/20 blur-[60px] rounded-full group-hover:scale-110 transition-transform duration-700"></div>
                       <div className="flex justify-between items-end"><span className="text-2xl font-black italic uppercase">Inversión Final</span><span className="text-5xl font-black text-blue-600 tracking-tighter">{formatCurrency(subtotal, language)}</span></div>
                    </div>
                 </div>
@@ -714,7 +795,7 @@ const PublicTenantWebsite = () => {
                       setView('landing'); return;
                     }
                     setStep(step + 1);
-                  }} className={`flex-1 py-7 ${step === 5 ? 'bg-slate-950' : 'bg-blue-600'} text-white rounded-3xl font-black uppercase text-xs tracking-widest shadow-xl hover:scale-[1.02] transition-all flex items-center justify-center gap-3`}>
+                  }} className={`flex-1 py-7 ${step === 5 ? 'bg-blue-600' : 'bg-slate-900'} text-white rounded-3xl font-black uppercase text-xs tracking-widest shadow-xl hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3`}>
                    {step === 5 ? 'Emitir Presupuesto' : 'Continuar'}
                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
                 </button>
@@ -724,8 +805,11 @@ const PublicTenantWebsite = () => {
       )}
 
       <footer className="py-32 border-t border-slate-100 text-center bg-white mt-40">
-         <div className="text-4xl font-black text-slate-100 mb-10 tracking-tighter italic uppercase">{tenant.name}</div>
-         <div className="text-[9px] font-black uppercase tracking-[0.3em] text-slate-400 italic">© 2025 · EcoQuote AI · Slate & Blue Edition</div>
+         <div className="flex items-center justify-center gap-2 mb-10 opacity-30 grayscale">
+            <svg className="w-10 h-10 text-slate-900" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L4.5 20.29L5.21 21L12 18L18.79 21L19.5 20.29L12 2Z"/></svg>
+            <span className="text-3xl font-black text-slate-900 tracking-tighter italic uppercase">{tenant.name}</span>
+         </div>
+         <div className="text-[9px] font-black uppercase tracking-[0.3em] text-slate-400 italic">© 2025 · EcoQuote AI · Smart Installation Solution</div>
       </footer>
     </div>
   );
