@@ -5,6 +5,7 @@ import { Tenant } from '../../types';
 import { useApp } from '../../AppProvider';
 import { Input } from '../../components/common/Input';
 import { formatCurrency } from '../../i18n';
+import { GoogleGenAI } from "@google/genai";
 
 const CATEGORIES = [
   { id: 'aire_acondicionado', label: 'Aire Acondicionado' },
@@ -116,23 +117,73 @@ export const TenantProducts = () => {
     fetchProducts();
   };
 
-  // IA Extraction
+  // Helper to convert File to Base64
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => {
+        const base64String = (reader.result as string).split(',')[1];
+        resolve(base64String);
+      };
+      reader.onerror = (error) => reject(error);
+    });
+  };
+
+  // IA Extraction directly via Gemini API
   const handleProcessIA = async () => {
     if (!importFile) return;
     setIsImporting(true);
     
-    const body = new FormData();
-    body.append('file', importFile);
-    body.append('defaultCategory', defaultCategory);
-
     try {
-      const { data, error } = await supabase.functions.invoke('extract_products_from_file', {
-        body
+      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const base64Data = await fileToBase64(importFile);
+      
+      const prompt = `Analiza este documento y extrae una lista de productos para un catálogo de climatización.
+      Debes devolver un JSON con esta estructura exacta:
+      {
+        "products": [
+          { 
+            "name": "Nombre comercial", 
+            "description": "Breve descripción técnica", 
+            "price": 123.45, 
+            "category": "aire_acondicionado | caldera | termo_electrico",
+            "is_active": true
+          }
+        ]
+      }
+      
+      Reglas:
+      1. Si no detectas la categoría, usa obligatoriamente: ${defaultCategory}
+      2. El precio debe ser un número sin símbolos.
+      3. Solo devuelve el JSON, sin texto extra.`;
+
+      const result = await ai.models.generateContent({
+        model: 'gemini-3-flash-preview',
+        contents: {
+          parts: [
+            { text: prompt },
+            {
+              inlineData: {
+                data: base64Data,
+                mimeType: importFile.type
+              }
+            }
+          ]
+        },
+        config: {
+          responseMimeType: "application/json"
+        }
       });
-      if (error) throw error;
-      setImportPreview(data.products || []);
+
+      const responseText = result.text;
+      if (!responseText) throw new Error("La IA no devolvió contenido");
+      
+      const parsedData = JSON.parse(responseText);
+      setImportPreview(parsedData.products || []);
     } catch (err: any) {
-      alert('Error en extracción IA: ' + err.message);
+      console.error("Error en extracción:", err);
+      alert('Error en extracción IA: ' + (err.message || "Error desconocido"));
     } finally {
       setIsImporting(false);
     }
