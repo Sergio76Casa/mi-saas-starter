@@ -448,6 +448,13 @@ const PublicTenantWebsite = () => {
     fetchTenant();
   }, [slug, dbHealthy]);
 
+  // Force scroll to top when view or step changes (Requirement 1)
+  useEffect(() => {
+    if (view === 'wizard') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [view, step]);
+
   // Navigation Logic
   const navigateToHome = () => {
     setView('landing');
@@ -800,11 +807,36 @@ const PublicTenantWebsite = () => {
            <div className="bg-white p-12 md:p-20 rounded-[4.5rem] border border-slate-100 shadow-2xl relative text-left min-h-[500px] flex flex-col">
               {step === 1 && (
                 <div className="animate-in fade-in duration-500 flex-1">
-                   <h2 className="text-5xl font-black tracking-tighter mb-10 italic leading-none uppercase">{selectedProduct.name}</h2>
-                   <p className="text-xl text-slate-400 font-medium italic leading-relaxed mb-12">{selectedProduct.desc}</p>
-                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      {[{l:'Garantía',v:'2 Años'},{l:'Eficiencia',v:'A+++'},{l:'Control',v:'WiFi'},{l:'Sonido',v:'Ultra'}].map((s,i) => (
-                        <div key={i} className="bg-slate-50 p-6 rounded-[2rem] border border-slate-100"><p className="text-[9px] font-black uppercase text-slate-400 mb-0.5">{s.l}</p><p className="text-sm font-black text-slate-900">{s.v}</p></div>
+                   <h2 className="text-4xl font-black tracking-tighter mb-10 italic leading-none uppercase">
+                     Selecciona tu modelo {selectedProduct?.name.split(' ')[0]}
+                   </h2>
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {PDF_PRODUCTS.filter(p => !selectedProduct || p.name.split(' ')[0] === selectedProduct.name.split(' ')[0]).map(p => (
+                        <button 
+                          key={p.id} 
+                          onClick={() => setSelectedProduct(p)}
+                          className={`p-10 rounded-[3rem] border-2 text-left transition-all relative group flex flex-col h-full ${selectedProduct?.id === p.id ? 'border-blue-600 bg-blue-50 shadow-xl' : 'border-slate-100 hover:border-blue-200 bg-white'}`}
+                        >
+                           {selectedProduct?.id === p.id && (
+                             <div className="absolute top-8 right-8 w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white">
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"/></svg>
+                             </div>
+                           )}
+                           <div className="mb-4">
+                              <span className="px-3 py-1 bg-white border border-blue-100 text-blue-600 rounded-full text-[9px] font-black uppercase tracking-widest shadow-sm">
+                                A+++ Eficiencia
+                              </span>
+                           </div>
+                           <h3 className="font-black text-2xl text-slate-900 uppercase italic mb-3 leading-none">{p.name}</h3>
+                           <p className="text-slate-400 text-sm italic mb-8 line-clamp-2 flex-1">{p.desc}</p>
+                           <div className="flex justify-between items-end border-t border-slate-100/50 pt-6 mt-4">
+                              <div className="flex flex-col">
+                                 <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest">Garantía</span>
+                                 <span className="text-[11px] font-bold text-slate-600">2 Años Oficial</span>
+                              </div>
+                              <p className="text-3xl font-black text-blue-600 tracking-tighter">{formatCurrency(p.price, language)}</p>
+                           </div>
+                        </button>
                       ))}
                    </div>
                 </div>
