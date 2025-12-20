@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>EcoQuote - SaaS HVAC</title>
+    <title>SaaS Starter - Gestión Multi-tenant</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
@@ -11,20 +11,12 @@
           extend: {
             colors: {
               brand: {
-                50: '#eff6ff',
-                100: '#dbeafe',
-                500: '#2563eb',
-                600: '#1d4ed8',
-                900: '#1e3a8a',
-              },
-              slate: {
-                950: '#020617',
+                50: '#f0fdf4',
+                100: '#dcfce7',
+                500: '#22c55e',
+                600: '#16a34a',
+                900: '#14532d',
               }
-            },
-            borderRadius: {
-              '3xl': '1.5rem',
-              '4xl': '2rem',
-              '5xl': '3rem',
             }
           }
         }
@@ -37,19 +29,12 @@
         "react/": "https://esm.sh/react@^19.2.3/",
         "react": "https://esm.sh/react@^19.2.3",
         "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
-        "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@^2.88.0",
-        "@google/genai": "https://esm.sh/@google/genai@^0.21.0",
-        "lucide-react": "https://esm.sh/lucide-react@^0.474.0",
-        "jspdf": "https://esm.sh/jspdf@^2.5.1",
-        "@emailjs/browser": "https://esm.sh/@emailjs/browser@^4.4.1",
-        "react-signature-canvas": "https://esm.sh/react-signature-canvas@^1.0.6",
-        "i18next": "https://esm.sh/i18next@^23.7.16",
-        "react-i18next": "https://esm.sh/react-i18next@^13.5.0"
+        "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@^2.88.0"
       }
     }
     </script>
   </head>
-  <body class="bg-gray-50 text-slate-900 selection:bg-brand-500 selection:text-white">
+  <body class="bg-gray-50 text-gray-900">
     <div id="root"></div>
     <script type="module" src="index.tsx"></script>
   </body>
