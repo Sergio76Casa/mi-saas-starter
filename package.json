@@ -12,7 +12,11 @@
     "react-router-dom": "^7.10.1",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
-    "@supabase/supabase-js": "^2.88.0"
+    "@supabase/supabase-js": "^2.88.0",
+    "@google/genai": "^0.21.0",
+    "lucide-react": "^0.474.0",
+    "jspdf": "^2.5.1",
+    "react-signature-canvas": "^1.0.6"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
