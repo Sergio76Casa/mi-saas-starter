@@ -19,6 +19,7 @@ type PublicCatalogResponse = {
     name: string; 
     description?: string; 
     price: number; 
+    category?: string;
     is_active?: boolean 
   }>; 
 };
@@ -106,7 +107,11 @@ const LOCAL_I18N = {
     alert_unit_req: 'Selecciona unidad',
     alert_kit_req: 'Selecciona kit',
     alert_success: '¡Presupuesto generado con éxito!',
-    footer_copy: 'EcoQuote AI · Smart Installation Solution'
+    footer_copy: 'EcoQuote AI · Smart Installation Solution',
+    cat_all: 'Todas',
+    cat_ac: 'Aire Acondicionado',
+    cat_boiler: 'Calderas',
+    cat_thermo: 'Termos eléctricos'
   },
   ca: {
     nav_home: 'Inici',
@@ -189,7 +194,11 @@ const LOCAL_I18N = {
     alert_unit_req: 'Selecciona unitat',
     alert_kit_req: 'Selecciona kit',
     alert_success: 'Pressupost generat amb èxit!',
-    footer_copy: 'EcoQuote AI · Smart Installation Solution'
+    footer_copy: 'EcoQuote AI · Smart Installation Solution',
+    cat_all: 'Totes',
+    cat_ac: 'Aire Condicionat',
+    cat_boiler: 'Calderes',
+    cat_thermo: 'Termos elèctrics'
   }
 } as const;
 
@@ -208,8 +217,8 @@ export const PublicTenantWebsite = () => {
   const [view, setView] = useState<'landing' | 'wizard'>('landing');
   const [step, setStep] = useState(1);
   const [brandFilter, setBrandFilter] = useState('');
-  const [typeFilter, setTypeFilter] = useState('Todos');
-  const [maxPrice, setMaxPrice] = useState(2100);
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [maxPrice, setMaxPrice] = useState(5000);
 
   // States for Contact Modal
   const [isContactModalOpen, setIsContactModalOpen] = useState(false);
@@ -262,34 +271,37 @@ export const PublicTenantWebsite = () => {
     }> = {};
 
     dbProducts.forEach(p => {
+      // Apply filters here
+      const matchesCategory = categoryFilter === 'all' || p.category === categoryFilter;
+      const matchesPrice = p.price <= maxPrice;
       const brand = p.name.split(' ')[0];
-      if (!groups[brand]) {
-        groups[brand] = { 
-          brand, 
-          minPrice: p.price, 
-          products: [], 
-          features: [tt('brand_feat_warranty'), tt('brand_feat_low_cons')] 
-        };
-      }
-      groups[brand].products.push(p);
-      if (p.price < groups[brand].minPrice) groups[brand].minPrice = p.price;
-      
-      const description = (p.description || '').toLowerCase();
-      if (description.includes('a++') && !groups[brand].features.includes(`${tt('brand_feat_efficiency')} A++`)) groups[brand].features.push(`${tt('brand_feat_efficiency')} A++`);
-      if (description.includes('a+++') && !groups[brand].features.includes(`${tt('brand_feat_efficiency')} A+++`)) groups[brand].features.push(`${tt('brand_feat_efficiency')} A+++`);
-      if (description.includes('multi-split') && !groups[brand].features.includes('Multi-split')) groups[brand].features.push('Multi-split');
-      if (description.includes('inverter') && !groups[brand].features.includes('Inverter')) groups[brand].features.push('Inverter');
-      if ((description.includes('pequeñas') || description.includes('grandes')) && !groups[brand].features.includes(tt('brand_feat_adaptable'))) {
-        groups[brand].features.push(tt('brand_feat_adaptable'));
+      const matchesBrand = !brandFilter || brand.includes(brandFilter);
+
+      if (matchesCategory && matchesPrice && matchesBrand) {
+        if (!groups[brand]) {
+          groups[brand] = { 
+            brand, 
+            minPrice: p.price, 
+            products: [], 
+            features: [tt('brand_feat_warranty'), tt('brand_feat_low_cons')] 
+          };
+        }
+        groups[brand].products.push(p);
+        if (p.price < groups[brand].minPrice) groups[brand].minPrice = p.price;
+        
+        const description = (p.description || '').toLowerCase();
+        if (description.includes('a++') && !groups[brand].features.includes(`${tt('brand_feat_efficiency')} A++`)) groups[brand].features.push(`${tt('brand_feat_efficiency')} A++`);
+        if (description.includes('a+++') && !groups[brand].features.includes(`${tt('brand_feat_efficiency')} A+++`)) groups[brand].features.push(`${tt('brand_feat_efficiency')} A+++`);
+        if (description.includes('multi-split') && !groups[brand].features.includes('Multi-split')) groups[brand].features.push('Multi-split');
+        if (description.includes('inverter') && !groups[brand].features.includes('Inverter')) groups[brand].features.push('Inverter');
+        if ((description.includes('pequeñas') || description.includes('grandes')) && !groups[brand].features.includes(tt('brand_feat_adaptable'))) {
+          groups[brand].features.push(tt('brand_feat_adaptable'));
+        }
       }
     });
 
-    return Object.values(groups).filter(g => {
-      const matchesBrandFilter = !brandFilter || g.brand.includes(brandFilter);
-      const matchesPriceFilter = g.minPrice <= maxPrice;
-      return matchesBrandFilter && matchesPriceFilter;
-    });
-  }, [dbProducts, brandFilter, maxPrice, language]);
+    return Object.values(groups);
+  }, [dbProducts, brandFilter, maxPrice, categoryFilter, language]);
 
   const navigateToHome = () => {
     setView('landing');
@@ -545,11 +557,16 @@ export const PublicTenantWebsite = () => {
                  <div className="flex flex-col gap-4 w-full md:w-auto">
                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
-                     {tt('filter_search')}
+                     Categoría
                    </span>
                    <div className="flex flex-wrap gap-2">
-                     {['Todos', 'Split', 'Conductos', 'Multi-split'].map(t => (
-                       <button key={t} onClick={() => setTypeFilter(t)} className={`px-6 py-3 rounded-full text-[12px] font-bold transition-all ${typeFilter === t ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'}`}>{t}</button>
+                     {[
+                       { id: 'all', label: tt('cat_all') },
+                       { id: 'aire_acondicionado', label: tt('cat_ac') },
+                       { id: 'caldera', label: tt('cat_boiler') },
+                       { id: 'termo_electrico', label: tt('cat_thermo') }
+                     ].map(t => (
+                       <button key={t.id} onClick={() => setCategoryFilter(t.id)} className={`px-6 py-3 rounded-full text-[12px] font-bold transition-all ${categoryFilter === t.id ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'}`}>{t.label}</button>
                      ))}
                    </div>
                  </div>
@@ -573,7 +590,7 @@ export const PublicTenantWebsite = () => {
                      <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{tt('filter_max_price')}</span>
                      <span className="text-[12px] font-black text-blue-600">{maxPrice} €</span>
                    </div>
-                   <input type="range" min="0" max="5000" value={maxPrice} onChange={(e) => setMaxPrice(parseInt(e.target.value))} className="w-full accent-blue-600 h-1.5 bg-slate-100 rounded-lg" />
+                   <input type="range" min="0" max="10000" value={maxPrice} onChange={(e) => setMaxPrice(parseInt(e.target.value))} className="w-full accent-blue-600 h-1.5 bg-slate-100 rounded-lg" />
                  </div>
                </div>
 
