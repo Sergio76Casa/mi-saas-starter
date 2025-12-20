@@ -410,9 +410,10 @@ const QuoteEditor = () => {
 
 const PublicTenantWebsite = () => {
   const { slug } = useParams();
-  const { dbHealthy, t, language } = useApp();
+  const { dbHealthy, t, language, setLanguage } = useApp();
   const [tenant, setTenant] = useState<Tenant | null>(null);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   // States for Wizard & UI
   const [view, setView] = useState<'landing' | 'wizard'>('landing');
@@ -420,6 +421,11 @@ const PublicTenantWebsite = () => {
   const [brandFilter, setBrandFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState('Todos');
   const [maxPrice, setMaxPrice] = useState(2100);
+
+  // States for Contact Modal
+  const [isContactModalOpen, setIsContactModalOpen] = useState(false);
+  const [contactForm, setContactForm] = useState({ name: '', email: '', phone: '', message: '' });
+  const [contactStatus, setContactStatus] = useState<'idle' | 'sending' | 'success'>('idle');
 
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
   const [selectedKit, setSelectedKit] = useState<any>(null);
@@ -441,6 +447,42 @@ const PublicTenantWebsite = () => {
     };
     fetchTenant();
   }, [slug, dbHealthy]);
+
+  // Navigation Logic
+  const navigateToHome = () => {
+    setView('landing');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const navigateToCatalog = () => {
+    const scrollToCatalog = () => {
+      const el = document.getElementById('catalog');
+      if (el) el.scrollIntoView({ behavior: 'smooth' });
+    };
+    if (view !== 'landing') {
+      setView('landing');
+      setTimeout(scrollToCatalog, 100);
+    } else {
+      scrollToCatalog();
+    }
+  };
+
+  const handleContactSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!contactForm.name || !contactForm.email || !contactForm.message) {
+      alert("Por favor, rellene los campos obligatorios.");
+      return;
+    }
+    setContactStatus('sending');
+    setTimeout(() => {
+      setContactStatus('success');
+      setTimeout(() => {
+        setIsContactModalOpen(false);
+        setContactStatus('idle');
+        setContactForm({ name: '', email: '', phone: '', message: '' });
+      }, 2000);
+    }, 1000);
+  };
 
   // Canvas Logic for Signature
   const startDrawing = (e: React.MouseEvent | React.TouchEvent) => {
@@ -525,7 +567,7 @@ const PublicTenantWebsite = () => {
     return matchesBrand && matchesPrice;
   });
 
-  const subtotal = (selectedProduct?.price || 0) + (selectedKit?.price || 0) + selectedExtras.reduce((acc, n) => acc + (PDF_EXTRAS.find(e => e.name === n)?.price || 0), 0);
+  const subtotal = (selectedProduct?.price || 0) + (selectedKit?.price || 0) + selectedExtras.reduce((acc, n) => acc + (PDF_EXTRAS.find(e => n === e.name)?.price || 0), 0);
 
   return (
     <div className="min-h-screen bg-white text-slate-900 selection:bg-blue-600/20">
@@ -543,23 +585,72 @@ const PublicTenantWebsite = () => {
         </div>
         <div className="flex items-center gap-10">
           <div className="hidden lg:flex items-center gap-8">
-            <button onClick={() => setView('landing')} className={`px-4 py-2 rounded-lg text-[13px] font-bold transition-all ${view === 'landing' ? 'bg-blue-50 text-blue-600' : 'text-slate-500 hover:text-blue-600'}`}>Inicio</button>
-            <a href="#catalog" className="text-[13px] font-bold text-slate-500 hover:text-blue-600 transition-colors">Productos</a>
-            <button className="text-[13px] font-bold text-slate-500 hover:text-blue-600 transition-colors">Contacto</button>
+            <button onClick={navigateToHome} className={`px-4 py-2 rounded-lg text-[13px] font-bold transition-all ${view === 'landing' ? 'bg-blue-50 text-blue-600' : 'text-slate-500 hover:text-blue-600'}`}>Inicio</button>
+            <button onClick={navigateToCatalog} className="text-[13px] font-bold text-slate-500 hover:text-blue-600 transition-colors">Productos</button>
+            <button onClick={() => setIsContactModalOpen(true)} className="text-[13px] font-bold text-slate-500 hover:text-blue-600 transition-colors">Contacto</button>
           </div>
           <div className="h-6 w-px bg-slate-200 hidden md:block"></div>
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-1 text-[11px] font-bold text-slate-600 cursor-pointer">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/></svg>
-              ES
-              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"/></svg>
+            <div className="flex items-center gap-1 text-[11px] font-bold text-slate-600 cursor-pointer border border-slate-100 rounded-lg px-2 py-1 bg-slate-50">
+              <button onClick={() => setLanguage('es')} className={`px-1.5 rounded ${language === 'es' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400'}`}>ES</button>
+              <button onClick={() => setLanguage('ca')} className={`px-1.5 rounded ${language === 'ca' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400'}`}>CA</button>
             </div>
-            <button className="p-2 text-slate-400 hover:text-slate-900 transition-colors">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+            <button onClick={() => navigate(`/t/${slug}/dashboard`)} className="p-2 text-slate-400 hover:text-slate-900 transition-all bg-slate-50 rounded-lg hover:shadow-sm border border-slate-100 flex items-center gap-2 px-3">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+              <span className="text-[10px] font-black uppercase tracking-widest">Admin</span>
             </button>
           </div>
         </div>
       </nav>
+
+      {/* Modal de Contacto */}
+      {isContactModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[200] flex items-center justify-center p-6 animate-in fade-in duration-300">
+          <div className="bg-white rounded-[3.5rem] p-10 md:p-14 w-full max-w-xl shadow-2xl relative animate-in zoom-in-95 duration-300">
+            <button onClick={() => setIsContactModalOpen(false)} className="absolute top-8 right-8 text-slate-300 hover:text-slate-900 transition-colors">
+              <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+            
+            {contactStatus === 'success' ? (
+              <div className="text-center py-12">
+                <div className="w-20 h-20 bg-green-50 text-green-500 rounded-full flex items-center justify-center mx-auto mb-8 animate-bounce">
+                  <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" d="M5 13l4 4L19 7"/></svg>
+                </div>
+                <h3 className="text-3xl font-black italic uppercase italic">¡Enviado!</h3>
+                <p className="text-slate-400 font-medium italic mt-2">Pronto nos pondremos en contacto contigo.</p>
+              </div>
+            ) : (
+              <>
+                <h3 className="text-4xl font-black tracking-tighter uppercase italic leading-none mb-4">Contacto</h3>
+                <p className="text-slate-400 font-medium italic mb-10">Rellena el formulario para solicitar asistencia.</p>
+                <form onSubmit={handleContactSubmit} className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <Input label="Nombre completo *" placeholder="Nombre" value={contactForm.name} onChange={(e:any) => setContactForm({...contactForm, name: e.target.value})} required />
+                    <Input label="Email *" type="email" placeholder="Email" value={contactForm.email} onChange={(e:any) => setContactForm({...contactForm, email: e.target.value})} required />
+                  </div>
+                  <Input label="Teléfono" placeholder="Teléfono" value={contactForm.phone} onChange={(e:any) => setContactForm({...contactForm, phone: e.target.value})} />
+                  <div className="text-left">
+                    <label className="block text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1.5 ml-1">Mensaje *</label>
+                    <textarea 
+                      className="w-full px-4 py-3 border border-gray-100 rounded-2xl shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-sm bg-gray-50/50 h-32 resize-none" 
+                      placeholder="Cuéntanos..." 
+                      value={contactForm.message} 
+                      onChange={(e) => setContactForm({...contactForm, message: e.target.value})} 
+                      required 
+                    />
+                  </div>
+                  <div className="flex gap-4 pt-4">
+                    <button type="button" onClick={() => setIsContactModalOpen(false)} className="px-8 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Cancelar</button>
+                    <button type="submit" disabled={contactStatus === 'sending'} className="flex-1 py-4 bg-blue-600 text-white rounded-2xl font-black uppercase text-[12px] tracking-widest shadow-xl shadow-blue-600/30 active:scale-95 transition-all">
+                      {contactStatus === 'sending' ? 'Enviando...' : 'Enviar'}
+                    </button>
+                  </div>
+                </form>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {view === 'landing' ? (
         <main className="animate-in fade-in duration-1000 pb-40">
@@ -581,10 +672,10 @@ const PublicTenantWebsite = () => {
                   Transforma tu hogar con nuestras soluciones de climatización de alta eficiencia. Instalación profesional, financiación a medida y las mejores marcas del mercado.
                 </p>
                 <div className="flex flex-wrap gap-4">
-                  <a href="#catalog" className="px-10 py-5 bg-blue-600 text-white rounded-2xl font-black uppercase text-[12px] tracking-widest hover:bg-blue-700 transition-all shadow-xl shadow-blue-600/30 flex items-center gap-3 active:scale-95">
+                  <button onClick={navigateToCatalog} className="px-10 py-5 bg-blue-600 text-white rounded-2xl font-black uppercase text-[12px] tracking-widest hover:bg-blue-700 transition-all shadow-xl shadow-blue-600/30 flex items-center gap-3 active:scale-95">
                     Ver Catálogo
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 14l-7 7m0 0l-7-7m7 7V3"/></svg>
-                  </a>
+                  </button>
                   <button onClick={() => { setView('wizard'); setStep(1); }} className="px-10 py-5 bg-white/10 backdrop-blur-md border border-white/30 text-white rounded-2xl font-black uppercase text-[12px] tracking-widest hover:bg-white/20 transition-all active:scale-95">
                     Pedir Presupuesto
                   </button>
@@ -762,7 +853,7 @@ const PublicTenantWebsite = () => {
                         <div><Input label="CP (5 dígitos)" value={formData.cp} onChange={(e:any) => setFormData({...formData, cp: e.target.value.slice(0,5).replace(/\D/g,'')})} />{formErrors.cp && <p className="text-[9px] text-red-500 font-black uppercase mt-1 ml-1">{formErrors.cp}</p>}</div>
                         <div><Input label="WO (8 dígitos)" value={formData.wo} onChange={(e:any) => setFormData({...formData, wo: e.target.value.slice(0,8).replace(/\D/g,'')})} />{formErrors.wo && <p className="text-[9px] text-red-500 font-black uppercase mt-1 ml-1">{formErrors.wo}</p>}</div>
                       </div>
-                      <div className="md:col-span-2"><Input label="Dirección de Instalación" value={formData.address} onChange={(e:any) => setFormData({...formData, address: e.target.value})} />{formErrors.address && <p className="text-[9px] text-red-500 font-black uppercase mt-1 ml-1">{formErrors.address}</p>}</div>
+                      <div className="md:col-span-2"><Input label="Adreça d'instal·lació" value={formData.address} onChange={(e:any) => setFormData({...formData, address: e.target.value})} />{formErrors.address && <p className="text-[9px] text-red-500 font-black uppercase mt-1 ml-1">{formErrors.address}</p>}</div>
                    </div>
                 </div>
               )}
