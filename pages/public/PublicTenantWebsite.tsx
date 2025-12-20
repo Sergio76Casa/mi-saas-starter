@@ -30,6 +30,9 @@ const LOCAL_I18N = {
     nav_products: 'Productos',
     nav_contact: 'Contacto',
     nav_admin: 'Admin',
+    nav_admin_btn: 'ADMIN',
+    error_404_msg: 'Error: Empresa no encontrada',
+    error_404_btn: 'Volver',
     hero_badge: 'Tecnología Inverter 2024',
     hero_title_1: 'Clima perfecto,',
     hero_title_2: 'Ahorro real.',
@@ -49,6 +52,8 @@ const LOCAL_I18N = {
     filter_brand: 'Filtrar por Marca',
     filter_all_brands: 'Todas las marcas',
     filter_max_price: 'Precio Máximo',
+    brand_tag: 'MARCA',
+    no_products_filter: 'No hay productos disponibles con estos filtros',
     brand_card_models: 'Varios modelos disponibles en el asistente',
     brand_card_gama: 'Gama',
     brand_card_from: 'Desde',
@@ -64,9 +69,16 @@ const LOCAL_I18N = {
     wizard_models_available: 'Modelos disponibles',
     wizard_high_efficiency: 'Máxima Eficiencia',
     wizard_install_included: 'Instalación Incluida',
+    wizard_status: 'ESTADO',
     wizard_kit_title: 'Kit de Instalación',
     wizard_extras_title: 'Materiales Extras',
     wizard_data_title: 'Datos de Facturación',
+    wizard_fullname: 'Nombre Completo',
+    wizard_email: 'Correo Electrónico',
+    wizard_phone: 'Teléfono',
+    wizard_address: 'Dirección',
+    wizard_cp: 'CP',
+    wizard_wo: 'WO',
     wizard_sign_title: 'Validar Presupuesto',
     wizard_sign_desc: 'Firme en el recuadro inferior para emitir el presupuesto oficial.',
     wizard_sign_here: 'Firme Aquí',
@@ -77,6 +89,8 @@ const LOCAL_I18N = {
     wizard_btn_finish: 'Finalizar Presupuesto',
     contact_title: 'Contacto',
     contact_desc: 'Rellena el formulario para solicitar asistencia.',
+    contact_phone: 'Teléfono',
+    contact_message: 'Mensaje *',
     contact_success: '¡Enviado!',
     contact_success_desc: 'Pronto nos pondremos en contacto contigo.',
     contact_btn_cancel: 'Cancelar',
@@ -99,6 +113,9 @@ const LOCAL_I18N = {
     nav_products: 'Productes',
     nav_contact: 'Contacte',
     nav_admin: 'Admin',
+    nav_admin_btn: 'ADMIN',
+    error_404_msg: 'Error: Empresa no trobada',
+    error_404_btn: 'Tornar',
     hero_badge: 'Tecnologia Inverter 2024',
     hero_title_1: 'Clima perfecte,',
     hero_title_2: 'Estalvi real.',
@@ -118,6 +135,8 @@ const LOCAL_I18N = {
     filter_brand: 'Filtrar per Marca',
     filter_all_brands: 'Totes les marques',
     filter_max_price: 'Preu Màxim',
+    brand_tag: 'MARCA',
+    no_products_filter: 'No hi ha productes disponibles amb aquests filtres',
     brand_card_models: 'Diversos models disponibles a l’assistent',
     brand_card_gama: 'Gama',
     brand_card_from: 'Des de',
@@ -133,9 +152,16 @@ const LOCAL_I18N = {
     wizard_models_available: 'Models disponibles',
     wizard_high_efficiency: 'Màxima Eficiència',
     wizard_install_included: 'Instal·lació Inclosa',
+    wizard_status: 'ESTAT',
     wizard_kit_title: 'Kit d’Instal·lació',
     wizard_extras_title: 'Materials Extras',
     wizard_data_title: 'Dades de Facturació',
+    wizard_fullname: 'Nom Complet',
+    wizard_email: 'Correu Electrònic',
+    wizard_phone: 'Telèfon',
+    wizard_address: 'Adreça',
+    wizard_cp: 'CP',
+    wizard_wo: 'WO',
     wizard_sign_title: 'Validar Pressupost',
     wizard_sign_desc: 'Signi en el requadre inferior per emetre el pressupost oficial.',
     wizard_sign_here: 'Signi Aquí',
@@ -146,6 +172,8 @@ const LOCAL_I18N = {
     wizard_btn_finish: 'Finalitzar Pressupost',
     contact_title: 'Contacte',
     contact_desc: 'Omple el formulari per sol·licitar assistència.',
+    contact_phone: 'Telèfon',
+    contact_message: 'Missatge *',
     contact_success: 'Enviat!',
     contact_success_desc: 'Aviat ens posarem en contacte amb tu.',
     contact_btn_cancel: 'Cancel·lar',
@@ -167,13 +195,13 @@ const LOCAL_I18N = {
 
 export const PublicTenantWebsite = () => {
   const { slug } = useParams();
-  const { dbHealthy, language, setLanguage, t } = useApp();
+  const { dbHealthy, language, setLanguage } = useApp();
   const [tenant, setTenant] = useState<Tenant | null>(null);
   const [dbProducts, setDbProducts] = useState<PublicCatalogResponse['products']>([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  // Helper for local translations
+  // Helper for local translations based strictly on language
   const tt = (key: keyof typeof LOCAL_I18N['es']) => LOCAL_I18N[language]?.[key] ?? LOCAL_I18N.es[key];
 
   // States for Wizard & UI
@@ -362,8 +390,8 @@ export const PublicTenantWebsite = () => {
     <div className="min-h-screen flex items-center justify-center bg-white p-12 text-center">
        <div className="animate-in fade-in zoom-in duration-500">
          <h1 className="text-9xl font-black text-slate-100 mb-4 tracking-tighter uppercase italic">404</h1>
-         <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">Error: Empresa no encontrada</p>
-         <Link to="/" className="mt-10 inline-block px-8 py-3 bg-blue-600 text-white rounded-full font-black uppercase text-[10px]">Volver</Link>
+         <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">{tt('error_404_msg')}</p>
+         <Link to="/" className="mt-10 inline-block px-8 py-3 bg-blue-600 text-white rounded-full font-black uppercase text-[10px]">{tt('error_404_btn')}</Link>
        </div>
     </div>
   );
@@ -398,7 +426,7 @@ export const PublicTenantWebsite = () => {
             </div>
             <button onClick={() => navigate(`/t/${slug}/dashboard`)} className="p-2 text-slate-400 hover:text-slate-900 transition-all bg-slate-50 rounded-lg hover:shadow-sm border border-slate-100 flex items-center gap-2 px-3">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
-              <span className="text-[10px] font-black uppercase tracking-widest">{tt('nav_admin')}</span>
+              <span className="text-[10px] font-black uppercase tracking-widest">{tt('nav_admin_btn')}</span>
             </button>
           </div>
         </div>
@@ -426,12 +454,12 @@ export const PublicTenantWebsite = () => {
                 <p className="text-slate-400 font-medium italic mb-10">{tt('contact_desc')}</p>
                 <form onSubmit={handleContactSubmit} className="space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <Input label={t('fullname') + " *"} placeholder={t('fullname')} value={contactForm.name} onChange={(e:any) => setContactForm({...contactForm, name: e.target.value})} required />
-                    <Input label={t('email') + " *"} type="email" placeholder={t('email')} value={contactForm.email} onChange={(e:any) => setContactForm({...contactForm, email: e.target.value})} required />
+                    <Input label={tt('wizard_fullname') + " *"} placeholder={tt('wizard_fullname')} value={contactForm.name} onChange={(e:any) => setContactForm({...contactForm, name: e.target.value})} required />
+                    <Input label={tt('wizard_email') + " *"} type="email" placeholder={tt('wizard_email')} value={contactForm.email} onChange={(e:any) => setContactForm({...contactForm, email: e.target.value})} required />
                   </div>
-                  <Input label="Teléfono" placeholder="Teléfono" value={contactForm.phone} onChange={(e:any) => setContactForm({...contactForm, phone: e.target.value})} />
+                  <Input label={tt('contact_phone')} placeholder={tt('contact_phone')} value={contactForm.phone} onChange={(e:any) => setContactForm({...contactForm, phone: e.target.value})} />
                   <div className="text-left">
-                    <label className="block text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1.5 ml-1">Mensaje *</label>
+                    <label className="block text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1.5 ml-1">{tt('contact_message')}</label>
                     <textarea 
                       className="w-full px-4 py-3 border border-gray-100 rounded-2xl shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-sm bg-gray-50/50 h-32 resize-none" 
                       placeholder="..." 
@@ -551,7 +579,7 @@ export const PublicTenantWebsite = () => {
 
                {brandGroups.length === 0 ? (
                  <div className="py-20 text-center text-slate-300 font-black uppercase tracking-[0.2em] italic">
-                   No hay productos disponibles con estos filtros
+                   {tt('no_products_filter')}
                  </div>
                ) : (
                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12">
@@ -559,7 +587,7 @@ export const PublicTenantWebsite = () => {
                       <div key={group.brand} className="group bg-white rounded-[4rem] p-10 border border-slate-100 shadow-sm hover:shadow-2xl transition-all flex flex-col text-left relative overflow-hidden">
                          <div className="h-64 bg-slate-50 rounded-[3.5rem] mb-10 flex items-center justify-center relative shadow-inner overflow-hidden">
                             <div className="absolute top-6 left-6 w-12 h-12 bg-white rounded-full shadow-sm flex items-center justify-center p-2 opacity-80">
-                              <span className="text-[8px] font-black text-slate-400">BRAND</span>
+                              <span className="text-[8px] font-black text-slate-400">{tt('brand_tag')}</span>
                             </div>
                             <svg className="w-24 h-24 text-blue-100 group-hover:scale-110 transition-transform duration-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
                             <div className="absolute top-8 right-8 px-4 py-2 bg-white text-blue-600 rounded-full text-[9px] font-black uppercase tracking-widest shadow-sm">{tt('brand_card_gama')} {group.brand}</div>
@@ -647,7 +675,7 @@ export const PublicTenantWebsite = () => {
                            <p className="text-slate-400 text-sm italic mb-8 line-clamp-2 flex-1">{p.description || p.desc}</p>
                            <div className="flex justify-between items-end border-t border-slate-100/50 pt-6 mt-4">
                               <div className="flex flex-col">
-                                 <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest">{t('status')}</span>
+                                 <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest">{tt('wizard_status')}</span>
                                  <span className="text-[11px] font-bold text-slate-600">{tt('wizard_install_included')}</span>
                               </div>
                               <p className="text-3xl font-black text-blue-600 tracking-tighter">{formatCurrency(p.price, language)}</p>
@@ -694,14 +722,14 @@ export const PublicTenantWebsite = () => {
                 <div className="animate-in fade-in duration-500 flex-1">
                    <h2 className="text-5xl font-black tracking-tighter mb-12 italic leading-none uppercase">{tt('wizard_data_title')}</h2>
                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
-                      <div><Input label={t('fullname')} value={formData.name} onChange={(e:any) => setFormData({...formData, name: e.target.value})} />{formErrors.name && <p className="text-[9px] text-red-500 font-black uppercase mt-1 ml-1">{formErrors.name}</p>}</div>
-                      <div><Input label={t('email')} type="email" value={formData.email} onChange={(e:any) => setFormData({...formData, email: e.target.value})} />{formErrors.email && <p className="text-[9px] text-red-500 font-black uppercase mt-1 ml-1">{formErrors.email}</p>}</div>
-                      <div><Input label="Teléfono" value={formData.phone} onChange={(e:any) => setFormData({...formData, phone: e.target.value.replace(/\D/g,'')})} />{formErrors.phone && <p className="text-[9px] text-red-500 font-black uppercase mt-1 ml-1">{formErrors.phone}</p>}</div>
+                      <div><Input label={tt('wizard_fullname')} placeholder={tt('wizard_fullname')} value={formData.name} onChange={(e:any) => setFormData({...formData, name: e.target.value})} />{formErrors.name && <p className="text-[9px] text-red-500 font-black uppercase mt-1 ml-1">{formErrors.name}</p>}</div>
+                      <div><Input label={tt('wizard_email')} placeholder={tt('wizard_email')} type="email" value={formData.email} onChange={(e:any) => setFormData({...formData, email: e.target.value})} />{formErrors.email && <p className="text-[9px] text-red-500 font-black uppercase mt-1 ml-1">{formErrors.email}</p>}</div>
+                      <div><Input label={tt('wizard_phone')} placeholder={tt('wizard_phone')} value={formData.phone} onChange={(e:any) => setFormData({...formData, phone: e.target.value.replace(/\D/g,'')})} />{formErrors.phone && <p className="text-[9px] text-red-500 font-black uppercase mt-1 ml-1">{formErrors.phone}</p>}</div>
                       <div className="grid grid-cols-2 gap-4">
-                        <div><Input label="CP" value={formData.cp} onChange={(e:any) => setFormData({...formData, cp: e.target.value.slice(0,5).replace(/\D/g,'')})} />{formErrors.cp && <p className="text-[9px] text-red-500 font-black uppercase mt-1 ml-1">{formErrors.cp}</p>}</div>
-                        <div><Input label="WO" value={formData.wo} onChange={(e:any) => setFormData({...formData, wo: e.target.value.slice(0,8).replace(/\D/g,'')})} />{formErrors.wo && <p className="text-[9px] text-red-500 font-black uppercase mt-1 ml-1">{formErrors.wo}</p>}</div>
+                        <div><Input label={tt('wizard_cp')} placeholder={tt('wizard_cp')} value={formData.cp} onChange={(e:any) => setFormData({...formData, cp: e.target.value.slice(0,5).replace(/\D/g,'')})} />{formErrors.cp && <p className="text-[9px] text-red-500 font-black uppercase mt-1 ml-1">{formErrors.cp}</p>}</div>
+                        <div><Input label={tt('wizard_wo')} placeholder={tt('wizard_wo')} value={formData.wo} onChange={(e:any) => setFormData({...formData, wo: e.target.value.slice(0,8).replace(/\D/g,'')})} />{formErrors.wo && <p className="text-[9px] text-red-500 font-black uppercase mt-1 ml-1">{formErrors.wo}</p>}</div>
                       </div>
-                      <div className="md:col-span-2"><Input label={t('address')} value={formData.address} onChange={(e:any) => setFormData({...formData, address: e.target.value})} />{formErrors.address && <p className="text-[9px] text-red-500 font-black uppercase mt-1 ml-1">{formErrors.address}</p>}</div>
+                      <div className="md:col-span-2"><Input label={tt('wizard_address')} placeholder={tt('wizard_address')} value={formData.address} onChange={(e:any) => setFormData({...formData, address: e.target.value})} />{formErrors.address && <p className="text-[9px] text-red-500 font-black uppercase mt-1 ml-1">{formErrors.address}</p>}</div>
                    </div>
                 </div>
               )}
