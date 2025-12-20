@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { supabase, isConfigured } from '../../supabaseClient';
 import { Tenant } from '../../types';
@@ -54,6 +54,45 @@ export const PublicTenantWebsite = () => {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   }, [view, step]);
+
+  // Group products by Brand for the catalog grid as requested
+  const brandGroups = useMemo(() => {
+    const groups: Record<string, { 
+      brand: string, 
+      minPrice: number, 
+      products: any[], 
+      features: string[] 
+    }> = {};
+
+    PDF_PRODUCTS.forEach(p => {
+      const brand = p.name.split(' ')[0]; // Extract brand (first token)
+      if (!groups[brand]) {
+        groups[brand] = { 
+          brand, 
+          minPrice: p.price, 
+          products: [], 
+          features: ['Garantía Oficial', 'Bajo Consumo'] 
+        };
+      }
+      groups[brand].products.push(p);
+      if (p.price < groups[brand].minPrice) groups[brand].minPrice = p.price;
+      
+      // Infer features from descriptions and names
+      if (p.desc.toLowerCase().includes('a++') && !groups[brand].features.includes('Eficiencia A++')) groups[brand].features.push('Eficiencia A++');
+      if (p.desc.toLowerCase().includes('a+++') && !groups[brand].features.includes('Eficiencia A+++')) groups[brand].features.push('Eficiencia A+++');
+      if (p.desc.toLowerCase().includes('multi-split') && !groups[brand].features.includes('Multi-split')) groups[brand].features.push('Multi-split');
+      if (p.desc.toLowerCase().includes('inverter') && !groups[brand].features.includes('Tecnología Inverter')) groups[brand].features.push('Inverter');
+      if (p.desc.toLowerCase().includes('pequeñas') || p.desc.toLowerCase().includes('grandes')) {
+        if (!groups[brand].features.includes('Adaptable')) groups[brand].features.push('Adaptable');
+      }
+    });
+
+    return Object.values(groups).filter(g => {
+      const matchesBrandFilter = !brandFilter || g.brand.includes(brandFilter);
+      const matchesPriceFilter = g.minPrice <= maxPrice;
+      return matchesBrandFilter && matchesPriceFilter;
+    });
+  }, [brandFilter, maxPrice]);
 
   // Navigation Logic
   const navigateToHome = () => {
@@ -163,17 +202,11 @@ export const PublicTenantWebsite = () => {
     </div>
   );
 
-  const filteredProducts = PDF_PRODUCTS.filter(p => {
-    const matchesBrand = !brandFilter || p.name.includes(brandFilter);
-    const matchesPrice = p.price <= maxPrice;
-    return matchesBrand && matchesPrice;
-  });
-
   const subtotal = (selectedProduct?.price || 0) + (selectedKit?.price || 0) + selectedExtras.reduce((acc, n) => acc + (PDF_EXTRAS.find(e => n === e.name)?.price || 0), 0);
 
   return (
     <div className="min-h-screen bg-white text-slate-900 selection:bg-blue-600/20">
-      {/* Header Estilo Imagen */}
+      {/* Header Estilo Enterprise */}
       <nav className="flex items-center justify-between px-6 md:px-16 py-6 sticky top-0 bg-white/90 backdrop-blur-md z-[60] border-b border-slate-100">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-white shadow-sm rounded-lg flex items-center justify-center overflow-hidden border border-slate-50 relative">
@@ -256,7 +289,7 @@ export const PublicTenantWebsite = () => {
 
       {view === 'landing' ? (
         <main className="animate-in fade-in duration-1000 pb-40">
-          {/* Hero Section Estilo Imagen */}
+          {/* Hero Section */}
           <div className="px-6 md:px-12 pt-6">
             <section className="relative rounded-[2.5rem] h-[650px] overflow-hidden group shadow-2xl">
               <img src="https://images.unsplash.com/photo-1556911220-e15b29be8c8f?q=80&w=2070&auto=format&fit=crop" className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" alt="Hero Background" />
@@ -295,7 +328,7 @@ export const PublicTenantWebsite = () => {
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
                  {[
-                   { t: "1. Selecciona", d: "Elige el equipo Comfee o Midea que mejor se adapte a tu hogar.", i: "❄️" },
+                   { t: "1. Selecciona", d: "Elige la marca y el equipo que mejor se adapte a tu hogar.", i: "❄️" },
                    { t: "2. Configura", d: "Añade kits de instalación y materiales adicionales personalizados.", i: "⚙️" },
                    { t: "3. Firma", d: "Valida tu presupuesto con firma digital y descárgalo al instante.", i: "✍️" }
                  ].map((s, i) => (
@@ -309,12 +342,12 @@ export const PublicTenantWebsite = () => {
             </div>
           </section>
 
-          {/* Catalog Filtros Estilo Imagen */}
+          {/* Grid de Catálogo por Marcas */}
           <section id="catalog" className="py-32 px-6 md:px-12 scroll-mt-24">
              <div className="max-w-7xl mx-auto">
                <div className="text-left mb-16">
                   <h2 className="text-4xl font-black tracking-tighter uppercase italic leading-none mb-2">Catálogo Destacado</h2>
-                  <p className="text-slate-400 font-bold text-sm">Encuentra el equipo ideal para tu hogar.</p>
+                  <p className="text-slate-400 font-bold text-sm italic">Soluciones integrales de climatización profesional.</p>
                </div>
                
                {/* Barra de Filtros */}
@@ -322,10 +355,10 @@ export const PublicTenantWebsite = () => {
                  <div className="flex flex-col gap-4 w-full md:w-auto">
                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
-                     Tipo de Equipo
+                     Búsqueda
                    </span>
                    <div className="flex flex-wrap gap-2">
-                     {['Todos', 'Aire Acondicionado', 'Caldera', 'Termo Eléctrico'].map(t => (
+                     {['Todos', 'Split', 'Conductos', 'Multi-split'].map(t => (
                        <button key={t} onClick={() => setTypeFilter(t)} className={`px-6 py-3 rounded-full text-[12px] font-bold transition-all ${typeFilter === t ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'}`}>{t}</button>
                      ))}
                    </div>
@@ -334,10 +367,11 @@ export const PublicTenantWebsite = () => {
                  <div className="h-10 w-px bg-slate-100 hidden md:block"></div>
 
                  <div className="flex flex-col gap-4 w-full md:w-auto">
-                   <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Marca</span>
+                   <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Filtrar por Marca</span>
                    <select value={brandFilter} onChange={(e) => setBrandFilter(e.target.value)} className="px-6 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-[12px] font-bold text-slate-600 outline-none w-full md:w-56 appearance-none cursor-pointer">
                      <option value="">Todas las marcas</option>
                      <option value="COMFEE">Comfee</option>
+                     <option value="MIDEA">Midea</option>
                    </select>
                  </div>
 
@@ -349,28 +383,48 @@ export const PublicTenantWebsite = () => {
                      <span className="text-[12px] font-black text-blue-600">{maxPrice} €</span>
                    </div>
                    <input type="range" min="0" max="3000" value={maxPrice} onChange={(e) => setMaxPrice(parseInt(e.target.value))} className="w-full accent-blue-600 h-1.5 bg-slate-100 rounded-lg" />
-                   <div className="flex justify-between text-[10px] font-bold text-slate-300"><span>0 €</span><span>3000 €</span></div>
                  </div>
                </div>
 
+               {/* Grid agrupado por Marca */}
                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12">
-                  {filteredProducts.map(p => (
-                    <div key={p.id} className="group bg-white rounded-[4rem] p-10 border border-slate-100 shadow-sm hover:shadow-2xl transition-all flex flex-col text-left">
+                  {brandGroups.map(group => (
+                    <div key={group.brand} className="group bg-white rounded-[4rem] p-10 border border-slate-100 shadow-sm hover:shadow-2xl transition-all flex flex-col text-left relative overflow-hidden">
                        <div className="h-64 bg-slate-50 rounded-[3.5rem] mb-10 flex items-center justify-center relative shadow-inner overflow-hidden">
                           <div className="absolute top-6 left-6 w-12 h-12 bg-white rounded-full shadow-sm flex items-center justify-center p-2 opacity-80">
                             <span className="text-[8px] font-black text-slate-400">BRAND</span>
                           </div>
                           <svg className="w-24 h-24 text-blue-100 group-hover:scale-110 transition-transform duration-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-                          <div className="absolute top-8 right-8 px-4 py-2 bg-white text-blue-600 rounded-full text-[9px] font-black uppercase tracking-widest shadow-sm">A+++</div>
+                          <div className="absolute top-8 right-8 px-4 py-2 bg-white text-blue-600 rounded-full text-[9px] font-black uppercase tracking-widest shadow-sm">Gama {group.brand}</div>
                        </div>
-                       <h3 className="text-3xl font-black mb-4 uppercase italic tracking-tight">{p.name}</h3>
-                       <p className="text-slate-400 text-sm italic mb-12 flex-1 leading-relaxed">{p.desc}</p>
-                       <div className="flex items-center justify-between border-t border-slate-50 pt-10">
+                       
+                       <h3 className="text-4xl font-black mb-1 uppercase italic tracking-tighter">{group.brand}</h3>
+                       <p className="text-[11px] font-black uppercase tracking-widest text-slate-400 mb-8 italic">Varios modelos disponibles en el asistente</p>
+                       
+                       {/* Feature Chips */}
+                       <div className="flex flex-wrap gap-2 mb-12">
+                          {group.features.slice(0, 5).map(feat => (
+                            <span key={feat} className="px-3 py-1.5 bg-slate-50 text-slate-600 rounded-full text-[9px] font-black uppercase border border-slate-100 tracking-wider">
+                              {feat}
+                            </span>
+                          ))}
+                       </div>
+
+                       <div className="flex items-center justify-between border-t border-slate-50 pt-10 mt-auto">
                           <div>
-                             <span className="text-[9px] font-black uppercase text-slate-300 block mb-1">Precio desde</span>
-                             <span className="text-4xl font-black text-slate-900 tracking-tighter">{formatCurrency(p.price, language)}</span>
+                             <p className="text-[40px] font-black text-slate-900 tracking-tighter leading-none">
+                                <span className="text-lg text-slate-300 mr-2 uppercase italic font-bold">Desde</span>
+                                {formatCurrency(group.minPrice, language)}
+                             </p>
                           </div>
-                          <button onClick={() => { setSelectedProduct(p); setView('wizard'); setStep(1); }} className="w-16 h-16 bg-blue-600 text-white rounded-[1.8rem] flex items-center justify-center hover:bg-slate-900 transition-all shadow-xl shadow-blue-600/20 active:scale-95">
+                          <button 
+                            onClick={() => { 
+                              setSelectedProduct(group.products[0]); 
+                              setView('wizard'); 
+                              setStep(1); 
+                            }} 
+                            className="w-16 h-16 bg-blue-600 text-white rounded-[1.8rem] flex items-center justify-center hover:bg-slate-900 transition-all shadow-xl shadow-blue-600/20 active:scale-95"
+                          >
                              <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 4v16m8-8H4"/></svg>
                           </button>
                        </div>
@@ -383,6 +437,7 @@ export const PublicTenantWebsite = () => {
       ) : (
         /* Wizard Section */
         <div className="max-w-5xl mx-auto py-24 px-8 animate-in slide-in-from-bottom-12 duration-700">
+           {/* Stepper Wizard */}
            <div className="mb-20 flex justify-between items-center bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm relative overflow-hidden">
               <div className="absolute top-0 left-0 w-full h-1 bg-slate-50"><div className="h-full bg-blue-600 transition-all duration-700 shadow-[0_0_20px_rgba(37,99,235,0.4)]" style={{ width: `${(step / 5) * 100}%` }}></div></div>
               {[1, 2, 3, 4, 5].map(num => (
@@ -403,7 +458,7 @@ export const PublicTenantWebsite = () => {
               {step === 1 && (
                 <div className="animate-in fade-in duration-500 flex-1">
                    <h2 className="text-4xl font-black tracking-tighter mb-10 italic leading-none uppercase">
-                     Selecciona tu modelo {selectedProduct?.name.split(' ')[0]}
+                     Modelos {selectedProduct?.name.split(' ')[0]} disponibles
                    </h2>
                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       {PDF_PRODUCTS.filter((p: any) => !selectedProduct || p.name.split(' ')[0] === selectedProduct.name.split(' ')[0]).map((p: any) => (
@@ -419,7 +474,7 @@ export const PublicTenantWebsite = () => {
                            )}
                            <div className="mb-4">
                               <span className="px-3 py-1 bg-white border border-blue-100 text-blue-600 rounded-full text-[9px] font-black uppercase tracking-widest shadow-sm">
-                                A+++ Eficiencia
+                                Máxima Eficiencia
                               </span>
                            </div>
                            <h3 className="font-black text-2xl text-slate-900 uppercase italic mb-3 leading-none">{p.name}</h3>
@@ -427,7 +482,7 @@ export const PublicTenantWebsite = () => {
                            <div className="flex justify-between items-end border-t border-slate-100/50 pt-6 mt-4">
                               <div className="flex flex-col">
                                  <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest">Garantía</span>
-                                 <span className="text-[11px] font-bold text-slate-600">2 Años Oficial</span>
+                                 <span className="text-[11px] font-bold text-slate-600">Instalación Incluida</span>
                               </div>
                               <p className="text-3xl font-black text-blue-600 tracking-tighter">{formatCurrency(p.price, language)}</p>
                            </div>
@@ -439,7 +494,7 @@ export const PublicTenantWebsite = () => {
 
               {step === 2 && (
                 <div className="animate-in fade-in duration-500 flex-1">
-                   <h2 className="text-5xl font-black tracking-tighter mb-12 italic leading-none uppercase">Instalación</h2>
+                   <h2 className="text-5xl font-black tracking-tighter mb-12 italic leading-none uppercase">Kit de Instalación</h2>
                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                       {PDF_KITS.map(kit => (
                         <button key={kit.name} onClick={() => setSelectedKit(kit)} className={`p-10 rounded-[3rem] border-2 text-left transition-all relative group ${selectedKit?.name === kit.name ? 'border-blue-600 bg-blue-50/50 shadow-xl' : 'border-slate-100 hover:border-blue-200 bg-white'}`}>
@@ -471,24 +526,24 @@ export const PublicTenantWebsite = () => {
 
               {step === 4 && (
                 <div className="animate-in fade-in duration-500 flex-1">
-                   <h2 className="text-5xl font-black tracking-tighter mb-12 italic leading-none uppercase">Tus Datos</h2>
+                   <h2 className="text-5xl font-black tracking-tighter mb-12 italic leading-none uppercase">Datos de Facturación</h2>
                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
                       <div><Input label="Nombre Completo" value={formData.name} onChange={(e:any) => setFormData({...formData, name: e.target.value})} />{formErrors.name && <p className="text-[9px] text-red-500 font-black uppercase mt-1 ml-1">{formErrors.name}</p>}</div>
                       <div><Input label="Email" type="email" value={formData.email} onChange={(e:any) => setFormData({...formData, email: e.target.value})} />{formErrors.email && <p className="text-[9px] text-red-500 font-black uppercase mt-1 ml-1">{formErrors.email}</p>}</div>
-                      <div><Input label="Teléfono (9+)" value={formData.phone} onChange={(e:any) => setFormData({...formData, phone: e.target.value.replace(/\D/g,'')})} />{formErrors.phone && <p className="text-[9px] text-red-500 font-black uppercase mt-1 ml-1">{formErrors.phone}</p>}</div>
+                      <div><Input label="Teléfono" value={formData.phone} onChange={(e:any) => setFormData({...formData, phone: e.target.value.replace(/\D/g,'')})} />{formErrors.phone && <p className="text-[9px] text-red-500 font-black uppercase mt-1 ml-1">{formErrors.phone}</p>}</div>
                       <div className="grid grid-cols-2 gap-4">
-                        <div><Input label="CP (5 dígitos)" value={formData.cp} onChange={(e:any) => setFormData({...formData, cp: e.target.value.slice(0,5).replace(/\D/g,'')})} />{formErrors.cp && <p className="text-[9px] text-red-500 font-black uppercase mt-1 ml-1">{formErrors.cp}</p>}</div>
-                        <div><Input label="WO (8 dígitos)" value={formData.wo} onChange={(e:any) => setFormData({...formData, wo: e.target.value.slice(0,8).replace(/\D/g,'')})} />{formErrors.wo && <p className="text-[9px] text-red-500 font-black uppercase mt-1 ml-1">{formErrors.wo}</p>}</div>
+                        <div><Input label="CP" value={formData.cp} onChange={(e:any) => setFormData({...formData, cp: e.target.value.slice(0,5).replace(/\D/g,'')})} />{formErrors.cp && <p className="text-[9px] text-red-500 font-black uppercase mt-1 ml-1">{formErrors.cp}</p>}</div>
+                        <div><Input label="WO" value={formData.wo} onChange={(e:any) => setFormData({...formData, wo: e.target.value.slice(0,8).replace(/\D/g,'')})} />{formErrors.wo && <p className="text-[9px] text-red-500 font-black uppercase mt-1 ml-1">{formErrors.wo}</p>}</div>
                       </div>
-                      <div className="md:col-span-2"><Input label="Adreça d'instal·lació" value={formData.address} onChange={(e:any) => setFormData({...formData, address: e.target.value})} />{formErrors.address && <p className="text-[9px] text-red-500 font-black uppercase mt-1 ml-1">{formErrors.address}</p>}</div>
+                      <div className="md:col-span-2"><Input label="Dirección de instalación" value={formData.address} onChange={(e:any) => setFormData({...formData, address: e.target.value})} />{formErrors.address && <p className="text-[9px] text-red-500 font-black uppercase mt-1 ml-1">{formErrors.address}</p>}</div>
                    </div>
                 </div>
               )}
 
               {step === 5 && (
                 <div className="animate-in fade-in duration-500 flex-1 text-center">
-                   <h2 className="text-5xl font-black tracking-tighter mb-4 italic leading-none uppercase">Firma Obligatoria</h2>
-                   <p className="text-slate-400 mb-12 font-medium italic">Firme en el recuadro para validar su presupuesto oficial.</p>
+                   <h2 className="text-5xl font-black tracking-tighter mb-4 italic leading-none uppercase">Validar Presupuesto</h2>
+                   <p className="text-slate-400 mb-12 font-medium italic">Firme en el recuadro inferior para emitir el presupuesto oficial.</p>
                    <div className="max-w-xl mx-auto border-4 border-slate-100 rounded-[3.5rem] bg-white shadow-inner mb-6 relative overflow-hidden h-80">
                       <canvas ref={canvasRef} width={600} height={320} className="w-full h-full cursor-crosshair touch-none" onMouseDown={startDrawing} onMouseMove={draw} onMouseUp={stopDrawing} onMouseLeave={stopDrawing} onTouchStart={startDrawing} onTouchMove={draw} onTouchEnd={stopDrawing} />
                       {!isSigned && <div className="absolute inset-0 flex items-center justify-center pointer-events-none text-slate-100 text-6xl font-black opacity-30 uppercase italic">Firme Aquí</div>}
@@ -514,7 +569,7 @@ export const PublicTenantWebsite = () => {
                     }
                     setStep(step + 1);
                   }} className={`flex-1 py-7 ${step === 5 ? 'bg-blue-600' : 'bg-slate-900'} text-white rounded-3xl font-black uppercase text-xs tracking-widest shadow-xl hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3`}>
-                   {step === 5 ? 'Emitir Presupuesto' : 'Continuar'}
+                   {step === 5 ? 'Finalizar Presupuesto' : 'Continuar'}
                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
                 </button>
               </div>
