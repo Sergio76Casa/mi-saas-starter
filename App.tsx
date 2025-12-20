@@ -1,15 +1,10 @@
 
-import React, { useState, useEffect, createContext, useContext, useMemo, useRef } from 'react';
+import React, { useState, useEffect, createContext, useContext, useMemo } from 'react';
 import { HashRouter, Routes, Route, Link, useNavigate, useParams, Navigate, Outlet, useLocation, useOutletContext, useSearchParams } from 'react-router-dom';
 import { supabase, isConfigured, SUPABASE_URL, saveManualConfig, clearManualConfig } from './supabaseClient';
 import { Membership, Profile, Tenant, Customer, Quote, QuoteItem, Language, PlatformContent } from './types';
 import { translations, formatCurrency, formatDate } from './i18n';
 import { Session } from '@supabase/supabase-js';
-import { 
-  Snowflake, Settings, PenTool, CheckCircle2, Filter, Share2, Download, Info, Shield, Zap, Sun, 
-  ChevronRight, ChevronLeft, Globe, Trash2, Image as ImageIcon, Check 
-} from 'lucide-react';
-import SignatureCanvas from 'react-signature-canvas';
 
 // --- PDF Specific Data ---
 const PDF_PRODUCTS = [
@@ -20,30 +15,30 @@ const PDF_PRODUCTS = [
 ];
 
 const PDF_KITS = [
-  { id: 'ite3', name: 'KIT INSTALACIÓN ITE-3', price: 149.00 },
-  { id: 'ite3_2x1', name: 'KIT INSTALACIÓN ITE-3 2X1', price: 249.00 },
+  { name: 'KIT INSTALACIÓN ITE-3', price: 149.00 },
+  { name: 'KIT INSTALACIÓN ITE-3 2X1', price: 249.00 },
 ];
 
 const PDF_EXTRAS = [
-  { id: 'm38', name: 'METRO LINIAL (3/8)', price: 90.00 },
-  { id: 'm12', name: 'METRO LINIAL (1/2)', price: 100.00 },
-  { id: 'm58', name: 'METRO LINIAL (5/8)', price: 110.00 },
-  { id: 'm325', name: 'MANGUERA 3x2,5mm', price: 10.00 },
-  { id: 'm515', name: 'MANGUERA 5x1,5mm', price: 10.00 },
-  { id: 't1438', name: 'TUBERÍA 1/4 - 3/8', price: 35.00 },
-  { id: 't1412', name: 'TUBERÍA 1/4 - 1/2', price: 45.00 },
-  { id: 't3858', name: 'TUBERÍA 3/8 - 5/8', price: 55.00 },
-  { id: 'c6060', name: 'CANAL 60x60', price: 35.00 },
-  { id: 'c8060', name: 'CANAL 80x60', price: 45.00 },
-  { id: 'c10060', name: 'CANAL 100x60', price: 55.00 },
-  { id: 'alt', name: 'TRABAJOS EN ALTURA', price: 80.00 },
-  { id: 'bomb', name: 'BOMBA DE CONDENSADOS', price: 180.00 },
-  { id: 'tcris', name: 'TUBO CRISTAL PARA BOMBA', price: 5.00 },
-  { id: 'cfina', name: 'CANAL FINA TOMA CORRIENTE', price: 20.00 },
-  { id: 'cext', name: 'CURVA EXTERIOR CANAL', price: 20.00 },
-  { id: 'cint', name: 'CURVA INTERIOR CANAL', price: 20.00 },
-  { id: 'tcie', name: 'TAPA CIEGA CANAL', price: 20.00 },
-  { id: 'moa', name: 'MANO DE OBRA ADICIONAL', price: 0.00 },
+  { name: 'METRO LINIAL (3/8)', price: 90.00 },
+  { name: 'METRO LINIAL (1/2)', price: 100.00 },
+  { name: 'METRO LINIAL (5/8)', price: 110.00 },
+  { name: 'MANGUERA 3x2,5mm', price: 10.00 },
+  { name: 'MANGUERA 5x1,5mm', price: 10.00 },
+  { name: 'TUBERÍA 1/4 - 3/8', price: 35.00 },
+  { name: 'TUBERÍA 1/4 - 1/2', price: 45.00 },
+  { name: 'TUBERÍA 3/8 - 5/8', price: 55.00 },
+  { name: 'CANAL 60x60', price: 35.00 },
+  { name: 'CANAL 80x60', price: 45.00 },
+  { name: 'CANAL 100x60', price: 55.00 },
+  { name: 'TRABAJOS EN ALTURA', price: 80.00 },
+  { name: 'BOMBA DE CONDENSADOS', price: 180.00 },
+  { name: 'TUBO CRISTAL PARA BOMBA', price: 5.00 },
+  { name: 'CANAL FINA TOMA CORRIENTE', price: 20.00 },
+  { name: 'CURVA EXTERIOR CANAL', price: 20.00 },
+  { name: 'CURVA INTERIOR CANAL', price: 20.00 },
+  { name: 'TAPA CIEGA CANAL', price: 20.00 },
+  { name: 'MANO DE OBRA ADICIONAL', price: 0.00 },
 ];
 
 const FINANCING_COEFFICIENTS: Record<number, number> = {
@@ -83,7 +78,7 @@ const useApp = () => {
 
 const LoadingSpinner = () => (
   <div className="flex h-screen w-full flex-col items-center justify-center bg-gray-50">
-    <div className="h-16 w-16 animate-spin rounded-full border-4 border-blue-500 border-t-transparent shadow-xl"></div>
+    <div className="h-16 w-16 animate-spin rounded-full border-4 border-brand-500 border-t-transparent shadow-xl"></div>
     <p className="mt-6 text-gray-500 font-black uppercase tracking-widest text-[10px] animate-pulse italic">Conectando...</p>
   </div>
 );
@@ -110,8 +105,8 @@ const LanguageSwitcher = () => {
   const { language, setLanguage } = useApp();
   return (
     <div className="flex bg-gray-100 p-1 rounded-xl shadow-inner border border-gray-200/50">
-      <button onClick={() => setLanguage('es')} className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${language === 'es' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>ES</button>
-      <button onClick={() => setLanguage('ca')} className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${language === 'ca' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>CA</button>
+      <button onClick={() => setLanguage('es')} className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${language === 'es' ? 'bg-white text-brand-600 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>ES</button>
+      <button onClick={() => setLanguage('ca')} className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${language === 'ca' ? 'bg-white text-brand-600 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>CA</button>
     </div>
   );
 };
@@ -119,7 +114,7 @@ const LanguageSwitcher = () => {
 const Input = ({ label, ...props }: any) => (
   <div className="mb-4 text-left">
     <label className="block text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1.5 ml-1">{label}</label>
-    <input className="w-full px-4 py-3 border border-gray-100 rounded-2xl shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-sm bg-gray-50/50" {...props} />
+    <input className="w-full px-4 py-3 border border-gray-100 rounded-2xl shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-500 transition-all text-sm bg-gray-50/50" {...props} />
   </div>
 );
 
@@ -190,6 +185,10 @@ const QuoteEditor = () => {
         addItem(product.name, product.price);
       }
     }
+    
+    if (id && id !== 'new') {
+      // Logic for editing existing quote could go here
+    }
   }, [tenant.id, id, searchParams]);
 
   const subtotal = useMemo(() => {
@@ -248,7 +247,7 @@ const QuoteEditor = () => {
         </div>
         <div className="flex gap-4">
           <button onClick={() => navigate(-1)} className="px-6 py-3 text-gray-400 text-[10px] font-black uppercase">Cancelar</button>
-          <button onClick={handleSave} disabled={loading} className="px-10 py-4 bg-blue-600 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-xl">
+          <button onClick={handleSave} disabled={loading} className="px-10 py-4 bg-brand-600 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-xl">
             {loading ? 'Guardando...' : 'Finalizar y Congelar'}
           </button>
         </div>
@@ -256,16 +255,17 @@ const QuoteEditor = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
         <div className="lg:col-span-2 space-y-8">
+          {/* Header Data Section */}
           <section className="bg-white p-10 rounded-[2.8rem] border border-gray-100 shadow-sm">
-            <h4 className="text-xs font-black uppercase tracking-widest text-blue-600 mb-8 flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-blue-500"></span> Datos del Cliente
+            <h4 className="text-xs font-black uppercase tracking-widest text-brand-600 mb-8 flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-brand-500"></span> Datos del Cliente
             </h4>
             
-            <div className="mb-8 text-left">
+            <div className="mb-8">
               <label className="block text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2">Seleccionar de Base de Datos</label>
               <select 
                 onChange={(e) => handleCustomerSelect(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-100 rounded-xl bg-gray-50 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                className="w-full px-4 py-3 border border-gray-100 rounded-xl bg-gray-50 text-sm focus:ring-2 focus:ring-brand-500 outline-none"
               >
                 <option value="">-- Nuevo Cliente --</option>
                 {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -283,9 +283,10 @@ const QuoteEditor = () => {
             </div>
           </section>
 
+          {/* Items Section */}
           <section className="bg-white p-10 rounded-[2.8rem] border border-gray-100 shadow-sm">
-            <h4 className="text-xs font-black uppercase tracking-widest text-blue-600 mb-8 flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-blue-500"></span> Conceptos del Presupuesto
+            <h4 className="text-xs font-black uppercase tracking-widest text-brand-600 mb-8 flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-brand-500"></span> Conceptos del Presupuesto
             </h4>
             
             <table className="w-full text-left mb-8">
@@ -320,12 +321,13 @@ const QuoteEditor = () => {
               </tbody>
             </table>
 
-            <div className="space-y-6 text-left">
+            {/* Quick Pickers */}
+            <div className="space-y-6">
               <div>
                 <span className="text-[10px] font-black uppercase text-gray-400 block mb-3">Modelos Comfee (PDF)</span>
                 <div className="flex flex-wrap gap-2">
                   {PDF_PRODUCTS.map(p => (
-                    <button key={p.name} onClick={() => addItem(p.name, p.price)} className="px-4 py-2 bg-gray-50 hover:bg-blue-50 hover:text-blue-600 border border-gray-100 rounded-xl text-[10px] font-black transition-all">{p.name} ({p.price}€)</button>
+                    <button key={p.name} onClick={() => addItem(p.name, p.price)} className="px-4 py-2 bg-gray-50 hover:bg-brand-50 hover:text-brand-600 border border-gray-100 rounded-xl text-[10px] font-black transition-all">{p.name} ({p.price}€)</button>
                   ))}
                 </div>
               </div>
@@ -334,7 +336,7 @@ const QuoteEditor = () => {
                 <span className="text-[10px] font-black uppercase text-gray-400 block mb-3">Kits de Instalación</span>
                 <div className="flex flex-wrap gap-2">
                   {PDF_KITS.map(k => (
-                    <button key={k.name} onClick={() => addItem(k.name, k.price)} className="px-4 py-2 bg-gray-50 hover:bg-blue-50 hover:text-blue-600 border border-gray-100 rounded-xl text-[10px] font-black transition-all">{k.name} ({k.price}€)</button>
+                    <button key={k.name} onClick={() => addItem(k.name, k.price)} className="px-4 py-2 bg-gray-50 hover:bg-brand-50 hover:text-brand-600 border border-gray-100 rounded-xl text-[10px] font-black transition-all">{k.name} ({k.price}€)</button>
                   ))}
                 </div>
               </div>
@@ -342,7 +344,7 @@ const QuoteEditor = () => {
               <div>
                 <button 
                   onClick={() => addItem('Concepto Manual', 0)}
-                  className="w-full py-4 border-2 border-dashed border-gray-100 rounded-2xl text-[10px] font-black text-gray-400 uppercase tracking-widest hover:border-blue-500 hover:text-blue-600 transition-all"
+                  className="w-full py-4 border-2 border-dashed border-gray-100 rounded-2xl text-[10px] font-black text-gray-400 uppercase tracking-widest hover:border-brand-500 hover:text-brand-600 transition-all"
                 >
                   + Añadir Concepto Personalizado
                 </button>
@@ -352,9 +354,10 @@ const QuoteEditor = () => {
         </div>
 
         <aside className="space-y-8">
-          <div className="bg-slate-900 text-white p-10 rounded-[2.8rem] shadow-2xl relative overflow-hidden sticky top-32 text-left">
-            <div className="absolute -top-10 -right-10 w-40 h-40 bg-blue-500/20 blur-[80px] rounded-full"></div>
-            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-400 mb-8">Resumen Total (IVA incl.)</h4>
+          {/* Summary Card */}
+          <div className="bg-slate-900 text-white p-10 rounded-[2.8rem] shadow-2xl relative overflow-hidden sticky top-32">
+            <div className="absolute -top-10 -right-10 w-40 h-40 bg-brand-500/20 blur-[80px] rounded-full"></div>
+            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-brand-400 mb-8">Resumen Total (IVA incl.)</h4>
             
             <div className="space-y-4 mb-10">
               <div className="flex justify-between text-sm opacity-60">
@@ -368,13 +371,13 @@ const QuoteEditor = () => {
             </div>
 
             <div className="pt-8 border-t border-white/10">
-              <label className="text-[9px] font-black uppercase tracking-widest text-blue-400 block mb-4">Calculadora de Financiación</label>
+              <label className="text-[9px] font-black uppercase tracking-widest text-brand-400 block mb-4">Calculadora de Financiación</label>
               <div className="grid grid-cols-3 gap-2 mb-6">
                 {[12, 24, 36, 48, 60].map(m => (
                   <button 
                     key={m} 
                     onClick={() => setFormData({...formData, financing_months: m})}
-                    className={`py-2 rounded-lg text-[10px] font-black border transition-all ${formData.financing_months === m ? 'bg-blue-500 border-blue-500 text-white' : 'bg-white/5 border-white/10 text-slate-400'}`}
+                    className={`py-2 rounded-lg text-[10px] font-black border transition-all ${formData.financing_months === m ? 'bg-brand-500 border-brand-500 text-white' : 'bg-white/5 border-white/10 text-slate-400'}`}
                   >
                     {m}m
                   </button>
@@ -382,7 +385,7 @@ const QuoteEditor = () => {
               </div>
               <div className="bg-white/5 p-6 rounded-2xl text-center">
                  <div className="text-[10px] font-black uppercase text-slate-500 mb-1">Cuota Mensual Est.</div>
-                 <div className="text-2xl font-black text-blue-500">{formatCurrency(monthlyFee, language)}</div>
+                 <div className="text-2xl font-black text-brand-500">{formatCurrency(monthlyFee, language)}</div>
                  <div className="text-[8px] text-slate-600 mt-2 italic">*Coeficiente PDF: {FINANCING_COEFFICIENTS[formData.financing_months || 12]}</div>
               </div>
             </div>
@@ -390,6 +393,23 @@ const QuoteEditor = () => {
             <div className="mt-8 text-[9px] text-slate-500 text-center uppercase font-black leading-relaxed">
               Válido durante 1 mes <br/>
               Hasta {formatDate(formData.valid_until || '', language)}
+            </div>
+          </div>
+
+          {/* Catalog Selection Sidebar (Searchable Extras) */}
+          <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 max-h-[500px] overflow-auto shadow-sm">
+            <h4 className="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-6">Materiales Extras</h4>
+            <div className="space-y-2">
+              {PDF_EXTRAS.map(e => (
+                <button 
+                  key={e.name} 
+                  onClick={() => addItem(e.name, e.price)}
+                  className="w-full text-left p-4 hover:bg-gray-50 rounded-xl border border-transparent hover:border-gray-100 transition-all group flex justify-between items-center"
+                >
+                  <span className="text-[11px] font-bold text-gray-600 group-hover:text-gray-900 leading-tight">{e.name}</span>
+                  <span className="text-[10px] font-black text-brand-600 shrink-0 ml-2">{e.price}€</span>
+                </button>
+              ))}
             </div>
           </div>
         </aside>
@@ -404,17 +424,11 @@ const PublicTenantWebsite = () => {
   const { dbHealthy, t, session, memberships, profile, language } = useApp();
   const [tenant, setTenant] = useState<Tenant | null>(null);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState<'home' | 'wizard'>('home');
-  const [wizardStep, setWizardStep] = useState(1);
-  const [brandFilter, setBrandFilter] = useState('');
-  
-  // Wizard State
-  const [selectedProduct, setSelectedProduct] = useState<any>(null);
-  const [quoteData, setQuoteData] = useState<any>({
-    client_name: '', client_dni: '', client_email: '', client_phone: '',
-    client_address: '', client_population: '', selected_extras: [], selected_kit_id: ''
-  });
-  const sigCanvas = useRef<any>(null);
+
+  useEffect(() => {
+    const ref = searchParams.get('ref');
+    if (ref) sessionStorage.setItem(`atribucion_${slug}`, ref);
+  }, [searchParams, slug]);
 
   useEffect(() => {
     const fetchTenant = async () => {
@@ -426,344 +440,98 @@ const PublicTenantWebsite = () => {
     fetchTenant();
   }, [slug, dbHealthy]);
 
-  const startWizard = (product: any) => {
-    setSelectedProduct(product);
-    setView('wizard');
-    setWizardStep(1);
-  };
-
-  const totalAmount = useMemo(() => {
-    if (!selectedProduct) return 0;
-    let total = selectedProduct.price;
-    const kit = PDF_KITS.find(k => k.id === quoteData.selected_kit_id);
-    if (kit) total += kit.price;
-    quoteData.selected_extras.forEach((extId: string) => {
-      const extra = PDF_EXTRAS.find(e => e.id === extId);
-      if (extra) total += extra.price;
-    });
-    return total;
-  }, [selectedProduct, quoteData]);
-
-  const handleFinish = () => {
-    if (!sigCanvas.current || sigCanvas.current.isEmpty()) {
-      /* Added missing key signature_required in i18n.ts */
-      alert(t('signature_required'));
-      return;
-    }
-    setWizardStep(5);
-  };
-
   if (loading) return <LoadingSpinner />;
   if (!tenant) return (
     <div className="min-h-screen flex items-center justify-center bg-white p-12 text-center">
        <div className="animate-in fade-in zoom-in duration-500">
          <h1 className="text-9xl font-black text-gray-100 mb-4">404</h1>
          <p className="text-gray-400 font-black uppercase tracking-widest text-xs italic">Empresa no encontrada</p>
-         <Link to="/" className="mt-10 inline-block text-blue-600 font-black uppercase text-[10px] underline tracking-widest">Volver al inicio</Link>
+         <Link to="/" className="mt-10 inline-block text-brand-600 font-black uppercase text-[10px] underline tracking-widest">Volver al inicio</Link>
        </div>
     </div>
   );
 
-  const filteredProducts = PDF_PRODUCTS.filter(p => !brandFilter || p.name.includes(brandFilter));
+  const hasAdminAccess = session && (memberships.some(m => m.tenant?.slug === slug) || profile?.is_superadmin);
 
   return (
-    <div className="min-h-screen bg-white font-sans selection:bg-blue-600 selection:text-white">
-      {/* Navigation */}
+    <div className="min-h-screen bg-white font-sans selection:bg-brand-500 selection:text-white animate-in fade-in duration-1000">
       <nav className="flex items-center justify-between px-10 py-8 sticky top-0 bg-white/80 backdrop-blur-xl z-50 border-b border-gray-50">
-        <div className="text-2xl font-black text-slate-900 italic tracking-tighter uppercase">{tenant.name}</div>
+        <div className="text-2xl font-black text-gray-900 italic tracking-tighter uppercase">{tenant.name}</div>
         <div className="flex items-center gap-10">
-           <button onClick={() => setView('home')} className="text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-gray-900 transition-colors">Inicio</button>
            <a href="#catalog" className="text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-gray-900 transition-colors">Catálogo</a>
+           <a href="#services" className="text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-gray-900 transition-colors">{t('services_section')}</a>
            <LanguageSwitcher />
-           <button onClick={() => setView('home')} className="px-8 py-3 bg-slate-900 text-white rounded-full text-[10px] font-black uppercase tracking-widest shadow-xl hover:bg-blue-600 transition-all">{t('contact_section')}</button>
+           {hasAdminAccess ? (
+             <Link to={`/t/${slug}/dashboard`} className="px-6 py-3 bg-brand-600 text-white rounded-full text-[10px] font-black uppercase tracking-widest shadow-xl hover:scale-105 transition-all">
+                {t('view_admin')}
+             </Link>
+           ) : (
+             <Link to="/login" className="text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-gray-900 transition-colors">
+                {t('login_nav')}
+             </Link>
+           )}
+           <a href="#contact" className="px-8 py-3 bg-gray-900 text-white rounded-full text-[10px] font-black uppercase tracking-widest shadow-xl hover:scale-105 transition-all">{t('contact_section')}</a>
         </div>
       </nav>
+      <main className="max-w-7xl mx-auto px-10">
+        <section className="py-40 text-center">
+          <div className="inline-block px-6 py-2 bg-brand-50 text-brand-600 rounded-full text-[10px] font-black uppercase tracking-[0.2em] mb-10 border border-brand-100 shadow-sm">✨ {t('welcome_web') || 'Bienvenidos'}</div>
+          <h1 className="text-[7rem] md:text-[9rem] font-black text-gray-900 tracking-tighter leading-[0.8] mb-12 uppercase">{tenant.name}</h1>
+          <p className="text-2xl text-gray-400 max-w-3xl mx-auto font-medium leading-relaxed italic opacity-80">{t('home_hero_subtitle_default')}</p>
+        </section>
 
-      {view === 'home' ? (
-        <main className="animate-in fade-in duration-1000">
-          {/* Hero */}
-          <section className="py-40 text-center px-6">
-            <div className="inline-block px-6 py-2 bg-blue-50 text-blue-600 rounded-full text-[10px] font-black uppercase tracking-[0.2em] mb-10 border border-blue-100 shadow-sm">✨ Especialistas en Confort Térmico</div>
-            <h1 className="text-[6rem] md:text-[8rem] font-black text-slate-900 tracking-tighter leading-[0.8] mb-12 uppercase">Eco<span className="text-blue-600">Quote</span></h1>
-            <p className="text-2xl text-slate-400 max-w-3xl mx-auto font-medium leading-relaxed italic opacity-80 mb-16">
-              Diseñamos soluciones inteligentes de climatización con presupuestos profesionales en segundos.
-            </p>
-            <div className="flex flex-wrap justify-center gap-6">
-               <a href="#catalog" className="px-12 py-6 bg-blue-600 text-white rounded-[2.5rem] font-black uppercase text-xs tracking-widest hover:scale-105 transition-all shadow-2xl shadow-blue-500/30">Explorar Catálogo</a>
-               <button className="px-12 py-6 bg-slate-100 text-slate-600 rounded-[2.5rem] font-black uppercase text-xs tracking-widest hover:bg-slate-200 transition-all">Sobre Nosotros</button>
-            </div>
-          </section>
-
-          {/* How it works */}
-          <section className="py-32 bg-slate-50 px-10">
-            <div className="max-w-7xl mx-auto">
-              <div className="text-center mb-24">
-                {/* Added missing key how_it_works in i18n.ts */}
-                <h2 className="text-5xl font-black text-slate-900 tracking-tight uppercase italic">{t('how_it_works')}</h2>
-                <div className="w-24 h-2 bg-blue-600 mx-auto mt-4 rounded-full"></div>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-16">
-                 {[
-                   /* Added missing keys how_1, how_2, how_3 in i18n.ts */
-                   { icon: Snowflake, t: t('how_1'), d: 'Selecciona el equipo Midea o Comfee que mejor se adapte a tu hogar.' },
-                   { icon: Settings, t: t('how_2'), d: 'Configura kits de instalación y materiales adicionales a medida.' },
-                   { icon: PenTool, t: t('how_3'), d: 'Firma digitalmente y recibe tu presupuesto oficial al instante.' }
-                 ].map((step, i) => (
-                   <div key={i} className="text-center group">
-                      <div className="w-24 h-24 bg-white rounded-3xl shadow-xl flex items-center justify-center mx-auto mb-10 group-hover:scale-110 transition-all border border-slate-100">
-                         <step.icon className="w-10 h-10 text-blue-600" />
-                      </div>
-                      <h3 className="text-2xl font-black mb-6 text-slate-900">{step.t}</h3>
-                      <p className="text-slate-400 font-medium italic leading-relaxed">{step.d}</p>
-                   </div>
-                 ))}
-              </div>
-            </div>
-          </section>
-
-          {/* Catalog */}
-          <section id="catalog" className="py-40 px-10 scroll-mt-24">
-             <div className="max-w-7xl mx-auto">
-               <div className="flex flex-col md:flex-row justify-between items-end gap-10 mb-20">
-                  <div className="text-left">
-                     <h2 className="text-6xl font-black text-slate-900 tracking-tighter uppercase italic mb-4">Soluciones HVAC</h2>
-                     <p className="text-slate-400 font-bold uppercase tracking-widest text-xs italic">Tecnología de alta eficiencia energética</p>
-                  </div>
-                  <div className="flex gap-4">
-                     <div className="relative">
-                        <Filter className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                        <select 
-                          onChange={(e) => setBrandFilter(e.target.value)}
-                          className="pl-12 pr-8 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-[10px] font-black uppercase tracking-widest outline-none focus:ring-2 focus:ring-blue-500 transition-all appearance-none"
-                        >
-                          <option value="">Todas las Marcas</option>
-                          <option value="COMFEE">Comfee</option>
-                          <option value="MIDEA">Midea</option>
-                        </select>
-                     </div>
-                  </div>
-               </div>
-
-               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
-                  {filteredProducts.map(p => (
-                    <div key={p.id} className="bg-white rounded-[3rem] p-10 border border-slate-100 shadow-sm hover:shadow-2xl transition-all group flex flex-col text-left">
-                       <div className="h-64 bg-slate-50 rounded-[2.5rem] mb-10 flex items-center justify-center relative overflow-hidden">
-                          <ImageIcon className="w-16 h-16 text-slate-100 group-hover:scale-110 transition-transform" />
-                          <div className="absolute top-6 right-6 px-4 py-2 bg-white rounded-full text-[10px] font-black uppercase tracking-widest text-blue-600 shadow-sm">A+++</div>
-                       </div>
-                       <div className="flex justify-between items-start mb-6">
-                          <div>
-                            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-500 mb-2 block">Premium Unit</span>
-                            <h3 className="text-3xl font-black text-slate-900 tracking-tight">{p.name}</h3>
-                          </div>
-                          <button className="p-4 bg-slate-50 rounded-2xl text-slate-400 hover:text-blue-600 transition-all"><Share2 className="w-5 h-5" /></button>
-                       </div>
-                       <p className="text-slate-400 text-sm italic mb-10 flex-1">{p.desc}</p>
-                       <div className="flex flex-col gap-6">
-                          <div className="flex justify-between items-end">
-                             <div className="text-slate-400 text-[9px] font-black uppercase tracking-widest mb-1">Precio desde</div>
-                             <div className="text-3xl font-black text-slate-900">{formatCurrency(p.price, language)}</div>
-                          </div>
-                          <button 
-                            onClick={() => startWizard(p)}
-                            className="w-full py-6 bg-slate-950 text-white rounded-[1.8rem] text-[10px] font-black uppercase tracking-widest hover:bg-blue-600 transition-all shadow-xl"
-                          >
-                            Solicitar Presupuesto →
-                          </button>
-                       </div>
-                    </div>
-                  ))}
-               </div>
-             </div>
-          </section>
-        </main>
-      ) : (
-        /* Wizard Section */
-        <div className="max-w-5xl mx-auto py-20 px-8 animate-in slide-in-from-bottom-10 duration-700">
-           {/* Stepper */}
-           <div className="mb-16 flex justify-between items-center bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm relative overflow-hidden">
-              <div className="absolute top-0 left-0 w-full h-1 bg-slate-50">
-                 <div className="h-full bg-blue-500 transition-all duration-500" style={{ width: `${(wizardStep / 4) * 100}%` }}></div>
-              </div>
-              {[1, 2, 3, 4].map(num => (
-                <div key={num} className="flex items-center gap-4 relative z-10">
-                   <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black text-sm transition-all border-2 ${wizardStep === num ? 'bg-blue-600 border-blue-600 text-white shadow-xl scale-110' : wizardStep > num ? 'bg-blue-50 border-blue-100 text-blue-600' : 'bg-white border-slate-100 text-slate-300'}`}>
-                      {wizardStep > num ? <Check className="w-6 h-6" /> : num}
-                   </div>
-                   <div className="hidden lg:block text-left leading-none">
-                      <p className={`text-[9px] font-black uppercase tracking-widest ${wizardStep >= num ? 'text-slate-900' : 'text-slate-400'}`}>
-                        {num === 1 ? 'Equipo' : num === 2 ? 'Instalación' : num === 3 ? 'Tus Datos' : 'Firma'}
-                      </p>
-                   </div>
-                </div>
-              ))}
-           </div>
-
-           <div className="bg-white p-12 lg:p-20 rounded-[4rem] border border-slate-100 shadow-2xl relative">
-              <div className="absolute top-10 right-10 flex gap-4">
-                 <div className="px-6 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-left">
-                    <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Presupuesto</p>
-                    <p className="text-xl font-black text-blue-600">{formatCurrency(totalAmount, language)}</p>
+        {/* Product Catalog Grid */}
+        <section id="catalog" className="py-32 scroll-mt-24">
+          <div className="mb-16 text-center">
+             <h2 className="text-5xl font-black text-gray-900 tracking-tight uppercase mb-4 italic">Nuestra Gama Midea & Comfee</h2>
+             <p className="text-gray-400 font-bold uppercase tracking-widest text-xs italic">Selecciona el equipo ideal para tu hogar</p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+            {PDF_PRODUCTS.map(product => (
+              <div key={product.id} className="bg-white border border-gray-100 rounded-[3rem] p-10 shadow-sm hover:shadow-2xl transition-all flex flex-col group">
+                 <div className="w-16 h-16 bg-brand-50 rounded-2xl flex items-center justify-center text-3xl mb-8 group-hover:scale-110 transition-transform">❄️</div>
+                 <h3 className="text-xl font-black text-gray-900 mb-4">{product.name}</h3>
+                 <p className="text-gray-400 text-sm leading-relaxed mb-10 flex-1">{product.desc}</p>
+                 <div className="flex flex-col gap-6">
+                    <span className="text-2xl font-black text-brand-600">{formatCurrency(product.price, language)}</span>
+                    <Link 
+                      to={`/t/${slug}/quotes/new?productId=${product.id}`}
+                      className="w-full py-4 bg-slate-900 text-white text-center rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-brand-600 transition-all shadow-xl"
+                    >
+                      Solicitar Presupuesto
+                    </Link>
                  </div>
               </div>
+            ))}
+          </div>
+        </section>
 
-              {wizardStep === 1 && (
-                <div className="animate-in fade-in duration-500 text-left">
-                   <div className="flex flex-col lg:flex-row gap-16">
-                      <div className="flex-1">
-                         <h2 className="text-5xl font-black text-slate-900 tracking-tighter mb-6">{selectedProduct.name}</h2>
-                         <p className="text-xl text-slate-400 font-medium italic leading-relaxed mb-10">{selectedProduct.desc}</p>
-                         <div className="grid grid-cols-2 gap-4 mb-12">
-                            {[
-                              { label: 'Garantía', val: '2 Años Total', icon: Shield },
-                              { label: 'Eficiencia', val: 'A+++ R32', icon: Zap },
-                              { label: 'Control', val: 'WiFi Incluido', icon: Globe },
-                              { label: 'Sonido', val: '21 dB Silencioso', icon: Snowflake },
-                            ].map((s, i) => (
-                              <div key={i} className="bg-slate-50 p-6 rounded-3xl border border-slate-100 flex items-center gap-4">
-                                 <div className="w-10 h-10 bg-white rounded-xl shadow-sm flex items-center justify-center text-blue-600"><s.icon className="w-5 h-5" /></div>
-                                 <div>
-                                    <p className="text-[9px] font-black uppercase text-slate-400">{s.label}</p>
-                                    <p className="text-sm font-bold text-slate-900">{s.val}</p>
-                                 </div>
-                              </div>
-                            ))}
-                         </div>
-                      </div>
-                      <div className="w-full lg:w-80">
-                         <div className="bg-slate-50 rounded-[3rem] p-10 border border-slate-100 aspect-square flex items-center justify-center">
-                            <Snowflake className="w-32 h-32 text-blue-100" />
-                         </div>
-                      </div>
-                   </div>
-                   <button onClick={() => setWizardStep(2)} className="w-full py-8 bg-blue-600 text-white rounded-3xl font-black uppercase text-xs tracking-widest shadow-2xl hover:scale-[1.02] transition-all">Siguiente: Configurar Instalación →</button>
-                </div>
-              )}
+        <section id="services" className="py-32 grid grid-cols-1 md:grid-cols-3 gap-12">
+           {[
+            { t: '💎 Calidad Premium', d: 'Utilizamos los mejores materiales y procesos del mercado.' },
+            { t: '⚡ Atención 24/7', d: 'Estamos siempre disponibles para resolver tus dudas.' },
+            { t: '📈 Crecimiento', d: 'Nuestra prioridad es que tu negocio crezca con nosotros.' }
+           ].map((s, i) => (
+             <div key={i} className="bg-gray-50 p-16 rounded-[4rem] border border-gray-100 hover:shadow-[0_40px_80px_-20px_rgba(0,0,0,0.08)] transition-all group cursor-default">
+                <h3 className="text-2xl font-black text-gray-900 mb-6">{s.t}</h3>
+                <p className="text-gray-500 font-medium leading-relaxed text-lg">{s.d}</p>
+             </div>
+           ))}
+        </section>
 
-              {wizardStep === 2 && (
-                <div className="animate-in fade-in duration-500 text-left">
-                   <h2 className="text-5xl font-black text-slate-900 tracking-tighter mb-12">Detalles de Instalación</h2>
-                   <div className="space-y-16">
-                      <section>
-                         <label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 block mb-6">Kit de Instalación</label>
-                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            {PDF_KITS.map(kit => (
-                              <button 
-                                key={kit.id} 
-                                onClick={() => setQuoteData({...quoteData, selected_kit_id: kit.id})}
-                                className={`p-8 rounded-[2.5rem] border-2 text-left transition-all ${quoteData.selected_kit_id === kit.id ? 'border-blue-600 bg-blue-50 shadow-xl' : 'border-slate-100 hover:border-blue-200 bg-white'}`}
-                              >
-                                 <p className="font-black text-xl text-slate-950 mb-1">{kit.name}</p>
-                                 <p className="text-xl font-black text-blue-600">{formatCurrency(kit.price, language)}</p>
-                              </button>
-                            ))}
-                         </div>
-                      </section>
-                      <section>
-                         <label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 block mb-6">Materiales Extras</label>
-                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {PDF_EXTRAS.slice(0, 9).map(extra => {
-                              const isSelected = quoteData.selected_extras.includes(extra.id);
-                              return (
-                                <button 
-                                  key={extra.id} 
-                                  onClick={() => {
-                                    const newExtras = isSelected ? quoteData.selected_extras.filter((id: string) => id !== extra.id) : [...quoteData.selected_extras, extra.id];
-                                    setQuoteData({...quoteData, selected_extras: newExtras});
-                                  }}
-                                  className={`flex items-center justify-between p-5 rounded-2xl border-2 transition-all ${isSelected ? 'border-blue-600 bg-blue-50' : 'border-slate-50 hover:border-blue-100 bg-slate-50'}`}
-                                >
-                                   <div className="text-left"><p className="font-bold text-[11px] uppercase text-slate-900">{extra.name}</p></div>
-                                   <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center ${isSelected ? 'bg-blue-600 border-blue-600 text-white' : 'border-slate-200 bg-white'}`}>
-                                      {isSelected && <Check className="w-4 h-4" />}
-                                   </div>
-                                </button>
-                              );
-                            })}
-                         </div>
-                      </section>
-                   </div>
-                   <div className="flex gap-4 mt-20">
-                      <button onClick={() => setWizardStep(1)} className="px-10 py-6 border border-slate-100 rounded-3xl font-black uppercase text-[10px] tracking-widest text-slate-400 hover:bg-slate-50">Atrás</button>
-                      <button onClick={() => setWizardStep(3)} className="flex-1 py-8 bg-blue-600 text-white rounded-3xl font-black uppercase text-xs tracking-widest shadow-xl">Continuar →</button>
-                   </div>
-                </div>
-              )}
-
-              {wizardStep === 3 && (
-                <div className="animate-in fade-in duration-500 text-left">
-                   <h2 className="text-5xl font-black text-slate-900 tracking-tighter mb-12">Datos de Contacto</h2>
-                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-16">
-                      <Input label="Nombre Completo" value={quoteData.client_name} onChange={(e:any) => setQuoteData({...quoteData, client_name: e.target.value})} />
-                      <Input label="DNI / NIF" value={quoteData.client_dni} onChange={(e:any) => setQuoteData({...quoteData, client_dni: e.target.value})} />
-                      <Input label="Email" type="email" value={quoteData.client_email} onChange={(e:any) => setQuoteData({...quoteData, client_email: e.target.value})} />
-                      <Input label="Teléfono" value={quoteData.client_phone} onChange={(e:any) => setQuoteData({...quoteData, client_phone: e.target.value})} />
-                      <div className="md:col-span-2"><Input label="Dirección de Instalación" value={quoteData.client_address} onChange={(e:any) => setQuoteData({...quoteData, client_address: e.target.value})} /></div>
-                   </div>
-                   <div className="flex gap-4">
-                      <button onClick={() => setWizardStep(2)} className="px-10 py-6 border border-slate-100 rounded-3xl font-black uppercase text-[10px] tracking-widest text-slate-400 hover:bg-slate-50">Atrás</button>
-                      <button onClick={() => setWizardStep(4)} className="flex-1 py-8 bg-blue-600 text-white rounded-3xl font-black uppercase text-xs tracking-widest shadow-xl">Revisar y Firmar →</button>
-                   </div>
-                </div>
-              )}
-
-              {wizardStep === 4 && (
-                <div className="animate-in fade-in duration-500 text-center">
-                   <h2 className="text-5xl font-black text-slate-900 tracking-tighter mb-4">Revisión y Firma</h2>
-                   <p className="text-slate-400 mb-12 font-medium italic">Firme en el recuadro inferior para validar su presupuesto oficial.</p>
-                   
-                   <div className="max-w-xl mx-auto mb-16 bg-slate-50 p-10 rounded-[2.5rem] border border-slate-100 text-left">
-                      <div className="flex justify-between items-center mb-6">
-                         <span className="text-slate-900 font-black text-2xl">{selectedProduct.name}</span>
-                         <span className="text-blue-600 font-black text-xl">{formatCurrency(selectedProduct.price, language)}</span>
-                      </div>
-                      <div className="h-[1px] bg-slate-200 mb-6"></div>
-                      <div className="flex justify-between items-end">
-                         <span className="text-3xl font-black text-slate-900">TOTAL</span>
-                         <span className="text-5xl font-black text-blue-600">{formatCurrency(totalAmount, language)}</span>
-                      </div>
-                   </div>
-
-                   <div className="max-w-xl mx-auto border-4 border-slate-100 rounded-[3rem] bg-white shadow-inner mb-6 overflow-hidden">
-                      {/* @ts-ignore - penColor is a valid prop for SignatureCanvas but might be missing from some versions of the type definitions */}
-                      <SignatureCanvas 
-                        ref={sigCanvas} 
-                        penColor='#0f172a' 
-                        canvasProps={{ className: 'w-full h-72 cursor-crosshair' }} 
-                      />
-                   </div>
-                   <button onClick={() => sigCanvas.current?.clear()} className="px-8 py-3 text-slate-400 font-black uppercase text-[9px] tracking-widest mb-16 hover:text-red-500 transition-colors flex items-center gap-2 mx-auto"><Trash2 className="w-3 h-3" /> Limpiar Firma</button>
-
-                   <div className="flex gap-4">
-                      <button onClick={() => setWizardStep(3)} className="px-10 py-6 border border-slate-100 rounded-3xl font-black uppercase text-[10px] tracking-widest text-slate-400 hover:bg-slate-50">Atrás</button>
-                      <button onClick={handleFinish} className="flex-1 py-8 bg-slate-950 text-white rounded-3xl font-black uppercase text-xs tracking-widest shadow-2xl hover:bg-blue-600 transition-all">Generar Presupuesto</button>
-                   </div>
-                </div>
-              )}
-
-              {wizardStep === 5 && (
-                <div className="animate-in zoom-in duration-700 text-center py-20">
-                   <div className="w-32 h-32 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-12 border-4 border-white shadow-2xl">
-                      <CheckCircle2 className="w-16 h-16" />
-                   </div>
-                   <h2 className="text-6xl font-black text-slate-900 tracking-tighter mb-8 italic">¡Todo listo!</h2>
-                   <p className="text-2xl text-slate-400 mb-16 max-w-lg mx-auto italic font-medium leading-relaxed">Su presupuesto ha sido generado con éxito y se ha enviado una copia a su email.</p>
-                   <div className="flex flex-wrap justify-center gap-6">
-                      <button className="px-12 py-6 bg-blue-600 text-white rounded-3xl font-black uppercase text-xs tracking-widest shadow-2xl flex items-center gap-4 hover:scale-105 transition-all">
-                         <Download className="w-5 h-5" /> Descargar PDF
-                      </button>
-                      <button onClick={() => setView('home')} className="px-12 py-6 bg-slate-100 text-slate-600 rounded-3xl font-black uppercase text-xs tracking-widest hover:bg-slate-200 transition-all">Volver al Inicio</button>
-                   </div>
-                </div>
-              )}
+        <section id="contact" className="py-40">
+           <div className="bg-gray-900 rounded-[5rem] p-32 text-center text-white relative overflow-hidden shadow-2xl">
+              <div className="absolute top-0 right-0 w-96 h-96 bg-brand-500/20 blur-[120px] rounded-full"></div>
+              <div className="absolute bottom-0 left-0 w-64 h-64 bg-blue-500/10 blur-[100px] rounded-full"></div>
+              <h2 className="text-7xl font-black tracking-tighter mb-10 italic">¿Hablamos?</h2>
+              <p className="text-slate-400 text-xl mb-16 max-w-xl mx-auto font-light leading-relaxed">Estamos listos para llevar tu proyecto al siguiente nivel.</p>
+              <button className="px-16 py-7 bg-white text-gray-900 rounded-[3rem] font-black uppercase tracking-[0.15em] text-xs shadow-2xl hover:bg-brand-500 hover:text-white transition-all transform hover:scale-105 active:scale-95">Enviar Mensaje</button>
            </div>
-        </div>
-      )}
-
-      {/* Footer */}
-      <footer className="py-24 border-t border-gray-50 text-center bg-gray-50/30 mt-40">
+        </section>
+      </main>
+      <footer className="py-24 border-t border-gray-50 text-center bg-gray-50/30">
          <div className="text-2xl font-black text-gray-200 mb-6 tracking-tighter italic uppercase">{tenant.name}</div>
-         <div className="text-[10px] font-black uppercase tracking-widest text-gray-400">© 2025 · Powered by EcoQuote · Climatización Profesional</div>
+         <div className="text-[10px] font-black uppercase tracking-widest text-gray-400">© 2024 · {tenant.name} · SaaS Multi-tenant</div>
       </footer>
     </div>
   );
@@ -792,9 +560,9 @@ const Customers = () => {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
-      <div className="flex justify-between items-center text-left">
+      <div className="flex justify-between items-center">
         <h3 className="text-3xl font-black text-gray-900 tracking-tighter">{t('customers')}</h3>
-        <button onClick={() => setIsCreating(true)} className="px-6 py-3 bg-blue-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg hover:shadow-blue-500/20 transition-all">+ Nuevo Cliente</button>
+        <button onClick={() => setIsCreating(true)} className="px-6 py-3 bg-brand-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg hover:shadow-brand-500/20 transition-all">+ Nuevo Cliente</button>
       </div>
 
       {isCreating && (
@@ -827,7 +595,7 @@ const Customers = () => {
                   <div className="text-[8px] text-gray-400 font-bold uppercase tracking-widest">{c.dni || 'Sin DNI'}</div>
                 </td>
                 <td className="px-10 py-6 text-sm text-gray-500">{c.email} <br/> <span className="text-[10px] font-bold text-gray-400">{c.phone}</span></td>
-                <td className="px-10 py-6 text-right"><button className="text-blue-600 font-black text-[9px] uppercase tracking-widest">Ver Ficha</button></td>
+                <td className="px-10 py-6 text-right"><button className="text-brand-600 font-black text-[9px] uppercase tracking-widest">Ver Ficha</button></td>
               </tr>
             ))}
           </tbody>
@@ -852,9 +620,9 @@ const Quotes = () => {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
-      <div className="flex justify-between items-center text-left">
+      <div className="flex justify-between items-center">
         <h3 className="text-3xl font-black text-gray-900 tracking-tighter">{t('quotes')}</h3>
-        <button onClick={() => navigate(`/t/${tenant.slug}/quotes/new`)} className="px-6 py-3 bg-blue-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg">+ Crear Presupuesto</button>
+        <button onClick={() => navigate(`/t/${tenant.slug}/quotes/new`)} className="px-6 py-3 bg-brand-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg">+ Crear Presupuesto</button>
       </div>
 
       <div className="bg-white border border-gray-100 rounded-[2.8rem] overflow-hidden shadow-sm">
@@ -865,9 +633,9 @@ const Quotes = () => {
           <tbody className="divide-y divide-gray-50">
             {quotes.map(q => (
               <tr key={q.id} className="hover:bg-gray-50/50 transition-colors cursor-pointer" onClick={() => navigate(`/t/${tenant.slug}/quotes/${q.id}`)}>
-                <td className="px-10 py-6 text-left"><div className="font-black text-gray-900">{q.quote_no || `#Q-${q.id.slice(0,4)}`}</div><div className="text-[9px] text-gray-400 font-bold">{formatDate(q.created_at, language)}</div></td>
-                <td className="px-10 py-6 text-left font-bold text-gray-600">{q.client_name || q.customer?.name || 'Cliente Genérico'}</td>
-                <td className="px-10 py-6 text-left font-black text-blue-600">{formatCurrency(q.total_amount, language)}</td>
+                <td className="px-10 py-6"><div className="font-black text-gray-900">{q.quote_no || `#Q-${q.id.slice(0,4)}`}</div><div className="text-[9px] text-gray-400 font-bold">{formatDate(q.created_at, language)}</div></td>
+                <td className="px-10 py-6 font-bold text-gray-600">{q.client_name || q.customer?.name || 'Cliente Genérico'}</td>
+                <td className="px-10 py-6 font-black text-brand-600">{formatCurrency(q.total_amount, language)}</td>
                 <td className="px-10 py-6 text-right"><span className="px-3 py-1 bg-amber-50 text-amber-600 text-[9px] font-black uppercase rounded-full border border-amber-100">{q.status}</span></td>
               </tr>
             ))}
@@ -893,14 +661,14 @@ const TenantSettings = () => {
   };
 
   return (
-    <div className="max-w-2xl animate-in fade-in duration-500 text-left">
+    <div className="max-w-2xl animate-in fade-in duration-500">
       <h3 className="text-3xl font-black text-gray-900 tracking-tighter mb-10">{t('settings')}</h3>
       <div className="bg-white p-10 rounded-[2.8rem] border border-gray-100 shadow-sm space-y-8">
          <Input label="Nombre de la Empresa" value={name} onChange={(e:any) => setName(e.target.value)} />
          <div className="p-6 bg-gray-50 rounded-2xl border border-gray-100">
-            <label className="text-[9px] font-black uppercase text-gray-400 block mb-2 tracking-widest text-left">Plan de Suscripción</label>
+            <label className="text-[9px] font-black uppercase text-gray-400 block mb-2 tracking-widest">Plan de Suscripción</label>
             <div className="flex justify-between items-center">
-               <span className="font-black text-blue-600 uppercase italic">{tenant.plan}</span>
+               <span className="font-black text-brand-600 uppercase italic">{tenant.plan}</span>
                <button className="text-[9px] font-black text-slate-400 uppercase underline">Cambiar Plan</button>
             </div>
          </div>
@@ -929,27 +697,27 @@ const AdminLayout = () => {
   return (
     <div className="flex min-h-screen bg-[#050505] text-slate-100 font-sans">
       <aside className="w-72 bg-slate-900/40 backdrop-blur-xl border-r border-white/5 flex flex-col shrink-0">
-        <div className="p-8 h-24 flex items-center text-left"><div className="font-black text-2xl tracking-tighter text-white flex items-center gap-2"><div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center text-xs text-white">S</div>SYSTEM<span className="text-blue-500">ADMIN</span></div></div>
+        <div className="p-8 h-24 flex items-center"><div className="font-black text-2xl tracking-tighter text-white flex items-center gap-2"><div className="w-8 h-8 bg-brand-500 rounded-lg flex items-center justify-center text-xs">S</div>SYSTEM<span className="text-brand-500">ADMIN</span></div></div>
         <nav className="flex-1 p-6 space-y-2">
-          <Link to="/admin/dashboard" className={`flex items-center gap-3 px-5 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all ${isActive('dashboard') ? 'bg-blue-600 text-white shadow-2xl shadow-blue-500/40' : 'text-slate-400 hover:bg-white/5 hover:text-white'}`}>📊 Dashboard</Link>
-          <Link to="/admin/cms" className={`flex items-center gap-3 px-5 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all ${isActive('cms') ? 'bg-blue-600 text-white shadow-2xl shadow-blue-500/40' : 'text-slate-400 hover:bg-white/5 hover:text-white'}`}>📝 Platform CMS</Link>
-          <Link to="/admin/tenants" className={`flex items-center gap-3 px-5 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all ${isActive('tenants') ? 'bg-blue-600 text-white shadow-2xl shadow-blue-500/40' : 'text-slate-400 hover:bg-white/5 hover:text-white'}`}>🏢 Tenants/Empresas</Link>
+          <Link to="/admin/dashboard" className={`flex items-center gap-3 px-5 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all ${isActive('dashboard') ? 'bg-brand-600 text-white shadow-2xl shadow-brand-500/40' : 'text-slate-400 hover:bg-white/5 hover:text-white'}`}>📊 Dashboard</Link>
+          <Link to="/admin/cms" className={`flex items-center gap-3 px-5 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all ${isActive('cms') ? 'bg-brand-600 text-white shadow-2xl shadow-brand-500/40' : 'text-slate-400 hover:bg-white/5 hover:text-white'}`}>📝 Platform CMS</Link>
+          <Link to="/admin/tenants" className={`flex items-center gap-3 px-5 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all ${isActive('tenants') ? 'bg-brand-600 text-white shadow-2xl shadow-brand-500/40' : 'text-slate-400 hover:bg-white/5 hover:text-white'}`}>🏢 Tenants/Empresas</Link>
         </nav>
         <div className="p-6 border-t border-white/5"><button onClick={signOut} className="w-full flex items-center gap-3 px-5 py-4 text-[10px] font-black uppercase tracking-widest text-red-400 hover:bg-red-400/10 rounded-2xl transition-all">🚪 {t('logout')}</button></div>
       </aside>
-      <main className="flex-1 flex flex-col h-screen overflow-hidden text-left">
+      <main className="flex-1 flex flex-col h-screen overflow-hidden">
         <header className="h-24 bg-white/[0.02] border-b border-white/5 flex items-center justify-between px-10 shrink-0">
           <div className="flex flex-col"><h2 className="text-xl font-black text-white tracking-tight">Consola de Control</h2></div>
-          <div className="flex items-center gap-6"><Link to="/" className="text-[10px] font-black text-slate-400 hover:text-blue-500 uppercase tracking-widest transition-colors">Web Pública ↗</Link><div className="h-12 w-12 bg-gradient-to-tr from-blue-600 to-blue-400 text-white rounded-2xl flex items-center justify-center font-black shadow-xl text-sm">SA</div></div>
+          <div className="flex items-center gap-6"><Link to="/" className="text-[10px] font-black text-slate-400 hover:text-brand-500 uppercase tracking-widest transition-colors">Web Pública ↗</Link><div className="h-12 w-12 bg-gradient-to-tr from-brand-600 to-brand-400 text-white rounded-2xl flex items-center justify-center font-black shadow-xl text-sm">SA</div></div>
         </header>
-        <div className="flex-1 overflow-auto p-12 bg-[radial-gradient(circle_at_top_right,_rgba(37,99,235,0.05),_transparent)]"><Outlet /></div>
+        <div className="flex-1 overflow-auto p-12 bg-[radial-gradient(circle_at_top_right,_rgba(34,197,94,0.05),_transparent)]"><Outlet /></div>
       </main>
     </div>
   );
 };
 
 const AdminDashboard = () => (
-  <div className="space-y-12 animate-in fade-in duration-700 text-left">
+  <div className="space-y-12 animate-in fade-in duration-700">
     <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
       {[ { label: 'Total Tenants', val: '24', icon: '🏢' }, { label: 'Usuarios Activos', val: '1,2k', icon: '👥' }, { label: 'Ingresos MRR', val: '8.450€', icon: '💰' }, { label: 'Uptime', val: '99.9%', icon: '⚡' } ].map((s, i) => (
         <div key={i} className="bg-white/5 border border-white/5 p-8 rounded-[2.5rem] relative overflow-hidden group hover:bg-white/10 transition-all">
@@ -983,8 +751,8 @@ const AdminTenants = () => {
   };
 
   return (
-    <div className="space-y-6 text-left">
-      <div className="flex justify-between items-center"><h3 className="text-2xl font-black text-white tracking-tight">Directorio de Empresas</h3><button onClick={() => setIsCreating(true)} className="px-6 py-3 bg-blue-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg">+ Registrar Empresa</button></div>
+    <div className="space-y-6">
+      <div className="flex justify-between items-center"><h3 className="text-2xl font-black text-white tracking-tight">Directorio de Empresas</h3><button onClick={() => setIsCreating(true)} className="px-6 py-3 bg-brand-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg">+ Registrar Empresa</button></div>
       {isCreating && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-xl z-[100] flex items-center justify-center p-6">
            <div className="bg-slate-900 border border-white/10 p-10 rounded-[3rem] w-full max-w-md shadow-2xl">
@@ -993,14 +761,14 @@ const AdminTenants = () => {
                  <input placeholder="Nombre de Empresa" className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white text-sm" value={newTenant.name} onChange={e => setNewTenant({...newTenant, name: e.target.value})} />
                  <input placeholder="url-personalizada" className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white text-sm" value={newTenant.slug} onChange={e => setNewTenant({...newTenant, slug: e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, '-')})} />
               </div>
-              <div className="flex gap-4 mt-10"><button onClick={handleCreateTenant} className="flex-1 py-4 bg-blue-600 text-white rounded-xl font-black text-[10px] uppercase">Crear Empresa</button><button onClick={() => setIsCreating(false)} className="px-8 py-4 text-slate-400 font-black text-[10px] uppercase">Cerrar</button></div>
+              <div className="flex gap-4 mt-10"><button onClick={handleCreateTenant} className="flex-1 py-4 bg-brand-600 text-white rounded-xl font-black text-[10px] uppercase">Crear Empresa</button><button onClick={() => setIsCreating(false)} className="px-8 py-4 text-slate-400 font-black text-[10px] uppercase">Cerrar</button></div>
            </div>
         </div>
       )}
       <div className="bg-white/5 border border-white/5 rounded-[2.5rem] overflow-hidden">
         <table className="w-full text-left">
-          <thead className="bg-white/5 text-slate-500 text-[10px] font-black uppercase tracking-widest"><tr><th className="px-10 py-6 text-left">Empresa</th><th className="px-10 py-6 text-left">Licencia</th><th className="px-10 py-6 text-right">Acciones</th></tr></thead>
-          <tbody className="divide-y divide-white/5 text-left">
+          <thead className="bg-white/5 text-slate-500 text-[10px] font-black uppercase tracking-widest"><tr><th className="px-10 py-6">Empresa</th><th className="px-10 py-6">Licencia</th><th className="px-10 py-6 text-right">Acciones</th></tr></thead>
+          <tbody className="divide-y divide-white/5">
             {tenants.map(t => (
               <tr key={t.id} className="hover:bg-white/[0.02] transition-colors">
                 <td className="px-10 py-6"><div className="font-black text-white">{t.name}</div><div className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">/{t.slug}</div></td>
@@ -1035,20 +803,20 @@ const AdminCMS = () => {
   };
 
   return (
-    <div className="space-y-6 text-left">
+    <div className="space-y-6">
       <h3 className="text-2xl font-black text-white tracking-tight">Editor Global (CMS)</h3>
       {editing && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-xl z-[100] flex items-center justify-center p-6">
            <div className="bg-slate-900 border border-white/10 p-12 rounded-[3rem] w-full max-w-xl shadow-2xl">
-              <h4 className="text-xl font-black text-white mb-8">Editar Nodo: <span className="text-blue-500 text-xs font-mono">{editing.key}</span></h4>
+              <h4 className="text-xl font-black text-white mb-8">Editar Nodo: <span className="text-brand-500 text-xs font-mono">{editing.key}</span></h4>
               <div className="space-y-6"><textarea value={editing.es} onChange={e => setEditing({...editing, es: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-2xl p-6 text-sm text-slate-200 h-32 outline-none" /><textarea value={editing.ca} onChange={e => setEditing({...editing, ca: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-2xl p-6 text-sm text-slate-200 h-32 outline-none" /></div>
-              <div className="flex gap-4 mt-10"><button onClick={handleSave} className="flex-1 py-4 bg-blue-600 text-white rounded-2xl font-black text-[10px] uppercase">Publicar</button><button onClick={() => setEditing(null)} className="px-8 py-4 text-slate-400 font-black text-[10px] uppercase">Cerrar</button></div>
+              <div className="flex gap-4 mt-10"><button onClick={handleSave} className="flex-1 py-4 bg-brand-600 text-white rounded-2xl font-black text-[10px] uppercase">Publicar</button><button onClick={() => setEditing(null)} className="px-8 py-4 text-slate-400 font-black text-[10px] uppercase">Cerrar</button></div>
            </div>
         </div>
       )}
-      <div className="bg-white/5 border border-white/5 rounded-[2.5rem] overflow-hidden text-left">
-        <table className="w-full text-left"><thead className="bg-white/5 text-slate-500 text-[10px] font-black uppercase tracking-widest"><tr><th className="px-10 py-6 text-left">Clave</th><th className="px-10 py-6 text-right">Acción</th></tr></thead><tbody className="divide-y divide-white/5">{content.map(item => (
-          <tr key={item.key} className="hover:bg-white/[0.02] transition-colors"><td className="px-10 py-6 font-mono text-[10px] text-blue-400 font-black tracking-widest text-left">{item.key}</td><td className="px-10 py-6 text-right"><button onClick={() => setEditing(item)} className="px-5 py-2 bg-slate-800 text-white rounded-xl text-[9px] font-black uppercase">Editar</button></td></tr>
+      <div className="bg-white/5 border border-white/5 rounded-[2.5rem] overflow-hidden">
+        <table className="w-full text-left"><thead className="bg-white/5 text-slate-500 text-[10px] font-black uppercase tracking-widest"><tr><th className="px-10 py-6">Clave</th><th className="px-10 py-6 text-right">Acción</th></tr></thead><tbody className="divide-y divide-white/5">{content.map(item => (
+          <tr key={item.key} className="hover:bg-white/[0.02] transition-colors"><td className="px-10 py-6 font-mono text-[10px] text-brand-400 font-black tracking-widest">{item.key}</td><td className="px-10 py-6 text-right"><button onClick={() => setEditing(item)} className="px-5 py-2 bg-slate-800 text-white rounded-xl text-[9px] font-black uppercase">Editar</button></td></tr>
         ))}</tbody></table>
       </div>
     </div>
@@ -1073,7 +841,7 @@ const Login = () => {
     <div className="min-h-screen flex items-center justify-center bg-[#f8fafc] p-6 font-sans">
       <div className="max-w-md w-full animate-in zoom-in-95 duration-500">
         <div className="bg-white p-12 rounded-[3.5rem] shadow-2xl border border-slate-100 relative overflow-hidden text-center">
-          <div className="absolute top-0 left-0 w-full h-2 bg-blue-500"></div>
+          <div className="absolute top-0 left-0 w-full h-2 bg-brand-500"></div>
           <h2 className="text-4xl font-black mb-10 text-gray-900 tracking-tighter leading-none">Acceso</h2>
           <form onSubmit={handleLogin} className="space-y-6">
             <Input label="Email" type="email" value={email} onChange={(e: any) => setEmail(e.target.value)} required />
@@ -1107,7 +875,7 @@ const Signup = () => {
           <Input label="Nombre" type="text" value={fullName} onChange={(e: any) => setFullName(e.target.value)} required />
           <Input label="Email" type="email" value={email} onChange={(e: any) => setEmail(e.target.value)} required />
           <Input label="Contraseña" type="password" value={password} onChange={(e: any) => setPassword(e.target.value)} required />
-          <button type="submit" className="w-full py-5 bg-blue-600 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-xl">REGISTRARME</button>
+          <button type="submit" className="w-full py-5 bg-brand-600 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-xl">REGISTRARME</button>
         </form>
       </div>
     </div>
@@ -1120,8 +888,8 @@ const Landing = () => {
   return (
     <div className="min-h-screen bg-white font-sans text-center">
       <header className="flex items-center justify-between px-10 py-6 sticky top-0 bg-white/80 backdrop-blur-md z-50">
-        <div className="text-2xl font-black text-blue-600 italic">ACME</div>
-        <div className="flex items-center gap-8"><LanguageSwitcher />{session ? <Link to={dashboardLink} className="px-8 py-3 bg-slate-900 text-white text-[10px] font-black uppercase rounded-full">Panel Admin</Link> : <Link to="/login" className="px-8 py-3 bg-blue-600 text-white text-[10px] font-black uppercase rounded-full">Empezar</Link>}</div>
+        <div className="text-2xl font-black text-brand-600 italic">ACME</div>
+        <div className="flex items-center gap-8"><LanguageSwitcher />{session ? <Link to={dashboardLink} className="px-8 py-3 bg-slate-900 text-white text-[10px] font-black uppercase rounded-full">Panel Admin</Link> : <Link to="/login" className="px-8 py-3 bg-brand-600 text-white text-[10px] font-black uppercase rounded-full">Empezar</Link>}</div>
       </header>
       <main className="max-w-7xl mx-auto px-6 py-40">
         <h1 className="text-8xl font-black text-gray-900 mb-10 tracking-tighter leading-[0.9]">Controla tu negocio con precisión.</h1>
@@ -1163,21 +931,21 @@ const TenantLayout = () => {
   return (
     <div className="flex min-h-screen bg-[#fcfcfc] font-sans">
       <aside className="w-80 bg-white border-r border-gray-100 flex flex-col shrink-0 z-30">
-        <div className="p-8 h-24 flex items-center justify-between font-black text-xl text-blue-600 uppercase italic truncate text-left">{currentTenant.name}</div>
+        <div className="p-8 h-24 flex items-center justify-between font-black text-xl text-brand-600 uppercase italic truncate">{currentTenant.name}</div>
         <nav className="flex-1 p-6 space-y-2">
-          <Link to={`/t/${slug}/dashboard`} className={`flex items-center gap-4 px-6 py-4 rounded-[1.8rem] font-black text-[10px] uppercase tracking-widest transition-all ${isActive('dashboard') ? 'bg-blue-600 text-white shadow-xl' : 'text-gray-400 hover:bg-gray-50'}`}>📊 {t('dashboard')}</Link>
-          <Link to={`/t/${slug}/customers`} className={`flex items-center gap-4 px-6 py-4 rounded-[1.8rem] font-black text-[10px] uppercase tracking-widest transition-all ${isActive('customers') ? 'bg-blue-600 text-white shadow-xl' : 'text-gray-400 hover:bg-gray-50'}`}>👥 {t('customers')}</Link>
-          <Link to={`/t/${slug}/quotes`} className={`flex items-center gap-4 px-6 py-4 rounded-[1.8rem] font-black text-[10px] uppercase tracking-widest transition-all ${isActive('quotes') ? 'bg-blue-600 text-white shadow-xl' : 'text-gray-400 hover:bg-gray-50'}`}>📄 {t('quotes')}</Link>
-          <Link to={`/t/${slug}/settings`} className={`flex items-center gap-4 px-6 py-4 rounded-[1.8rem] font-black text-[10px] uppercase tracking-widest transition-all ${isActive('settings') ? 'bg-blue-600 text-white shadow-xl' : 'text-gray-400 hover:bg-gray-50'}`}>⚙️ {t('settings')}</Link>
+          <Link to={`/t/${slug}/dashboard`} className={`flex items-center gap-4 px-6 py-4 rounded-[1.8rem] font-black text-[10px] uppercase tracking-widest transition-all ${isActive('dashboard') ? 'bg-brand-600 text-white shadow-xl' : 'text-gray-400 hover:bg-gray-50'}`}>📊 {t('dashboard')}</Link>
+          <Link to={`/t/${slug}/customers`} className={`flex items-center gap-4 px-6 py-4 rounded-[1.8rem] font-black text-[10px] uppercase tracking-widest transition-all ${isActive('customers') ? 'bg-brand-600 text-white shadow-xl' : 'text-gray-400 hover:bg-gray-50'}`}>👥 {t('customers')}</Link>
+          <Link to={`/t/${slug}/quotes`} className={`flex items-center gap-4 px-6 py-4 rounded-[1.8rem] font-black text-[10px] uppercase tracking-widest transition-all ${isActive('quotes') ? 'bg-brand-600 text-white shadow-xl' : 'text-gray-400 hover:bg-gray-50'}`}>📄 {t('quotes')}</Link>
+          <Link to={`/t/${slug}/settings`} className={`flex items-center gap-4 px-6 py-4 rounded-[1.8rem] font-black text-[10px] uppercase tracking-widest transition-all ${isActive('settings') ? 'bg-brand-600 text-white shadow-xl' : 'text-gray-400 hover:bg-gray-50'}`}>⚙️ {t('settings')}</Link>
         </nav>
         <div className="p-8 border-t border-gray-50"><button onClick={signOut} className="w-full flex items-center gap-3 px-6 py-4 text-[10px] font-black uppercase text-red-500 hover:bg-red-50 rounded-2xl transition-all">🚪 {t('logout')}</button></div>
       </aside>
-      <main className="flex-1 flex flex-col h-screen overflow-hidden text-left">
+      <main className="flex-1 flex flex-col h-screen overflow-hidden">
         <header className="h-24 bg-white border-b border-gray-100 flex items-center justify-between px-12 shrink-0">
           <div className="flex flex-col"><h2 className="text-2xl font-black text-gray-900 tracking-tight">{currentTenant.name}</h2></div>
           <div className="flex gap-4"><a href={`#/c/${slug}`} target="_blank" rel="noreferrer" className="px-4 py-2 bg-gray-50 text-gray-400 text-[9px] font-black uppercase rounded-full border border-gray-100 hover:text-gray-900 transition-all">Ver Web Pública ↗</a>{profile?.is_superadmin && <Link to="/admin/dashboard" className="px-4 py-2 bg-slate-900 text-white text-[9px] font-black uppercase rounded-full shadow-lg">SYSTEM ADMIN</Link>}</div>
         </header>
-        <div className="flex-1 overflow-auto p-12 bg-slate-50/50"><Outlet context={{ tenant: currentTenant }} /></div>
+        <div className="flex-1 overflow-auto p-12"><Outlet context={{ tenant: currentTenant }} /></div>
       </main>
       <SuperAdminFloatingBar />
     </div>
@@ -1188,11 +956,11 @@ const Dashboard = () => {
   const { tenant } = useOutletContext<{ tenant: Tenant }>();
   const { t } = useApp();
   return (
-    <div className="space-y-10 animate-in fade-in duration-500 text-left">
+    <div className="space-y-10 animate-in fade-in duration-500">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
           {[ { l: t('total_revenue'), v: '0.00 €', i: '💰' }, { l: t('active_quotes'), v: '0', i: '⏳' }, { l: t('total_customers'), v: '0', i: '👥' } ].map((s, i) => (
-            <div key={i} className="bg-white p-10 rounded-[2.8rem] shadow-sm border border-gray-100 hover:shadow-2xl transition-all group text-left">
-              <div className="w-14 h-14 bg-gray-50 text-gray-900 rounded-2xl flex items-center justify-center text-2xl mb-6 group-hover:bg-blue-600 group-hover:text-white transition-all">{s.i}</div>
+            <div key={i} className="bg-white p-10 rounded-[2.8rem] shadow-sm border border-gray-100 hover:shadow-2xl transition-all group">
+              <div className="w-14 h-14 bg-gray-50 text-gray-900 rounded-2xl flex items-center justify-center text-2xl mb-6 group-hover:bg-brand-600 group-hover:text-white transition-all">{s.i}</div>
               <h3 className="text-gray-400 text-[10px] font-black uppercase tracking-widest">{s.l}</h3>
               <p className="text-4xl font-black mt-2 text-gray-900 tracking-tighter">{s.v}</p>
             </div>

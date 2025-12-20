@@ -81,12 +81,6 @@ export const translations = {
     add_product: "Añadir Producto",
     installation_kit: "Kit Instalación",
     extra_materials: "Materiales Extras",
-    // Added missing keys to resolve TS errors
-    signature_required: "La firma es obligatoria para continuar",
-    how_it_works: "¿Cómo funciona?",
-    how_1: "Selecciona el Equipo",
-    how_2: "Configura la Instalación",
-    how_3: "Firma y Genera",
   },
   ca: {
     loading: "Carregant...",
@@ -167,12 +161,6 @@ export const translations = {
     add_product: "Afegir Producte",
     installation_kit: "Kit Instal·lació",
     extra_materials: "Materials Extras",
-    // Added missing keys to resolve TS errors
-    signature_required: "La signatura és obligatòria per continuar",
-    how_it_works: "Com funciona?",
-    how_1: "Selecciona l'Equip",
-    how_2: "Configura la Instal·lació",
-    how_3: "Signa i Genera",
   }
 };
 
