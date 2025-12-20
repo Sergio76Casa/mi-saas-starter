@@ -1,6 +1,7 @@
+
 import React, { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { supabase } from '../../supabaseClient';
+import { supabase, isConfigured } from '../../supabaseClient';
 import { Tenant } from '../../types';
 import { useApp } from '../../AppProvider';
 import { Input } from '../../components/common/Input';
@@ -118,23 +119,37 @@ export const TenantProducts = () => {
 
   const handleProcessIA = async () => {
     if (!importFile) return;
+    if (!isConfigured) {
+      alert("Error: El cliente Supabase no está configurado correctamente.");
+      return;
+    }
+
     setIsImporting(true);
     
     try {
-      const formData = new FormData();
-      formData.append('file', importFile);
-      formData.append('defaultCategory', defaultCategory);
+      const body = new FormData();
+      body.append('file', importFile);
+      body.append('defaultCategory', defaultCategory);
 
+      // Invocación a la Edge Function de Supabase
       const { data, error } = await supabase.functions.invoke('extract_products_from_file', {
-        body: formData,
+        body,
       });
 
-      if (error) throw error;
+      if (error) {
+        // Error de la plataforma Supabase (CORS, Red, etc)
+        throw new Error(error.message || "Error al conectar con la función");
+      }
       
+      if (data?.error) {
+        // Error lógico devuelto por la función
+        throw new Error(data.error);
+      }
+
       setImportPreview(data.products || []);
     } catch (err: any) {
-      console.error("Error en extracción:", err);
-      alert('Error en extracción IA: ' + (err.message || "Error desconocido"));
+      console.error("Error en extracción IA:", err);
+      alert('Error: ' + (err.message || "No se pudo procesar el archivo. Verifica tu conexión y configuración de Supabase."));
     } finally {
       setIsImporting(false);
     }

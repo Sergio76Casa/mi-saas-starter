@@ -7,6 +7,7 @@ const corsHeaders = {
 }
 
 serve(async (req) => {
+  // Manejo de pre-flight CORS
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
@@ -16,12 +17,13 @@ serve(async (req) => {
     const file = formData.get('file') as File
     const defaultCategory = formData.get('defaultCategory') as string || 'aire_acondicionado'
 
-    if (!file) throw new Error("No file uploaded")
+    if (!file) throw new Error("No se ha subido ningún archivo")
 
-    // Initialize Gemini API using process.env.API_KEY as per coding guidelines
+    // Fix: Access the API key exclusively via process.env.API_KEY as per the @google/genai coding guidelines.
+    // The environment assumes this variable is pre-configured and accessible in this context.
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     
-    // Convert file to base64
+    // Conversión de archivo a base64 para el SDK de Gemini
     const arrayBuffer = await file.arrayBuffer()
     const uint8 = new Uint8Array(arrayBuffer)
     let binary = ''
@@ -67,6 +69,7 @@ serve(async (req) => {
       }
     })
 
+    // Access the .text property directly as per the @google/genai documentation (not a method).
     const responseText = result.text;
     if (!responseText) throw new Error("La IA no devolvió contenido");
 
@@ -75,7 +78,8 @@ serve(async (req) => {
     })
 
   } catch (error: any) {
-    return new Response(JSON.stringify({ error: error.message }), {
+    // IMPORTANTE: Incluir corsHeaders en la respuesta de error para que el browser pueda leerla
+    return new Response(JSON.stringify({ error: error.message || "Error desconocido en el servidor" }), {
       status: 400,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })

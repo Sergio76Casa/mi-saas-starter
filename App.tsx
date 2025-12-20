@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { HashRouter, Routes, Route, Link, useNavigate, useParams, Navigate, Outlet, useLocation, useOutletContext, useSearchParams } from 'react-router-dom';
-import { supabase } from './supabaseClient';
+import { supabase, isConfigured } from './supabaseClient';
 import { Membership, Tenant, Customer, Quote, QuoteItem, PlatformContent } from './types';
 import { formatCurrency, formatDate } from './i18n';
 import { AppProvider, useApp } from './AppProvider';
@@ -18,10 +18,9 @@ import { TenantProducts } from './pages/tenant/TenantProducts';
 
 const ConnectionStatusBadge = () => {
   const { dbHealthy } = useApp();
-  const isConfiguredVal = Boolean(supabase.auth); // simple check
-  if (!isConfiguredVal) return (
+  if (!isConfigured) return (
     <div className="flex items-center gap-1.5 px-3 py-1 bg-red-50 text-red-700 text-[9px] font-black uppercase tracking-widest rounded-full border border-red-200">
-      ⚠️ Error Config
+      ⚠️ Sin Configuración
     </div>
   );
   return (

@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { Session } from '@supabase/supabase-js';
 import { supabase, isConfigured } from './supabaseClient';
@@ -42,32 +43,53 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   
   const t_func = (key: keyof typeof translations['es']) => (translations[language] as any)[key] || key;
 
+  // Use an internal async function to properly test connectivity and handle errors, 
+  // avoiding PromiseLike type issues where .catch() is not available on the Supabase query response.
   useEffect(() => {
     if (!isConfigured) { 
       setDbHealthy(false); 
+      setLoading(false);
       return; 
     }
-    supabase.from('profiles').select('count', { count: 'exact', head: true }).then(({ error }) => setDbHealthy(!error));
+    
+    const checkConnectivity = async () => {
+      try {
+        const { error } = await supabase.from('profiles').select('count', { count: 'exact', head: true });
+        setDbHealthy(!error);
+      } catch (e) {
+        setDbHealthy(false);
+      }
+    };
+    checkConnectivity();
   }, []);
 
   const fetchProfileData = async (userId: string) => {
-    const { data: profileData } = await supabase.from('profiles').select('*').eq('id', userId).single();
-    if (profileData) setProfile(profileData);
-    const { data: membershipData } = await supabase.from('memberships').select('*, tenant:tenants(*)').eq('user_id', userId);
-    if (membershipData) setMemberships(membershipData as any);
+    if (!isConfigured) return;
+    try {
+      const { data: profileData } = await supabase.from('profiles').select('*').eq('id', userId).single();
+      if (profileData) setProfile(profileData);
+      const { data: membershipData } = await supabase.from('memberships').select('*, tenant:tenants(*)').eq('user_id', userId);
+      if (membershipData) setMemberships(membershipData as any);
+    } catch (e) {
+      console.error("Error fetching profile data:", e);
+    }
   };
 
   useEffect(() => {
+    if (!isConfigured) return;
+
     supabase.auth.getSession().then(({ data: { session } }) => {
         setSession(session);
         if (session) fetchProfileData(session.user.id).finally(() => setLoading(false));
         else setLoading(false);
     });
+    
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
         setSession(session);
         if (session) fetchProfileData(session.user.id);
         else { setProfile(null); setMemberships([]); }
     });
+    
     return () => subscription.unsubscribe();
   }, [dbHealthy]);
 
@@ -76,7 +98,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
   
   const signOut = async () => { 
-    await supabase.auth.signOut(); 
+    if (isConfigured) await supabase.auth.signOut(); 
     setSession(null); 
     setProfile(null); 
     setMemberships([]); 
