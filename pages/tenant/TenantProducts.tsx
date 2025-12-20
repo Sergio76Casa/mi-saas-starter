@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { supabase } from '../../supabaseClient';
@@ -6,16 +5,12 @@ import { Tenant } from '../../types';
 import { useApp } from '../../AppProvider';
 import { Input } from '../../components/common/Input';
 import { formatCurrency } from '../../i18n';
-import { GoogleGenAI } from "@google/genai";
 
 const CATEGORIES = [
   { id: 'aire_acondicionado', label: 'Aire Acondicionado' },
   { id: 'caldera', label: 'Calderas' },
   { id: 'termo_electrico', label: 'Termos eléctricos' }
 ];
-
-// Removed local declare global for aistudio as it conflicts with existing system types.
-// We will access window.aistudio via casting to any as per the environment's pre-configuration.
 
 export const TenantProducts = () => {
   const { tenant } = useOutletContext<{ tenant: Tenant }>();
@@ -43,7 +38,6 @@ export const TenantProducts = () => {
   const [defaultCategory, setDefaultCategory] = useState('aire_acondicionado');
   const [isImporting, setIsImporting] = useState(false);
   const [importPreview, setImportPreview] = useState<any[]>([]);
-  const [hasApiKey, setHasApiKey] = useState(true);
 
   const fetchProducts = async () => {
     setLoading(true);
@@ -64,13 +58,6 @@ export const TenantProducts = () => {
 
   useEffect(() => {
     fetchProducts();
-    // Check if API Key is available via AI Studio dialog or process.env
-    const checkApiKey = async () => {
-      // Cast window to any to access pre-configured aistudio methods without type conflicts
-      const selected = await (window as any).aistudio.hasSelectedApiKey();
-      setHasApiKey(Boolean(process.env.API_KEY) || selected);
-    };
-    checkApiKey();
   }, [tenant.id, searchTerm, filterCategory, filterActive]);
 
   const handleOpenModal = (product: any = null) => {
@@ -129,81 +116,24 @@ export const TenantProducts = () => {
     fetchProducts();
   };
 
-  const fileToBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = () => {
-        const base64String = (reader.result as string).split(',')[1];
-        resolve(base64String);
-      };
-      reader.onerror = (error) => reject(error);
-    });
-  };
-
-  const handleOpenApiKeyDialog = async () => {
-    // Cast window to any to access pre-configured aistudio methods
-    await (window as any).aistudio.openSelectKey();
-    setHasApiKey(true);
-  };
-
   const handleProcessIA = async () => {
     if (!importFile) return;
     setIsImporting(true);
     
     try {
-      // Create fresh instance right before usage to ensure current API key is picked up
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      const base64Data = await fileToBase64(importFile);
-      
-      const prompt = `Analiza este documento y extrae una lista de productos para un catálogo de climatización.
-      Debes devolver un JSON con esta estructura exacta:
-      {
-        "products": [
-          { 
-            "name": "Nombre comercial", 
-            "description": "Breve descripción técnica", 
-            "price": 123.45, 
-            "category": "aire_acondicionado | caldera | termo_electrico",
-            "is_active": true
-          }
-        ]
-      }
-      
-      Reglas:
-      1. Si no detectas la categoría, usa obligatoriamente: ${defaultCategory}
-      2. El precio debe ser un número sin símbolos.
-      3. Solo devuelve el JSON, sin texto extra.`;
+      const formData = new FormData();
+      formData.append('file', importFile);
+      formData.append('defaultCategory', defaultCategory);
 
-      const result = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: {
-          parts: [
-            { text: prompt },
-            {
-              inlineData: {
-                data: base64Data,
-                mimeType: importFile.type
-              }
-            }
-          ]
-        },
-        config: {
-          responseMimeType: "application/json"
-        }
+      const { data, error } = await supabase.functions.invoke('extract_products_from_file', {
+        body: formData,
       });
 
-      const responseText = result.text;
-      if (!responseText) throw new Error("La IA no devolvió contenido");
+      if (error) throw error;
       
-      const parsedData = JSON.parse(responseText);
-      setImportPreview(parsedData.products || []);
+      setImportPreview(data.products || []);
     } catch (err: any) {
       console.error("Error en extracción:", err);
-      // Reset API key state if requested entity not found occurs
-      if (err.message?.includes("Requested entity was not found")) {
-        setHasApiKey(false);
-      }
       alert('Error en extracción IA: ' + (err.message || "Error desconocido"));
     } finally {
       setIsImporting(false);
@@ -382,58 +312,36 @@ export const TenantProducts = () => {
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-10 mb-8 shrink-0">
               <div className="space-y-6">
-                {!hasApiKey ? (
-                  <div className="p-6 bg-amber-50 border border-amber-100 rounded-2xl text-center space-y-4">
-                    <p className="text-[10px] font-black uppercase text-amber-700 tracking-widest">Se requiere una API Key de Gemini</p>
-                    <button 
-                      onClick={handleOpenApiKeyDialog}
-                      className="w-full py-4 bg-amber-600 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg"
-                    >
-                      Configurar API Key
-                    </button>
-                    <a 
-                      href="https://ai.google.dev/gemini-api/docs/billing" 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="block text-[8px] font-bold text-amber-600 underline uppercase"
-                    >
-                      Documentación de Facturación
-                    </a>
-                  </div>
-                ) : (
-                  <>
-                    <div>
-                      <label className="block text-[10px] font-black uppercase tracking-widest text-gray-400 mb-3 ml-1">Archivo (PDF o Imagen)</label>
-                      <input 
-                        type="file" 
-                        accept=".pdf,.png,.jpg,.jpeg" 
-                        onChange={e => setImportFile(e.target.files?.[0] || null)}
-                        className="w-full text-xs text-slate-500 file:mr-4 file:py-3 file:px-6 file:rounded-full file:border-0 file:text-[10px] file:font-black file:uppercase file:bg-brand-50 file:text-brand-700 hover:file:bg-brand-100"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-black uppercase tracking-widest text-gray-400 mb-3 ml-1">Categoría por defecto</label>
-                      <select 
-                        value={defaultCategory} 
-                        onChange={(e) => setDefaultCategory(e.target.value)}
-                        className="w-full px-4 py-3 border border-gray-100 rounded-2xl shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-500 transition-all text-sm bg-gray-50/50"
-                      >
-                        {CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
-                      </select>
-                    </div>
-                    <button 
-                      onClick={handleProcessIA}
-                      disabled={isImporting || !importFile}
-                      className="w-full py-5 bg-slate-900 text-white rounded-2xl font-black uppercase text-xs tracking-widest disabled:opacity-50"
-                    >
-                      {isImporting ? 'Procesando con IA...' : '✨ Procesar Documento'}
-                    </button>
-                  </>
-                )}
+                <div>
+                  <label className="block text-[10px] font-black uppercase tracking-widest text-gray-400 mb-3 ml-1">Archivo (PDF o Imagen)</label>
+                  <input 
+                    type="file" 
+                    accept=".pdf,.png,.jpg,.jpeg" 
+                    onChange={e => setImportFile(e.target.files?.[0] || null)}
+                    className="w-full text-xs text-slate-500 file:mr-4 file:py-3 file:px-6 file:rounded-full file:border-0 file:text-[10px] file:font-black file:uppercase file:bg-brand-50 file:text-brand-700 hover:file:bg-brand-100"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black uppercase tracking-widest text-gray-400 mb-3 ml-1">Categoría por defecto</label>
+                  <select 
+                    value={defaultCategory} 
+                    onChange={(e) => setDefaultCategory(e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-100 rounded-2xl shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-500 transition-all text-sm bg-gray-50/50"
+                  >
+                    {CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
+                  </select>
+                </div>
+                <button 
+                  onClick={handleProcessIA}
+                  disabled={isImporting || !importFile}
+                  className="w-full py-5 bg-slate-900 text-white rounded-2xl font-black uppercase text-xs tracking-widest disabled:opacity-50 shadow-xl"
+                >
+                  {isImporting ? 'Procesando con IA...' : '✨ Procesar Documento'}
+                </button>
               </div>
               <div className="bg-gray-50 border border-gray-100 rounded-3xl p-6 flex items-center justify-center text-center">
                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest leading-relaxed">
-                  La IA detectará el nombre, descripción y precio. <br/> Si no detecta categoría, usará la de fallback.
+                  La IA detectará el nombre, descripción y precio. <br/> La API Key se gestiona de forma segura en el servidor.
                 </p>
               </div>
             </div>

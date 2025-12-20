@@ -1,5 +1,4 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-// Fix: Always use the standard import for @google/genai
 import { GoogleGenAI } from "@google/genai"
 
 const corsHeaders = {
@@ -19,22 +18,24 @@ serve(async (req) => {
 
     if (!file) throw new Error("No file uploaded")
 
-    // Fix: Obtain API key exclusively from process.env.API_KEY as per coding guidelines
+    // Initialize Gemini API using process.env.API_KEY as per coding guidelines
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     
-    // Convert file to base64 for processing with Gemini
+    // Convert file to base64
     const arrayBuffer = await file.arrayBuffer()
-    const base64Data = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)))
+    const uint8 = new Uint8Array(arrayBuffer)
+    let binary = ''
+    for (let i = 0; i < uint8.byteLength; i++) {
+      binary += String.fromCharCode(uint8[i])
+    }
+    const base64Data = btoa(binary)
 
-    // Fix: Select an appropriate model name (gemini-3-flash-preview) for multimodal extraction tasks
-    const modelName = 'gemini-3-flash-preview'
-    
     const prompt = `Analiza este documento y extrae una lista de productos para un catálogo de climatización.
-    Debes devolver un JSON con esta estructura:
+    Debes devolver un JSON con esta estructura exacta:
     {
       "products": [
         { 
-          "name": "Nombre comercial del producto", 
+          "name": "Nombre comercial", 
           "description": "Breve descripción técnica", 
           "price": 123.45, 
           "category": "aire_acondicionado | caldera | termo_electrico",
@@ -44,13 +45,12 @@ serve(async (req) => {
     }
     
     Reglas:
-    1. Si no puedes detectar la categoría, usa obligatoriamente: ${defaultCategory}
-    2. El precio debe ser un número sin símbolos de moneda.
-    3. Responde exclusivamente con el JSON.`
+    1. Si no detectas la categoría, usa obligatoriamente: ${defaultCategory}
+    2. El precio debe ser un número sin símbolos.
+    3. Solo devuelve el JSON, sin texto extra.`
 
-    // Fix: Use the correct contents structure with parts and approved configuration
     const result = await ai.models.generateContent({
-      model: modelName,
+      model: 'gemini-3-flash-preview',
       contents: {
         parts: [
           { text: prompt },
@@ -67,9 +67,10 @@ serve(async (req) => {
       }
     })
 
-    // Fix: Access the extracted text output directly via the .text property
-    const text = result.text
-    return new Response(text, {
+    const responseText = result.text;
+    if (!responseText) throw new Error("La IA no devolvió contenido");
+
+    return new Response(responseText, {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
 
