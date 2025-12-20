@@ -1,9 +1,9 @@
-import React, { useState, useEffect, createContext, useContext, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { HashRouter, Routes, Route, Link, useNavigate, useParams, Navigate, Outlet, useLocation, useOutletContext, useSearchParams } from 'react-router-dom';
-import { supabase, isConfigured, SUPABASE_URL, saveManualConfig, clearManualConfig } from './supabaseClient';
-import { Membership, Profile, Tenant, Customer, Quote, QuoteItem, Language, PlatformContent } from './types';
-import { translations, formatCurrency, formatDate } from './i18n';
-import { Session } from '@supabase/supabase-js';
+import { supabase, isConfigured } from './supabaseClient';
+import { Membership, Tenant, Customer, Quote, QuoteItem, PlatformContent } from './types';
+import { formatCurrency, formatDate } from './i18n';
+import { AppProvider, useApp } from './AppProvider';
 
 // --- PDF Specific Data ---
 const PDF_PRODUCTS = [
@@ -46,31 +46,6 @@ const FINANCING_COEFFICIENTS: Record<number, number> = {
   36: 0.032206,
   48: 0.0253,
   60: 0.021183,
-};
-
-// --- Context & Hooks ---
-
-interface AppContextType {
-  session: Session | null;
-  profile: Profile | null;
-  memberships: Membership[];
-  loading: boolean;
-  isDemoMode: boolean;
-  dbHealthy: boolean | null;
-  language: Language;
-  setLanguage: (lang: Language) => void;
-  refreshProfile: () => Promise<void>;
-  signOut: () => Promise<void>;
-  enterDemoMode: (asAdmin?: boolean) => void;
-  t: (key: keyof typeof translations['es']) => string;
-}
-
-const AppContext = createContext<AppContextType | null>(null);
-
-const useApp = () => {
-  const context = useContext(AppContext);
-  if (!context) throw new Error("useApp must be used within AppProvider");
-  return context;
 };
 
 // --- Common Components ---
@@ -136,7 +111,7 @@ const QuoteEditor = () => {
   const { tenant } = useOutletContext<{ tenant: Tenant }>();
   const { id } = useParams();
   const [searchParams] = useSearchParams();
-  const { t, session, language } = useApp();
+  const { t, language } = useApp();
   const navigate = useNavigate();
 
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -410,7 +385,7 @@ const QuoteEditor = () => {
 
 const PublicTenantWebsite = () => {
   const { slug } = useParams();
-  const { dbHealthy, t, language, setLanguage } = useApp();
+  const { dbHealthy, language, setLanguage } = useApp();
   const [tenant, setTenant] = useState<Tenant | null>(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
@@ -448,7 +423,7 @@ const PublicTenantWebsite = () => {
     fetchTenant();
   }, [slug, dbHealthy]);
 
-  // Force scroll to top when view or step changes (Requirement 1)
+  // Force scroll to top when view or step changes
   useEffect(() => {
     if (view === 'wizard') {
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -550,11 +525,6 @@ const PublicTenantWebsite = () => {
     if (!/^\d{8}$/.test(formData.wo)) errors.wo = 'WO: 8 dígitos';
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
-  };
-
-  const handleShare = () => {
-    navigator.clipboard.writeText(window.location.href);
-    alert('¡Enlace de catálogo copiado!');
   };
 
   if (loading) return <LoadingSpinner />;
@@ -940,7 +910,7 @@ const PublicTenantWebsite = () => {
 
 const Customers = () => {
   const { tenant } = useOutletContext<{ tenant: Tenant }>();
-  const { t, session } = useApp();
+  const { t } = useApp();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [isCreating, setIsCreating] = useState(false);
   const [newCust, setNewCust] = useState({ name: '', email: '', phone: '', dni: '', address: '', population: '' });
@@ -953,8 +923,10 @@ const Customers = () => {
   useEffect(() => { fetchCustomers(); }, [tenant.id]);
 
   const handleCreate = async () => {
+    // Fix: Properly destructure session from getSession data property
+    const { data: { session } } = await supabase.auth.getSession();
     const ref = sessionStorage.getItem(`atribucion_${tenant.slug}`);
-    const { error } = await supabase.from('customers').insert([{ ...newCust, tenant_id: tenant.id, created_by: session?.user.id, referred_by: ref || null }]);
+    const { error } = await supabase.from('customers').insert([{ ...newCust, tenant_id: tenant.id, created_by: session?.user?.id, referred_by: ref || null }]);
     if (error) alert(error.message);
     else { setIsCreating(false); setNewCust({ name: '', email: '', phone: '', dni: '', address: '', population: '' }); fetchCustomers(); }
   };
@@ -1284,7 +1256,7 @@ const Signup = () => {
 };
 
 const Landing = () => {
-  const { t, session, memberships } = useApp();
+  const { session, memberships } = useApp();
   const dashboardLink = memberships.length > 0 ? `/t/${memberships[0].tenant?.slug}/dashboard` : '/onboarding';
   return (
     <div className="min-h-screen bg-white font-sans text-center">
@@ -1373,7 +1345,7 @@ const Dashboard = () => {
 };
 
 const Onboarding = () => {
-    const { session, refreshProfile, signOut } = useApp();
+    const { session, refreshProfile } = useApp();
     const navigate = useNavigate();
     const [name, setName] = useState('');
     const [slug, setSlug] = useState('');
@@ -1406,69 +1378,15 @@ const Onboarding = () => {
 };
 
 export default function App() {
-  const [session, setSession] = useState<Session | null>(null);
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [memberships, setMemberships] = useState<Membership[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [dbHealthy, setDbHealthy] = useState<boolean | null>(null);
-  const [language, setLanguageState] = useState<Language>(() => (localStorage.getItem('app_lang') as Language) || 'es');
-
-  const setLanguage = (lang: Language) => { setLanguageState(lang); localStorage.setItem('app_lang', lang); }
-  const t_func = (key: keyof typeof translations['es']) => (translations[language] as any)[key] || key;
-
-  useEffect(() => {
-    if (!isConfigured) { setDbHealthy(false); return; }
-    supabase.from('profiles').select('count', { count: 'exact', head: true }).then(({ error }) => setDbHealthy(!error));
-  }, []);
-
-  const fetchProfileData = async (userId: string) => {
-    const { data: profileData } = await supabase.from('profiles').select('*').eq('id', userId).single();
-    if (profileData) setProfile(profileData);
-    const { data: membershipData } = await supabase.from('memberships').select('*, tenant:tenants(*)').eq('user_id', userId);
-    if (membershipData) setMemberships(membershipData as any);
-  };
-
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-        setSession(session);
-        if (session) fetchProfileData(session.user.id).finally(() => setLoading(false));
-        else setLoading(false);
-    });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-        setSession(session);
-        if (session) fetchProfileData(session.user.id);
-        else { setProfile(null); setMemberships([]); }
-    });
-    return () => subscription.unsubscribe();
-  }, [dbHealthy]);
-
-  const refreshProfile = async () => { if (session) await fetchProfileData(session.user.id); };
-  const signOut = async () => { await supabase.auth.signOut(); setSession(null); setProfile(null); setMemberships([]); };
-  
-  const enterDemoMode = (asAdmin = false) => { 
-    if (asAdmin) {
-      setSession({ user: { id: 'admin', email: 'admin@system.com' } } as any);
-      setProfile({ id: 'admin', email: 'admin@system.com', is_superadmin: true, full_name: 'Super Administrator' });
-      setMemberships([]);
-    } else {
-      setSession({ user: { id: 'demo', email: 'demo@demo.com' } } as any);
-      setProfile({ id: 'demo', email: 'demo@demo.com', is_superadmin: false, full_name: 'Usuario Demo' });
-      setMemberships([{ id: 'm1', user_id: 'demo', tenant_id: 't1', role: 'owner', tenant: { id: 't1', name: 'Demo Corp', slug: 'demo', plan: 'pro', created_at: '' } }]);
-    }
-    setLoading(false); 
-  };
-
-  if (loading) return <LoadingSpinner />;
-
   return (
-    <AppContext.Provider value={{ session, profile, memberships, loading, isDemoMode: !!(session?.user?.id === 'demo' || session?.user?.id === 'admin'), dbHealthy, language, setLanguage, t: t_func, refreshProfile, signOut, enterDemoMode }}>
+    <AppProvider>
       <HashRouter>
         <Routes>
           <Route path="/" element={<Landing />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
           <Route path="/c/:slug" element={<PublicTenantWebsite />} />
-          <Route path="/onboarding" element={session ? <Onboarding /> : <Navigate to="/login" />} />
+          <Route path="/onboarding" element={<OnboardingWrapper />} />
           <Route path="/t/:slug" element={<TenantLayout />}>
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="customers" element={<Customers />} />
@@ -1484,6 +1402,14 @@ export default function App() {
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </HashRouter>
-    </AppContext.Provider>
+    </AppProvider>
   );
 }
+
+// Wrapper to handle session check in onboarding
+const OnboardingWrapper = () => {
+  const { session, loading } = useApp();
+  if (loading) return <LoadingSpinner />;
+  if (!session) return <Navigate to="/login" />;
+  return <Onboarding />;
+};
