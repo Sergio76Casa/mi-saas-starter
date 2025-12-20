@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect, createContext, useContext, useMemo } from 'react';
+import React, { useState, useEffect, createContext, useContext, useMemo, useRef } from 'react';
 import { HashRouter, Routes, Route, Link, useNavigate, useParams, Navigate, Outlet, useLocation, useOutletContext, useSearchParams } from 'react-router-dom';
 import { supabase, isConfigured, SUPABASE_URL, saveManualConfig, clearManualConfig } from './supabaseClient';
 import { Membership, Profile, Tenant, Customer, Quote, QuoteItem, Language, PlatformContent } from './types';
@@ -185,10 +184,6 @@ const QuoteEditor = () => {
         addItem(product.name, product.price);
       }
     }
-    
-    if (id && id !== 'new') {
-      // Logic for editing existing quote could go here
-    }
   }, [tenant.id, id, searchParams]);
 
   const subtotal = useMemo(() => {
@@ -255,7 +250,6 @@ const QuoteEditor = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
         <div className="lg:col-span-2 space-y-8">
-          {/* Header Data Section */}
           <section className="bg-white p-10 rounded-[2.8rem] border border-gray-100 shadow-sm">
             <h4 className="text-xs font-black uppercase tracking-widest text-brand-600 mb-8 flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-brand-500"></span> Datos del Cliente
@@ -283,7 +277,6 @@ const QuoteEditor = () => {
             </div>
           </section>
 
-          {/* Items Section */}
           <section className="bg-white p-10 rounded-[2.8rem] border border-gray-100 shadow-sm">
             <h4 className="text-xs font-black uppercase tracking-widest text-brand-600 mb-8 flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-brand-500"></span> Conceptos del Presupuesto
@@ -321,7 +314,6 @@ const QuoteEditor = () => {
               </tbody>
             </table>
 
-            {/* Quick Pickers */}
             <div className="space-y-6">
               <div>
                 <span className="text-[10px] font-black uppercase text-gray-400 block mb-3">Modelos Comfee (PDF)</span>
@@ -354,7 +346,6 @@ const QuoteEditor = () => {
         </div>
 
         <aside className="space-y-8">
-          {/* Summary Card */}
           <div className="bg-slate-900 text-white p-10 rounded-[2.8rem] shadow-2xl relative overflow-hidden sticky top-32">
             <div className="absolute -top-10 -right-10 w-40 h-40 bg-brand-500/20 blur-[80px] rounded-full"></div>
             <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-brand-400 mb-8">Resumen Total (IVA incl.)</h4>
@@ -396,7 +387,6 @@ const QuoteEditor = () => {
             </div>
           </div>
 
-          {/* Catalog Selection Sidebar (Searchable Extras) */}
           <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 max-h-[500px] overflow-auto shadow-sm">
             <h4 className="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-6">Materiales Extras</h4>
             <div className="space-y-2">
@@ -420,15 +410,24 @@ const QuoteEditor = () => {
 
 const PublicTenantWebsite = () => {
   const { slug } = useParams();
-  const [searchParams] = useSearchParams();
-  const { dbHealthy, t, session, memberships, profile, language } = useApp();
+  const { dbHealthy, t, language } = useApp();
   const [tenant, setTenant] = useState<Tenant | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const ref = searchParams.get('ref');
-    if (ref) sessionStorage.setItem(`atribucion_${slug}`, ref);
-  }, [searchParams, slug]);
+  // States for Wizard
+  const [view, setView] = useState<'landing' | 'wizard'>('landing');
+  const [step, setStep] = useState(1);
+  const [brandFilter, setBrandFilter] = useState('');
+  const [selectedProduct, setSelectedProduct] = useState<any>(null);
+  const [selectedKit, setSelectedKit] = useState<any>(null);
+  const [selectedExtras, setSelectedExtras] = useState<string[]>([]);
+  const [formData, setFormData] = useState({
+    name: '', email: '', phone: '', address: '', cp: '', wo: ''
+  });
+  const [formErrors, setFormErrors] = useState<any>({});
+  const [isSigned, setIsSigned] = useState(false);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [isDrawing, setIsDrawing] = useState(false);
 
   useEffect(() => {
     const fetchTenant = async () => {
@@ -440,98 +439,293 @@ const PublicTenantWebsite = () => {
     fetchTenant();
   }, [slug, dbHealthy]);
 
+  // Canvas Logic for Signature
+  const startDrawing = (e: React.MouseEvent | React.TouchEvent) => {
+    setIsDrawing(true);
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    const pos = getPos(e);
+    ctx.beginPath();
+    ctx.moveTo(pos.x, pos.y);
+  };
+
+  const draw = (e: React.MouseEvent | React.TouchEvent) => {
+    if (!isDrawing) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    const pos = getPos(e);
+    ctx.strokeStyle = '#2563eb';
+    ctx.lineWidth = 3;
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+    ctx.lineTo(pos.x, pos.y);
+    ctx.stroke();
+    setIsSigned(true);
+  };
+
+  const stopDrawing = () => setIsDrawing(false);
+
+  const getPos = (e: React.MouseEvent | React.TouchEvent) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return { x: 0, y: 0 };
+    const rect = canvas.getBoundingClientRect();
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+    return { x: clientX - rect.left, y: clientY - rect.top };
+  };
+
+  const clearCanvas = () => {
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext('2d');
+    if (canvas && ctx) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      setIsSigned(false);
+    }
+  };
+
+  const validateStep4 = () => {
+    const errors: any = {};
+    const emailRegex = /\S+@\S+\.\S+/;
+    if (!formData.name) errors.name = 'Nombre requerido';
+    if (!emailRegex.test(formData.email)) errors.email = 'Email inválido';
+    if (!/^\d{9,}$/.test(formData.phone)) errors.phone = 'Mínimo 9 dígitos';
+    if (!formData.address) errors.address = 'Dirección requerida';
+    if (!/^\d{5}$/.test(formData.cp)) errors.cp = 'CP: 5 dígitos';
+    if (!/^\d{8}$/.test(formData.wo)) errors.wo = 'WO: 8 dígitos';
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleShare = () => {
+    navigator.clipboard.writeText(window.location.href);
+    alert('¡Enlace de catálogo copiado!');
+  };
+
   if (loading) return <LoadingSpinner />;
   if (!tenant) return (
     <div className="min-h-screen flex items-center justify-center bg-white p-12 text-center">
        <div className="animate-in fade-in zoom-in duration-500">
-         <h1 className="text-9xl font-black text-gray-100 mb-4">404</h1>
-         <p className="text-gray-400 font-black uppercase tracking-widest text-xs italic">Empresa no encontrada</p>
-         <Link to="/" className="mt-10 inline-block text-brand-600 font-black uppercase text-[10px] underline tracking-widest">Volver al inicio</Link>
+         <h1 className="text-9xl font-black text-slate-100 mb-4 tracking-tighter uppercase italic">404</h1>
+         <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">Error: Empresa no encontrada</p>
+         <Link to="/" className="mt-10 inline-block px-8 py-3 bg-blue-600 text-white rounded-full font-black uppercase text-[10px]">Volver</Link>
        </div>
     </div>
   );
 
-  const hasAdminAccess = session && (memberships.some(m => m.tenant?.slug === slug) || profile?.is_superadmin);
+  const filteredProducts = PDF_PRODUCTS.filter(p => !brandFilter || p.name.includes(brandFilter));
+  const subtotal = (selectedProduct?.price || 0) + (selectedKit?.price || 0) + selectedExtras.reduce((acc, n) => acc + (PDF_EXTRAS.find(e => e.name === n)?.price || 0), 0);
 
   return (
-    <div className="min-h-screen bg-white font-sans selection:bg-brand-500 selection:text-white animate-in fade-in duration-1000">
-      <nav className="flex items-center justify-between px-10 py-8 sticky top-0 bg-white/80 backdrop-blur-xl z-50 border-b border-gray-50">
-        <div className="text-2xl font-black text-gray-900 italic tracking-tighter uppercase">{tenant.name}</div>
-        <div className="flex items-center gap-10">
-           <a href="#catalog" className="text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-gray-900 transition-colors">Catálogo</a>
-           <a href="#services" className="text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-gray-900 transition-colors">{t('services_section')}</a>
-           <LanguageSwitcher />
-           {hasAdminAccess ? (
-             <Link to={`/t/${slug}/dashboard`} className="px-6 py-3 bg-brand-600 text-white rounded-full text-[10px] font-black uppercase tracking-widest shadow-xl hover:scale-105 transition-all">
-                {t('view_admin')}
-             </Link>
-           ) : (
-             <Link to="/login" className="text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-gray-900 transition-colors">
-                {t('login_nav')}
-             </Link>
-           )}
-           <a href="#contact" className="px-8 py-3 bg-gray-900 text-white rounded-full text-[10px] font-black uppercase tracking-widest shadow-xl hover:scale-105 transition-all">{t('contact_section')}</a>
+    <div className="min-h-screen bg-white text-slate-900 selection:bg-blue-600 selection:text-white">
+      {/* Header */}
+      <nav className="flex items-center justify-between px-10 py-8 sticky top-0 bg-white/80 backdrop-blur-xl z-[60] border-b border-slate-50">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+          </div>
+          <span className="text-2xl font-black italic tracking-tighter uppercase">{tenant.name}</span>
+        </div>
+        <div className="flex items-center gap-6">
+          <LanguageSwitcher />
+          {view === 'wizard' && <button onClick={() => setView('landing')} className="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-blue-600">Cancelar</button>}
         </div>
       </nav>
-      <main className="max-w-7xl mx-auto px-10">
-        <section className="py-40 text-center">
-          <div className="inline-block px-6 py-2 bg-brand-50 text-brand-600 rounded-full text-[10px] font-black uppercase tracking-[0.2em] mb-10 border border-brand-100 shadow-sm">✨ {t('welcome_web') || 'Bienvenidos'}</div>
-          <h1 className="text-[7rem] md:text-[9rem] font-black text-gray-900 tracking-tighter leading-[0.8] mb-12 uppercase">{tenant.name}</h1>
-          <p className="text-2xl text-gray-400 max-w-3xl mx-auto font-medium leading-relaxed italic opacity-80">{t('home_hero_subtitle_default')}</p>
-        </section>
 
-        {/* Product Catalog Grid */}
-        <section id="catalog" className="py-32 scroll-mt-24">
-          <div className="mb-16 text-center">
-             <h2 className="text-5xl font-black text-gray-900 tracking-tight uppercase mb-4 italic">Nuestra Gama Midea & Comfee</h2>
-             <p className="text-gray-400 font-bold uppercase tracking-widest text-xs italic">Selecciona el equipo ideal para tu hogar</p>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {PDF_PRODUCTS.map(product => (
-              <div key={product.id} className="bg-white border border-gray-100 rounded-[3rem] p-10 shadow-sm hover:shadow-2xl transition-all flex flex-col group">
-                 <div className="w-16 h-16 bg-brand-50 rounded-2xl flex items-center justify-center text-3xl mb-8 group-hover:scale-110 transition-transform">❄️</div>
-                 <h3 className="text-xl font-black text-gray-900 mb-4">{product.name}</h3>
-                 <p className="text-gray-400 text-sm leading-relaxed mb-10 flex-1">{product.desc}</p>
-                 <div className="flex flex-col gap-6">
-                    <span className="text-2xl font-black text-brand-600">{formatCurrency(product.price, language)}</span>
-                    <Link 
-                      to={`/t/${slug}/quotes/new?productId=${product.id}`}
-                      className="w-full py-4 bg-slate-900 text-white text-center rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-brand-600 transition-all shadow-xl"
-                    >
-                      Solicitar Presupuesto
-                    </Link>
-                 </div>
+      {view === 'landing' ? (
+        <main className="animate-in fade-in duration-1000">
+          {/* Hero Section */}
+          <section className="relative pt-40 pb-56 px-6 text-center overflow-hidden">
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full -z-10 opacity-30">
+              <div className="absolute top-20 left-1/4 w-96 h-96 bg-blue-600/20 blur-[120px] rounded-full"></div>
+              <div className="absolute bottom-20 right-1/4 w-80 h-80 bg-slate-300/30 blur-[100px] rounded-full"></div>
+            </div>
+            <div className="inline-block px-5 py-2 bg-blue-50 text-blue-600 rounded-full text-[10px] font-black uppercase tracking-[0.2em] mb-12 border border-blue-100">✨ Climatización Multi-tenant</div>
+            <h1 className="text-7xl md:text-[9.5rem] font-black tracking-tighter leading-[0.85] mb-16 uppercase italic">Eco<span className="text-blue-600">Quote</span></h1>
+            <p className="text-xl md:text-3xl text-slate-400 max-w-4xl mx-auto font-medium italic mb-20 leading-relaxed">Configura tu instalación ideal y recibe un presupuesto oficial en segundos.</p>
+            <div className="flex flex-wrap justify-center gap-8">
+               <a href="#catalog" className="px-14 py-7 bg-blue-600 text-white rounded-[2.5rem] font-black uppercase text-xs tracking-widest hover:scale-105 transition-all shadow-2xl shadow-blue-600/20 active:scale-95">Solicitar Presupuesto</a>
+               <button onClick={handleShare} className="px-14 py-7 bg-slate-50 text-slate-600 rounded-[2.5rem] font-black uppercase text-xs tracking-widest hover:bg-slate-100 transition-all flex items-center gap-3">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 100 0m0 0a3 3 0 100 0m0 6a3 3 0 100 0m0 0a3 3 0 100 0"/></svg>
+                  Compartir
+               </button>
+            </div>
+          </section>
+
+          {/* Cómo funciona */}
+          <section className="py-40 bg-slate-50 px-10 border-y border-slate-100">
+            <div className="max-w-7xl mx-auto">
+              <div className="text-center mb-24">
+                <h2 className="text-5xl font-black tracking-tight uppercase italic leading-none">¿Cómo funciona?</h2>
+                <div className="w-24 h-2 bg-blue-600 mx-auto mt-6 rounded-full"></div>
               </div>
-            ))}
-          </div>
-        </section>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
+                 {[
+                   { t: "1. Selecciona", d: "Elige el equipo Comfee o Midea que mejor se adapte a tu hogar.", i: "❄️" },
+                   { t: "2. Configura", d: "Añade kits de instalación y materiales adicionales personalizados.", i: "⚙️" },
+                   { t: "3. Firma", d: "Valida tu presupuesto con firma digital y descárgalo al instante.", i: "✍️" }
+                 ].map((s, i) => (
+                   <div key={i} className="bg-white p-14 rounded-[3.5rem] border border-slate-200/60 shadow-sm hover:shadow-2xl transition-all group">
+                      <div className="text-5xl mb-10 group-hover:scale-125 transition-transform inline-block">{s.i}</div>
+                      <h3 className="text-2xl font-black mb-6 uppercase italic leading-none">{s.t}</h3>
+                      <p className="text-slate-400 font-medium italic leading-relaxed text-sm">{s.d}</p>
+                   </div>
+                 ))}
+              </div>
+            </div>
+          </section>
 
-        <section id="services" className="py-32 grid grid-cols-1 md:grid-cols-3 gap-12">
-           {[
-            { t: '💎 Calidad Premium', d: 'Utilizamos los mejores materiales y procesos del mercado.' },
-            { t: '⚡ Atención 24/7', d: 'Estamos siempre disponibles para resolver tus dudas.' },
-            { t: '📈 Crecimiento', d: 'Nuestra prioridad es que tu negocio crezca con nosotros.' }
-           ].map((s, i) => (
-             <div key={i} className="bg-gray-50 p-16 rounded-[4rem] border border-gray-100 hover:shadow-[0_40px_80px_-20px_rgba(0,0,0,0.08)] transition-all group cursor-default">
-                <h3 className="text-2xl font-black text-gray-900 mb-6">{s.t}</h3>
-                <p className="text-gray-500 font-medium leading-relaxed text-lg">{s.d}</p>
+          {/* Catalog */}
+          <section id="catalog" className="py-48 px-10 scroll-mt-24">
+             <div className="max-w-7xl mx-auto">
+               <div className="flex flex-col md:flex-row justify-between items-end gap-10 mb-24">
+                  <div className="text-left">
+                     <h2 className="text-6xl font-black tracking-tighter uppercase italic leading-none mb-4">Gama HVAC</h2>
+                     <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px] italic">Sistemas Inverter de alta eficiencia</p>
+                  </div>
+                  <select value={brandFilter} onChange={(e) => setBrandFilter(e.target.value)} className="px-10 py-5 bg-slate-50 border border-slate-200 rounded-[1.8rem] text-[10px] font-black uppercase tracking-widest outline-none">
+                    <option value="">Todas las Unidades</option>
+                    <option value="CF">Modelos CF</option>
+                  </select>
+               </div>
+               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12">
+                  {filteredProducts.map(p => (
+                    <div key={p.id} className="group bg-white rounded-[4rem] p-12 border border-slate-100 shadow-sm hover:shadow-2xl transition-all flex flex-col text-left">
+                       <div className="h-64 bg-slate-50 rounded-[3.5rem] mb-10 flex items-center justify-center relative shadow-inner">
+                          <svg className="w-24 h-24 text-blue-100 group-hover:scale-110 transition-transform duration-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                          <div className="absolute top-8 right-8 px-4 py-2 bg-white text-blue-600 rounded-full text-[9px] font-black uppercase tracking-widest shadow-sm">A+++</div>
+                       </div>
+                       <h3 className="text-3xl font-black mb-4 uppercase italic tracking-tight">{p.name}</h3>
+                       <p className="text-slate-400 text-sm italic mb-12 flex-1 leading-relaxed">{p.desc}</p>
+                       <div className="flex items-center justify-between border-t border-slate-50 pt-10">
+                          <div>
+                             <span className="text-[9px] font-black uppercase text-slate-300 block mb-1">Precio desde</span>
+                             <span className="text-4xl font-black text-blue-600 tracking-tighter">{formatCurrency(p.price, language)}</span>
+                          </div>
+                          <button onClick={() => { setSelectedProduct(p); setView('wizard'); setStep(1); }} className="p-6 bg-slate-900 text-white rounded-3xl hover:bg-blue-600 transition-all shadow-xl active:scale-95">
+                             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4"/></svg>
+                          </button>
+                       </div>
+                    </div>
+                  ))}
+               </div>
              </div>
-           ))}
-        </section>
-
-        <section id="contact" className="py-40">
-           <div className="bg-gray-900 rounded-[5rem] p-32 text-center text-white relative overflow-hidden shadow-2xl">
-              <div className="absolute top-0 right-0 w-96 h-96 bg-brand-500/20 blur-[120px] rounded-full"></div>
-              <div className="absolute bottom-0 left-0 w-64 h-64 bg-blue-500/10 blur-[100px] rounded-full"></div>
-              <h2 className="text-7xl font-black tracking-tighter mb-10 italic">¿Hablamos?</h2>
-              <p className="text-slate-400 text-xl mb-16 max-w-xl mx-auto font-light leading-relaxed">Estamos listos para llevar tu proyecto al siguiente nivel.</p>
-              <button className="px-16 py-7 bg-white text-gray-900 rounded-[3rem] font-black uppercase tracking-[0.15em] text-xs shadow-2xl hover:bg-brand-500 hover:text-white transition-all transform hover:scale-105 active:scale-95">Enviar Mensaje</button>
+          </section>
+        </main>
+      ) : (
+        /* Wizard Section */
+        <div className="max-w-5xl mx-auto py-24 px-8 animate-in slide-in-from-bottom-12 duration-700">
+           <div className="mb-20 flex justify-between items-center bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-full h-1 bg-slate-50"><div className="h-full bg-blue-600 transition-all duration-700" style={{ width: `${(step / 5) * 100}%` }}></div></div>
+              {[1, 2, 3, 4, 5].map(num => (
+                <div key={num} className="flex items-center gap-4 relative z-10">
+                   <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black text-sm transition-all border-2 ${step === num ? 'bg-blue-600 border-blue-600 text-white shadow-xl scale-110' : step > num ? 'bg-blue-50 border-blue-100 text-blue-600' : 'bg-white border-slate-100 text-slate-200'}`}>
+                      {step > num ? <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"/></svg> : num}
+                   </div>
+                </div>
+              ))}
            </div>
-        </section>
-      </main>
-      <footer className="py-24 border-t border-gray-50 text-center bg-gray-50/30">
-         <div className="text-2xl font-black text-gray-200 mb-6 tracking-tighter italic uppercase">{tenant.name}</div>
-         <div className="text-[10px] font-black uppercase tracking-widest text-gray-400">© 2024 · {tenant.name} · SaaS Multi-tenant</div>
+
+           <div className="bg-white p-12 md:p-20 rounded-[4.5rem] border border-slate-100 shadow-2xl relative text-left min-h-[500px] flex flex-col">
+              {step === 1 && (
+                <div className="animate-in fade-in duration-500 flex-1">
+                   <h2 className="text-5xl font-black tracking-tighter mb-10 italic leading-none uppercase">{selectedProduct.name}</h2>
+                   <p className="text-xl text-slate-400 font-medium italic leading-relaxed mb-12">{selectedProduct.desc}</p>
+                   <div className="grid grid-cols-2 gap-4">
+                      {[{l:'Garantía',v:'2 Años'},{l:'Eficiencia',v:'A+++'},{l:'Control',v:'WiFi'},{l:'Sonido',v:'Ultra'}].map((s,i) => (
+                        <div key={i} className="bg-slate-50 p-5 rounded-[2rem] border border-slate-100"><p className="text-[9px] font-black uppercase text-slate-400 mb-0.5">{s.l}</p><p className="text-sm font-black text-slate-900">{s.v}</p></div>
+                      ))}
+                   </div>
+                </div>
+              )}
+
+              {step === 2 && (
+                <div className="animate-in fade-in duration-500 flex-1">
+                   <h2 className="text-5xl font-black tracking-tighter mb-12 italic leading-none uppercase">Instalación</h2>
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                      {PDF_KITS.map(kit => (
+                        <button key={kit.name} onClick={() => setSelectedKit(kit)} className={`p-10 rounded-[3rem] border-2 text-left transition-all ${selectedKit?.name === kit.name ? 'border-blue-600 bg-blue-50/50 shadow-xl' : 'border-slate-100 hover:border-blue-200 bg-white'}`}>
+                           <h3 className="font-black text-2xl text-slate-900 uppercase italic mb-2 leading-none">{kit.name}</h3>
+                           <p className="text-3xl font-black text-blue-600">{formatCurrency(kit.price, language)}</p>
+                        </button>
+                      ))}
+                   </div>
+                </div>
+              )}
+
+              {step === 3 && (
+                <div className="animate-in fade-in duration-500 flex-1">
+                   <h2 className="text-5xl font-black tracking-tighter mb-12 italic leading-none uppercase">Materiales Extras</h2>
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 overflow-y-auto max-h-[400px] pr-2">
+                      {PDF_EXTRAS.map(extra => {
+                        const isSel = selectedExtras.includes(extra.name);
+                        return (
+                          <button key={extra.name} onClick={() => setSelectedExtras(prev => isSel ? prev.filter(i => i !== extra.name) : [...prev, extra.name])} className={`flex items-center justify-between p-6 rounded-[2rem] border-2 transition-all ${isSel ? 'border-blue-600 bg-blue-50' : 'border-slate-50 bg-slate-50/50'}`}>
+                             <div className="text-left"><p className="font-bold text-[11px] uppercase text-slate-900 leading-tight">{extra.name}</p><p className="text-xs font-black text-blue-600 mt-1">{formatCurrency(extra.price, language)}</p></div>
+                             <div className={`w-8 h-8 rounded-xl border-2 flex items-center justify-center ${isSel ? 'bg-blue-600 border-blue-600 text-white' : 'border-slate-200 bg-white'}`}>{isSel && <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"/></svg>}</div>
+                          </button>
+                        );
+                      })}
+                   </div>
+                </div>
+              )}
+
+              {step === 4 && (
+                <div className="animate-in fade-in duration-500 flex-1">
+                   <h2 className="text-5xl font-black tracking-tighter mb-12 italic leading-none uppercase">Tus Datos</h2>
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
+                      <div><Input label="Nombre Completo" value={formData.name} onChange={(e:any) => setFormData({...formData, name: e.target.value})} />{formErrors.name && <p className="text-[9px] text-red-500 font-black uppercase mt-1 ml-1">{formErrors.name}</p>}</div>
+                      <div><Input label="Email" type="email" value={formData.email} onChange={(e:any) => setFormData({...formData, email: e.target.value})} />{formErrors.email && <p className="text-[9px] text-red-500 font-black uppercase mt-1 ml-1">{formErrors.email}</p>}</div>
+                      <div><Input label="Teléfono (9+)" value={formData.phone} onChange={(e:any) => setFormData({...formData, phone: e.target.value.replace(/\D/g,'')})} />{formErrors.phone && <p className="text-[9px] text-red-500 font-black uppercase mt-1 ml-1">{formErrors.phone}</p>}</div>
+                      <div><Input label="CP (5 dígitos)" value={formData.cp} onChange={(e:any) => setFormData({...formData, cp: e.target.value.slice(0,5).replace(/\D/g,'')})} />{formErrors.cp && <p className="text-[9px] text-red-500 font-black uppercase mt-1 ml-1">{formErrors.cp}</p>}</div>
+                      <div><Input label="WO (8 dígitos)" value={formData.wo} onChange={(e:any) => setFormData({...formData, wo: e.target.value.slice(0,8).replace(/\D/g,'')})} />{formErrors.wo && <p className="text-[9px] text-red-500 font-black uppercase mt-1 ml-1">{formErrors.wo}</p>}</div>
+                      <div className="md:col-span-2"><Input label="Dirección de Instalación" value={formData.address} onChange={(e:any) => setFormData({...formData, address: e.target.value})} />{formErrors.address && <p className="text-[9px] text-red-500 font-black uppercase mt-1 ml-1">{formErrors.address}</p>}</div>
+                   </div>
+                </div>
+              )}
+
+              {step === 5 && (
+                <div className="animate-in fade-in duration-500 flex-1 text-center">
+                   <h2 className="text-5xl font-black tracking-tighter mb-4 italic leading-none uppercase">Firma Obligatoria</h2>
+                   <p className="text-slate-400 mb-12 font-medium italic">Firme en el recuadro para validar su presupuesto oficial.</p>
+                   <div className="max-w-xl mx-auto border-4 border-slate-100 rounded-[3.5rem] bg-white shadow-inner mb-6 relative overflow-hidden h-80">
+                      <canvas ref={canvasRef} width={600} height={320} className="w-full h-full cursor-crosshair touch-none" onMouseDown={startDrawing} onMouseMove={draw} onMouseUp={stopDrawing} onMouseLeave={stopDrawing} onTouchStart={startDrawing} onTouchMove={draw} onTouchEnd={stopDrawing} />
+                   </div>
+                   <button onClick={clearCanvas} className="text-red-500 font-black uppercase text-[10px] tracking-widest hover:underline mb-12">Limpiar Firma</button>
+                   <div className="max-w-xl mx-auto bg-slate-900 text-white p-10 rounded-[3rem] shadow-2xl relative overflow-hidden text-left mb-10">
+                      <div className="absolute top-0 right-0 w-32 h-32 bg-blue-600/20 blur-[60px] rounded-full"></div>
+                      <div className="flex justify-between items-end"><span className="text-2xl font-black italic uppercase">Inversión Final</span><span className="text-5xl font-black text-blue-600 tracking-tighter">{formatCurrency(subtotal, language)}</span></div>
+                   </div>
+                </div>
+              )}
+
+              <div className="flex gap-4 mt-auto pt-10 border-t border-slate-50">
+                {step > 1 && <button onClick={() => setStep(step - 1)} className="px-10 py-6 border-2 border-slate-100 rounded-3xl font-black uppercase text-[10px] tracking-widest text-slate-400 hover:bg-slate-50 transition-all">Atrás</button>}
+                <button onClick={() => {
+                    if (step === 1 && !selectedProduct) return alert('Selecciona unidad');
+                    if (step === 2 && !selectedKit) return alert('Selecciona kit');
+                    if (step === 4 && !validateStep4()) return;
+                    if (step === 5) {
+                      if (!isSigned) return alert('Firma obligatoria');
+                      alert('¡Presupuesto generado con éxito!');
+                      setView('landing'); return;
+                    }
+                    setStep(step + 1);
+                  }} className={`flex-1 py-7 ${step === 5 ? 'bg-slate-950' : 'bg-blue-600'} text-white rounded-3xl font-black uppercase text-xs tracking-widest shadow-xl hover:scale-[1.02] transition-all flex items-center justify-center gap-3`}>
+                   {step === 5 ? 'Emitir Presupuesto' : 'Continuar'}
+                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+                </button>
+              </div>
+           </div>
+        </div>
+      )}
+
+      <footer className="py-32 border-t border-slate-100 text-center bg-white mt-40">
+         <div className="text-4xl font-black text-slate-100 mb-10 tracking-tighter italic uppercase">{tenant.name}</div>
+         <div className="text-[9px] font-black uppercase tracking-[0.3em] text-slate-400 italic">© 2025 · EcoQuote AI · Slate & Blue Edition</div>
       </footer>
     </div>
   );
