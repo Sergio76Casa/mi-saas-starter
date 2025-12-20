@@ -4,9 +4,24 @@ import { supabase, isConfigured } from '../../supabaseClient';
 import { Tenant } from '../../types';
 import { formatCurrency } from '../../i18n';
 import { useApp } from '../../AppProvider';
-import { PDF_PRODUCTS, PDF_KITS, PDF_EXTRAS } from '../../data/pdfCatalog';
+import { PDF_KITS, PDF_EXTRAS } from '../../data/pdfCatalog';
 import { Input } from '../../components/common/Input';
 import { LoadingSpinner } from '../../components/common/LoadingSpinner';
+
+type PublicCatalogResponse = { 
+  tenant: { 
+    id?: string; 
+    name: string; 
+    slug: string 
+  }; 
+  products: Array<{ 
+    id: string; 
+    name: string; 
+    description?: string; 
+    price: number; 
+    is_active?: boolean 
+  }>; 
+};
 
 // Local translations for the Public Website (ES/CA only)
 const LOCAL_I18N = {
@@ -154,6 +169,7 @@ export const PublicTenantWebsite = () => {
   const { slug } = useParams();
   const { dbHealthy, language, setLanguage, t } = useApp();
   const [tenant, setTenant] = useState<Tenant | null>(null);
+  const [dbProducts, setDbProducts] = useState<PublicCatalogResponse['products']>([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
@@ -184,13 +200,23 @@ export const PublicTenantWebsite = () => {
   const [isDrawing, setIsDrawing] = useState(false);
 
   useEffect(() => {
-    const fetchTenant = async () => {
+    const fetchCatalog = async () => {
       if (!isConfigured || !dbHealthy) { setLoading(false); return; }
-      const { data } = await supabase.from('tenants').select('*').eq('slug', slug).single();
-      if (data) setTenant(data);
+      
+      // ONLY LOAD DATA VIA RPC - NO DIRECT TABLE SELECTS IN PUBLIC WEBSITE
+      const { data, error } = await supabase.rpc('get_public_catalog', { p_slug: slug });
+      
+      if (error || !data) {
+        setTenant(null);
+        setDbProducts([]);
+      } else {
+        const payload = data as PublicCatalogResponse;
+        setTenant(payload.tenant ? (payload.tenant as any) : null);
+        setDbProducts(Array.isArray(payload.products) ? payload.products : []);
+      }
       setLoading(false);
     };
-    fetchTenant();
+    fetchCatalog();
   }, [slug, dbHealthy]);
 
   useEffect(() => {
@@ -207,7 +233,7 @@ export const PublicTenantWebsite = () => {
       features: string[] 
     }> = {};
 
-    PDF_PRODUCTS.forEach(p => {
+    dbProducts.forEach(p => {
       const brand = p.name.split(' ')[0];
       if (!groups[brand]) {
         groups[brand] = { 
@@ -220,11 +246,12 @@ export const PublicTenantWebsite = () => {
       groups[brand].products.push(p);
       if (p.price < groups[brand].minPrice) groups[brand].minPrice = p.price;
       
-      if (p.desc.toLowerCase().includes('a++') && !groups[brand].features.includes(`${tt('brand_feat_efficiency')} A++`)) groups[brand].features.push(`${tt('brand_feat_efficiency')} A++`);
-      if (p.desc.toLowerCase().includes('a+++') && !groups[brand].features.includes(`${tt('brand_feat_efficiency')} A+++`)) groups[brand].features.push(`${tt('brand_feat_efficiency')} A+++`);
-      if (p.desc.toLowerCase().includes('multi-split') && !groups[brand].features.includes('Multi-split')) groups[brand].features.push('Multi-split');
-      if (p.desc.toLowerCase().includes('inverter') && !groups[brand].features.includes('Inverter')) groups[brand].features.push('Inverter');
-      if ((p.desc.toLowerCase().includes('pequeñas') || p.desc.toLowerCase().includes('grandes')) && !groups[brand].features.includes(tt('brand_feat_adaptable'))) {
+      const description = (p.description || '').toLowerCase();
+      if (description.includes('a++') && !groups[brand].features.includes(`${tt('brand_feat_efficiency')} A++`)) groups[brand].features.push(`${tt('brand_feat_efficiency')} A++`);
+      if (description.includes('a+++') && !groups[brand].features.includes(`${tt('brand_feat_efficiency')} A+++`)) groups[brand].features.push(`${tt('brand_feat_efficiency')} A+++`);
+      if (description.includes('multi-split') && !groups[brand].features.includes('Multi-split')) groups[brand].features.push('Multi-split');
+      if (description.includes('inverter') && !groups[brand].features.includes('Inverter')) groups[brand].features.push('Inverter');
+      if ((description.includes('pequeñas') || description.includes('grandes')) && !groups[brand].features.includes(tt('brand_feat_adaptable'))) {
         groups[brand].features.push(tt('brand_feat_adaptable'));
       }
     });
@@ -234,7 +261,7 @@ export const PublicTenantWebsite = () => {
       const matchesPriceFilter = g.minPrice <= maxPrice;
       return matchesBrandFilter && matchesPriceFilter;
     });
-  }, [brandFilter, maxPrice, language]); // Added language to re-run feature name translations
+  }, [dbProducts, brandFilter, maxPrice, language]);
 
   const navigateToHome = () => {
     setView('landing');
@@ -353,7 +380,7 @@ export const PublicTenantWebsite = () => {
              <svg className="w-8 h-8 text-blue-600 relative" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L4.5 20.29L5.21 21L12 18L18.79 21L19.5 20.29L12 2Z"/></svg>
           </div>
           <div className="flex flex-col -gap-1">
-             <span className="text-xl font-black italic tracking-tighter uppercase leading-none">eco-efficient</span>
+             <span className="text-xl font-black italic tracking-tighter uppercase leading-none">{tenant.name}</span>
              <span className="text-[7px] font-bold text-slate-400 uppercase tracking-widest leading-none ml-1">Instal·lacions Integrals</span>
           </div>
         </div>
@@ -390,7 +417,7 @@ export const PublicTenantWebsite = () => {
                 <div className="w-20 h-20 bg-green-50 text-green-500 rounded-full flex items-center justify-center mx-auto mb-8 animate-bounce">
                   <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" d="M5 13l4 4L19 7"/></svg>
                 </div>
-                <h3 className="text-3xl font-black italic uppercase italic">{tt('contact_success')}</h3>
+                <h3 className="text-3xl font-black italic uppercase leading-none">{tt('contact_success')}</h3>
                 <p className="text-slate-400 font-medium italic mt-2">{tt('contact_success_desc')}</p>
               </div>
             ) : (
@@ -505,8 +532,9 @@ export const PublicTenantWebsite = () => {
                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{tt('filter_brand')}</span>
                    <select value={brandFilter} onChange={(e) => setBrandFilter(e.target.value)} className="px-6 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-[12px] font-bold text-slate-600 outline-none w-full md:w-56 appearance-none cursor-pointer">
                      <option value="">{tt('filter_all_brands')}</option>
-                     <option value="COMFEE">Comfee</option>
-                     <option value="MIDEA">Midea</option>
+                     {Array.from(new Set(dbProducts.map(p => p.name.split(' ')[0]))).map(brand => (
+                       <option key={brand} value={brand}>{brand}</option>
+                     ))}
                    </select>
                  </div>
 
@@ -517,53 +545,59 @@ export const PublicTenantWebsite = () => {
                      <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{tt('filter_max_price')}</span>
                      <span className="text-[12px] font-black text-blue-600">{maxPrice} €</span>
                    </div>
-                   <input type="range" min="0" max="3000" value={maxPrice} onChange={(e) => setMaxPrice(parseInt(e.target.value))} className="w-full accent-blue-600 h-1.5 bg-slate-100 rounded-lg" />
+                   <input type="range" min="0" max="5000" value={maxPrice} onChange={(e) => setMaxPrice(parseInt(e.target.value))} className="w-full accent-blue-600 h-1.5 bg-slate-100 rounded-lg" />
                  </div>
                </div>
 
-               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12">
-                  {brandGroups.map(group => (
-                    <div key={group.brand} className="group bg-white rounded-[4rem] p-10 border border-slate-100 shadow-sm hover:shadow-2xl transition-all flex flex-col text-left relative overflow-hidden">
-                       <div className="h-64 bg-slate-50 rounded-[3.5rem] mb-10 flex items-center justify-center relative shadow-inner overflow-hidden">
-                          <div className="absolute top-6 left-6 w-12 h-12 bg-white rounded-full shadow-sm flex items-center justify-center p-2 opacity-80">
-                            <span className="text-[8px] font-black text-slate-400">BRAND</span>
-                          </div>
-                          <svg className="w-24 h-24 text-blue-100 group-hover:scale-110 transition-transform duration-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-                          <div className="absolute top-8 right-8 px-4 py-2 bg-white text-blue-600 rounded-full text-[9px] font-black uppercase tracking-widest shadow-sm">{tt('brand_card_gama')} {group.brand}</div>
-                       </div>
-                       
-                       <h3 className="text-4xl font-black mb-1 uppercase italic tracking-tighter">{group.brand}</h3>
-                       <p className="text-[11px] font-black uppercase tracking-widest text-slate-400 mb-8 italic">{tt('brand_card_models')}</p>
-                       
-                       <div className="flex flex-wrap gap-2 mb-12">
-                          {group.features.slice(0, 5).map(feat => (
-                            <span key={feat} className="px-3 py-1.5 bg-slate-50 text-slate-600 rounded-full text-[9px] font-black uppercase border border-slate-100 tracking-wider">
-                              {feat}
-                            </span>
-                          ))}
-                       </div>
+               {brandGroups.length === 0 ? (
+                 <div className="py-20 text-center text-slate-300 font-black uppercase tracking-[0.2em] italic">
+                   No hay productos disponibles con estos filtros
+                 </div>
+               ) : (
+                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12">
+                    {brandGroups.map(group => (
+                      <div key={group.brand} className="group bg-white rounded-[4rem] p-10 border border-slate-100 shadow-sm hover:shadow-2xl transition-all flex flex-col text-left relative overflow-hidden">
+                         <div className="h-64 bg-slate-50 rounded-[3.5rem] mb-10 flex items-center justify-center relative shadow-inner overflow-hidden">
+                            <div className="absolute top-6 left-6 w-12 h-12 bg-white rounded-full shadow-sm flex items-center justify-center p-2 opacity-80">
+                              <span className="text-[8px] font-black text-slate-400">BRAND</span>
+                            </div>
+                            <svg className="w-24 h-24 text-blue-100 group-hover:scale-110 transition-transform duration-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                            <div className="absolute top-8 right-8 px-4 py-2 bg-white text-blue-600 rounded-full text-[9px] font-black uppercase tracking-widest shadow-sm">{tt('brand_card_gama')} {group.brand}</div>
+                         </div>
+                         
+                         <h3 className="text-4xl font-black mb-1 uppercase italic tracking-tighter">{group.brand}</h3>
+                         <p className="text-[11px] font-black uppercase tracking-widest text-slate-400 mb-8 italic">{tt('brand_card_models')}</p>
+                         
+                         <div className="flex flex-wrap gap-2 mb-12">
+                            {group.features.slice(0, 5).map(feat => (
+                              <span key={feat} className="px-3 py-1.5 bg-slate-50 text-slate-600 rounded-full text-[9px] font-black uppercase border border-slate-100 tracking-wider">
+                                {feat}
+                              </span>
+                            ))}
+                         </div>
 
-                       <div className="flex items-center justify-between border-t border-slate-50 pt-10 mt-auto">
-                          <div>
-                             <p className="text-[40px] font-black text-slate-900 tracking-tighter leading-none">
-                                <span className="text-lg text-slate-300 mr-2 uppercase italic font-bold">{tt('brand_card_from')}</span>
-                                {formatCurrency(group.minPrice, language)}
-                             </p>
-                          </div>
-                          <button 
-                            onClick={() => { 
-                              setSelectedProduct(group.products[0]); 
-                              setView('wizard'); 
-                              setStep(1); 
-                            }} 
-                            className="w-16 h-16 bg-blue-600 text-white rounded-[1.8rem] flex items-center justify-center hover:bg-slate-900 transition-all shadow-xl shadow-blue-600/20 active:scale-95"
-                          >
-                             <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 4v16m8-8H4"/></svg>
-                          </button>
-                       </div>
-                    </div>
-                  ))}
-               </div>
+                         <div className="flex items-center justify-between border-t border-slate-50 pt-10 mt-auto">
+                            <div>
+                               <p className="text-[40px] font-black text-slate-900 tracking-tighter leading-none">
+                                  <span className="text-lg text-slate-300 mr-2 uppercase italic font-bold">{tt('brand_card_from')}</span>
+                                  {formatCurrency(group.minPrice, language)}
+                               </p>
+                            </div>
+                            <button 
+                              onClick={() => { 
+                                setSelectedProduct(group.products[0]); 
+                                setView('wizard'); 
+                                setStep(1); 
+                              }} 
+                              className="w-16 h-16 bg-blue-600 text-white rounded-[1.8rem] flex items-center justify-center hover:bg-slate-900 transition-all shadow-xl shadow-blue-600/20 active:scale-95"
+                            >
+                               <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 4v16m8-8H4"/></svg>
+                            </button>
+                         </div>
+                      </div>
+                    ))}
+                 </div>
+               )}
              </div>
           </section>
         </main>
@@ -593,7 +627,7 @@ export const PublicTenantWebsite = () => {
                      {tt('wizard_models_available')} {selectedProduct?.name.split(' ')[0]}
                    </h2>
                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      {PDF_PRODUCTS.filter((p: any) => !selectedProduct || p.name.split(' ')[0] === selectedProduct.name.split(' ')[0]).map((p: any) => (
+                      {dbProducts.filter((p: any) => !selectedProduct || p.name.split(' ')[0] === selectedProduct.name.split(' ')[0]).map((p: any) => (
                         <button 
                           key={p.id} 
                           onClick={() => setSelectedProduct(p)}
@@ -610,7 +644,7 @@ export const PublicTenantWebsite = () => {
                               </span>
                            </div>
                            <h3 className="font-black text-2xl text-slate-900 uppercase italic mb-3 leading-none">{p.name}</h3>
-                           <p className="text-slate-400 text-sm italic mb-8 line-clamp-2 flex-1">{p.desc}</p>
+                           <p className="text-slate-400 text-sm italic mb-8 line-clamp-2 flex-1">{p.description || p.desc}</p>
                            <div className="flex justify-between items-end border-t border-slate-100/50 pt-6 mt-4">
                               <div className="flex flex-col">
                                  <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest">{t('status')}</span>
