@@ -6,7 +6,7 @@ import { Membership, Profile, Tenant, Customer, Quote, Language } from './types'
 import { translations, formatCurrency, formatDate } from './i18n';
 import { Session } from '@supabase/supabase-js';
 
-// --- Catálogo Global (Sincronizado) ---
+// --- Catálogo Global Sincronizado ---
 const PRODUCT_CATALOG = {
   brand: "COMFEE",
   series: "Serie Split CF",
@@ -32,7 +32,7 @@ const PRODUCT_CATALOG = {
   }
 };
 
-// --- Contexto ---
+// --- Contexto de la Aplicación ---
 interface AppContextType {
   session: Session | null;
   profile: Profile | null;
@@ -53,7 +53,7 @@ const useApp = () => {
   return context;
 };
 
-// --- UI Components ---
+// --- Componentes Base ---
 const LoadingSpinner = () => (
   <div className="flex h-screen w-full items-center justify-center bg-gray-50">
     <div className="h-12 w-12 animate-spin rounded-full border-4 border-brand-500 border-t-transparent"></div>
@@ -173,22 +173,12 @@ const Onboarding = () => {
   );
 };
 
-// --- WEB PÚBLICA (COFFEE CONFIGURATOR) ---
+// --- WEB PÚBLICA ---
 const PublicTenantWebsite = () => {
   const { slug } = useParams();
   const { dbHealthy, language } = useApp();
   const [tenant, setTenant] = useState<Tenant | null>(null);
   const [loading, setLoading] = useState(true);
-
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [modalStep, setModalStep] = useState<'config' | 'customer'>('config');
-  const [config, setConfig] = useState({
-    model: PRODUCT_CATALOG.models[0],
-    kit: PRODUCT_CATALOG.kits[0],
-    extras: {} as Record<string, number>,
-    months: 12
-  });
-  const [customer, setCustomer] = useState({ name: '', email: '', phone: '', address: '' });
 
   useEffect(() => {
     if (dbHealthy && slug) {
@@ -199,119 +189,18 @@ const PublicTenantWebsite = () => {
     }
   }, [slug, dbHealthy]);
 
-  const total = useMemo(() => {
-    const extrasTotal = PRODUCT_CATALOG.extras.reduce((acc, e) => acc + (e.price * (config.extras[e.id] || 0)), 0);
-    return config.model.price + config.kit.price + extrasTotal;
-  }, [config]);
-
-  const monthlyFee = total * Number((PRODUCT_CATALOG.financing.coefficients as any)[config.months] || 0);
-
   if (loading) return <LoadingSpinner />;
-  if (!tenant) return <div className="p-20 text-center font-black uppercase italic tracking-widest">Empresa no encontrada</div>;
+  if (!tenant) return <div className="p-20 text-center font-black uppercase italic">Empresa no encontrada</div>;
 
   return (
-    <div className="min-h-screen bg-white font-sans text-gray-900 selection:bg-brand-500 selection:text-white">
-      <nav className="flex justify-between items-center px-10 py-10 border-b border-gray-50">
-        <div className="text-2xl font-black uppercase tracking-tighter italic">{tenant.name}</div>
-        <div className="flex gap-12 text-[10px] font-bold uppercase tracking-widest text-gray-400">
-          <a href="#catalog">Catálogo</a>
-          <a href="#contact">Contacto</a>
-        </div>
+    <div className="min-h-screen bg-white">
+      <nav className="p-10 border-b border-gray-50 flex justify-between items-center">
+        <h1 className="text-2xl font-black uppercase italic">{tenant.name}</h1>
       </nav>
-
-      <header className="py-40 px-10 text-center max-w-6xl mx-auto">
-        <div className="inline-block px-5 py-2 bg-brand-50 text-brand-600 rounded-full text-[10px] font-black uppercase tracking-[0.2em] mb-10 border border-brand-100">Partner Oficial {PRODUCT_CATALOG.brand}</div>
-        <h1 className="text-8xl md:text-[10rem] font-black tracking-tighter uppercase italic leading-[0.75] mb-12">{tenant.name}</h1>
-        <p className="text-2xl text-gray-400 font-medium italic tracking-tight">Sistemas de climatización de vanguardia.</p>
-      </header>
-
-      <section className="max-w-7xl mx-auto px-10 py-24 border-t border-gray-50">
-        <div className="bg-gray-50 rounded-[4rem] p-16 flex flex-col md:flex-row justify-between items-center gap-16 border border-gray-100 shadow-sm">
-          <div className="space-y-6 flex-1">
-             <h3 className="text-6xl font-black italic uppercase tracking-tighter leading-none">{PRODUCT_CATALOG.series}</h3>
-             <div className="flex flex-wrap gap-3">
-               {PRODUCT_CATALOG.specs.map(s => <span key={s} className="bg-white px-5 py-2 rounded-xl text-[9px] font-bold text-gray-400 uppercase border border-gray-100">{s}</span>)}
-             </div>
-          </div>
-          <div className="text-center md:text-right">
-            <p className="text-[10px] font-black text-gray-300 uppercase tracking-widest mb-2">Instalación desde</p>
-            <p className="text-8xl font-black italic text-gray-900 mb-8">{formatCurrency(Math.min(...PRODUCT_CATALOG.models.map(m=>m.price)), language)}</p>
-            <button onClick={() => setIsModalOpen(true)} className="px-16 py-6 bg-gray-900 text-white rounded-[2rem] font-black uppercase text-xs tracking-widest hover:bg-brand-600 transition-all shadow-2xl">
-              Configurar Instalación
-            </button>
-          </div>
-        </div>
-      </section>
-
-      {isModalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-gray-900/90 backdrop-blur-xl" onClick={() => setIsModalOpen(false)}></div>
-          <div className="relative bg-white w-full max-w-7xl max-h-[90vh] rounded-[4rem] overflow-hidden flex flex-col md:flex-row shadow-2xl animate-in zoom-in-95 duration-500">
-            <div className="flex-1 overflow-y-auto p-12 md:p-20 space-y-16">
-              {modalStep === 'config' ? (
-                <>
-                  <h2 className="text-5xl font-black uppercase italic tracking-tighter">Personaliza tu equipo</h2>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    {PRODUCT_CATALOG.models.map(m => (
-                      <button key={m.id} onClick={() => setConfig({...config, model: m})} className={`p-8 rounded-[2rem] border-2 text-left transition-all ${config.model.id === m.id ? 'border-brand-500 bg-brand-50/50' : 'border-gray-50 hover:bg-gray-50'}`}>
-                        <div className="text-[14px] font-black uppercase italic">{m.name}</div>
-                        <div className="text-2xl font-black text-brand-600 mt-2">{formatCurrency(m.price, language)}</div>
-                      </button>
-                    ))}
-                  </div>
-                </>
-              ) : (
-                <div className="space-y-12 animate-in slide-in-from-right duration-500">
-                  <h2 className="text-5xl font-black uppercase italic tracking-tighter">Tus Datos</h2>
-                  <div className="grid grid-cols-1 gap-6">
-                    <Input label="Nombre completo" value={customer.name} onChange={(e:any) => setCustomer({...customer, name: e.target.value})} />
-                    <Input label="Email de contacto" type="email" value={customer.email} onChange={(e:any) => setCustomer({...customer, email: e.target.value})} />
-                    <Input label="Teléfono" type="tel" value={customer.phone} onChange={(e:any) => setCustomer({...customer, phone: e.target.value})} />
-                    <Input label="Dirección" value={customer.address} onChange={(e:any) => setCustomer({...customer, address: e.target.value})} />
-                  </div>
-                </div>
-              )}
-            </div>
-            <div className="w-full md:w-[450px] bg-gray-900 text-white p-12 flex flex-col justify-between">
-              <div className="space-y-12">
-                <h4 className="text-[11px] font-black uppercase tracking-[0.4em] text-brand-500">Tu Presupuesto</h4>
-                <div className="space-y-4">
-                  <div className="flex justify-between text-xs font-bold uppercase tracking-widest opacity-40">
-                    <span>Modelo</span>
-                    <span>{config.model.name}</span>
-                  </div>
-                  <div className="flex justify-between text-xs font-bold uppercase tracking-widest opacity-40">
-                    <span>Instalación</span>
-                    <span>{config.kit.name}</span>
-                  </div>
-                </div>
-                <div className="pt-10 border-t border-white/10">
-                  <span className="text-[10px] font-black text-brand-500 uppercase tracking-widest block mb-4">Financiación</span>
-                  <div className="grid grid-cols-5 gap-2 mb-8">
-                    {PRODUCT_CATALOG.financing.options.map(m => (
-                      <button key={m} onClick={() => setConfig({...config, months: m})} className={`py-4 rounded-xl text-[10px] font-black transition-all ${config.months === m ? 'bg-brand-500 text-white' : 'bg-white/5 text-gray-500 hover:text-white'}`}>{m}m</button>
-                    ))}
-                  </div>
-                  <div className="bg-white/5 p-8 rounded-[2.5rem] text-center">
-                    <span className="text-5xl font-black italic tracking-tighter text-brand-500">{formatCurrency(monthlyFee, language)}<span className="text-lg">/mes</span></span>
-                  </div>
-                </div>
-              </div>
-              <div className="mt-12">
-                <div className="flex justify-between items-center mb-10">
-                  <span className="text-[11px] font-black uppercase tracking-widest opacity-40">Total</span>
-                  <span className="text-5xl font-black italic tracking-tighter">{formatCurrency(total, language)}</span>
-                </div>
-                {modalStep === 'config' ? (
-                  <button onClick={() => setModalStep('customer')} className="w-full py-7 bg-brand-600 text-white rounded-[2rem] font-black uppercase text-[12px] tracking-widest hover:bg-brand-500 transition-all shadow-2xl">Continuar</button>
-                ) : (
-                  <button onClick={() => { alert("Solicitud enviada"); setIsModalOpen(false); }} className="w-full py-7 bg-brand-600 text-white rounded-[2rem] font-black uppercase text-[12px] tracking-widest shadow-2xl">Finalizar Solicitud</button>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <div className="py-40 px-10 text-center">
+        <h2 className="text-8xl font-black uppercase italic mb-8">{tenant.name}</h2>
+        <p className="text-2xl text-gray-400 font-medium italic">Climatización de alta gama.</p>
+      </div>
     </div>
   );
 };
@@ -337,17 +226,14 @@ const TenantLayout = () => {
   return (
     <div className="flex min-h-screen bg-gray-50">
       <aside className="w-80 bg-white border-r border-gray-100 flex flex-col sticky top-0 h-screen">
-        <div className="p-10 h-24 flex items-center font-black text-brand-600 uppercase italic border-b border-gray-50 tracking-tighter text-xl">{tenant.name}</div>
+        <div className="p-10 h-24 flex items-center font-black text-brand-600 uppercase italic border-b border-gray-50 text-xl">{tenant.name}</div>
         <nav className="flex-1 p-8 space-y-3">
-          <Link to={`/t/${slug}/dashboard`} className="flex items-center px-6 py-4 font-black text-[11px] uppercase tracking-widest text-gray-400 hover:text-brand-600 transition-all rounded-2xl hover:bg-gray-50">Dashboard</Link>
-          <Link to={`/t/${slug}/customers`} className="flex items-center px-6 py-4 font-black text-[11px] uppercase tracking-widest text-gray-400 hover:text-brand-600 transition-all rounded-2xl hover:bg-gray-50">Clientes</Link>
-          <Link to={`/t/${slug}/quotes`} className="flex items-center px-6 py-4 font-black text-[11px] uppercase tracking-widest text-gray-400 hover:text-brand-600 transition-all rounded-2xl hover:bg-gray-50">Presupuestos</Link>
-          <div className="pt-12">
-            <Link to={`/c/${slug}`} target="_blank" className="flex items-center px-6 py-4 font-black text-[10px] uppercase text-brand-600 bg-brand-50 rounded-2xl border border-brand-100">Ver Web Pública ↗</Link>
-          </div>
+          <Link to={`/t/${slug}/dashboard`} className="flex items-center px-6 py-4 font-black text-[11px] uppercase text-gray-400 hover:text-brand-600 transition-all rounded-2xl hover:bg-gray-50">Dashboard</Link>
+          <Link to={`/t/${slug}/customers`} className="flex items-center px-6 py-4 font-black text-[11px] uppercase text-gray-400 hover:text-brand-600 transition-all rounded-2xl hover:bg-gray-50">Clientes</Link>
+          <Link to={`/t/${slug}/quotes`} className="flex items-center px-6 py-4 font-black text-[11px] uppercase text-gray-400 hover:text-brand-600 transition-all rounded-2xl hover:bg-gray-50">Presupuestos</Link>
         </nav>
         <div className="p-10 border-t border-gray-50">
-          <button onClick={signOut} className="w-full text-left px-6 text-[11px] font-black uppercase text-red-500 tracking-widest">Cerrar Sesión</button>
+          <button onClick={signOut} className="w-full text-left px-6 text-[11px] font-black uppercase text-red-500">Cerrar Sesión</button>
         </div>
       </aside>
       <main className="flex-1 overflow-auto p-16">
@@ -362,20 +248,6 @@ const Dashboard = () => {
   return (
     <div className="space-y-12">
       <h2 className="text-5xl font-black uppercase italic tracking-tighter">Panel de {tenant.name}</h2>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
-        <div className="bg-white p-12 rounded-[3.5rem] border border-gray-100 shadow-sm">
-          <span className="text-[11px] font-black uppercase text-gray-300 tracking-[0.3em]">Ventas del mes</span>
-          <div className="text-5xl font-black italic mt-6 tracking-tighter leading-none">€18,920</div>
-        </div>
-        <div className="bg-white p-12 rounded-[3.5rem] border border-gray-100 shadow-sm">
-          <span className="text-[11px] font-black uppercase text-gray-300 tracking-[0.3em]">Presupuestos</span>
-          <div className="text-5xl font-black italic mt-6 tracking-tighter leading-none">31</div>
-        </div>
-        <div className="bg-white p-12 rounded-[3.5rem] border border-gray-100 shadow-sm">
-          <span className="text-[11px] font-black uppercase text-gray-300 tracking-[0.3em]">Nuevos Clientes</span>
-          <div className="text-5xl font-black italic mt-6 tracking-tighter leading-none">14</div>
-        </div>
-      </div>
     </div>
   );
 };
@@ -392,25 +264,22 @@ const Customers = () => {
 
   return (
     <div className="space-y-10">
-      <h2 className="text-5xl font-black uppercase italic tracking-tighter">Base de Clientes</h2>
+      <h2 className="text-5xl font-black uppercase italic tracking-tighter">Clientes</h2>
       <div className="bg-white rounded-[3.5rem] border border-gray-100 overflow-hidden shadow-sm">
         <table className="w-full text-left">
           <thead className="bg-gray-50/50 border-b border-gray-50">
             <tr>
               <th className="px-10 py-8 text-[11px] font-black uppercase tracking-widest text-gray-300">Nombre</th>
-              <th className="px-10 py-8 text-[11px] font-black uppercase tracking-widest text-gray-300">Contacto</th>
-              <th className="px-10 py-8 text-[11px] font-black uppercase tracking-widest text-gray-300">Fecha</th>
+              <th className="px-10 py-8 text-[11px] font-black uppercase tracking-widest text-gray-300">Email</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50">
             {customers.map(c => (
-              <tr key={c.id} className="hover:bg-gray-50 transition-colors">
+              <tr key={c.id}>
                 <td className="px-10 py-8 font-black text-sm uppercase italic">{c.name}</td>
-                <td className="px-10 py-8 text-xs text-gray-400 font-bold">{c.email}<br/>{c.phone}</td>
-                <td className="px-10 py-8 text-[11px] font-black text-gray-300 italic">{formatDate(c.created_at, language)}</td>
+                <td className="px-10 py-8 text-xs text-gray-400 font-bold">{c.email}</td>
               </tr>
             ))}
-            {customers.length === 0 && <tr><td colSpan={3} className="p-32 text-center font-black text-gray-200 uppercase text-[12px] italic">Sin clientes registrados</td></tr>}
           </tbody>
         </table>
       </div>
@@ -433,31 +302,27 @@ const Quotes = () => {
     <div className="space-y-10">
       <div className="flex justify-between items-center">
         <h2 className="text-5xl font-black uppercase italic tracking-tighter">Presupuestos</h2>
-        <button onClick={() => navigate(`/t/${tenant.slug}/quotes/new`)} className="px-12 py-5 bg-gray-900 text-white rounded-[2rem] font-black uppercase text-[11px] tracking-widest hover:bg-brand-600 transition-all shadow-2xl">Nuevo Presupuesto</button>
+        <button onClick={() => navigate(`/t/${tenant.slug}/quotes/new`)} className="px-12 py-5 bg-gray-900 text-white rounded-[2rem] font-black uppercase text-[11px] hover:bg-brand-600 transition-all">Nuevo Presupuesto</button>
       </div>
       <div className="bg-white rounded-[3.5rem] border border-gray-100 overflow-hidden shadow-sm">
         <table className="w-full text-left">
           <thead className="bg-gray-50/50 border-b border-gray-50">
             <tr>
               <th className="px-10 py-8 text-[11px] font-black uppercase tracking-widest text-gray-300">Referencia</th>
-              <th className="px-10 py-8 text-[11px] font-black uppercase tracking-widest text-gray-300">Estado</th>
               <th className="px-10 py-8 text-[11px] font-black uppercase tracking-widest text-gray-300 text-right">Total</th>
               <th className="px-10 py-8"></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50">
             {quotes.map(q => (
-              <tr key={q.id} className="hover:bg-gray-50 transition-colors">
+              <tr key={q.id}>
                 <td className="px-10 py-8">
                   <div className="font-black text-sm uppercase italic">{q.quote_no}</div>
-                  <div className="text-[10px] font-black text-gray-300 uppercase tracking-widest mt-1">{q.client_name || q.customer?.name}</div>
-                </td>
-                <td className="px-10 py-8">
-                  <span className="px-5 py-2 rounded-full text-[9px] font-black uppercase tracking-widest bg-gray-100 text-gray-500">{q.status}</span>
+                  <div className="text-[10px] font-black text-gray-300 uppercase tracking-widest mt-1">{q.client_name}</div>
                 </td>
                 <td className="px-10 py-8 text-right font-black italic text-brand-600 text-lg">{formatCurrency(q.total_amount, language)}</td>
                 <td className="px-10 py-8 text-right">
-                  <Link to={`/t/${tenant.slug}/quotes/${q.id}`} className="text-gray-400 font-black uppercase text-[10px] tracking-widest underline hover:text-brand-600">Editar</Link>
+                  <Link to={`/t/${tenant.slug}/quotes/${q.id}`} className="text-gray-400 font-black uppercase text-[10px] underline hover:text-brand-600">Editar</Link>
                 </td>
               </tr>
             ))}
@@ -474,9 +339,9 @@ const QuoteEditor = () => {
   const navigate = useNavigate();
   const { language, session } = useApp();
   const [loading, setLoading] = useState(id !== 'new');
-  const [quote, setQuote] = useState({
+  const [quote, setQuote] = useState<any>({
     client_name: '', client_email: '', client_phone: '', client_address: '',
-    status: 'draft', total_amount: 0, items: [] as any[]
+    status: 'draft', total_amount: 0, items: []
   });
 
   useEffect(() => {
@@ -491,7 +356,7 @@ const QuoteEditor = () => {
   const saveQuote = async () => {
     if (!session) return;
     const { items, ...mainData } = quote;
-    const total_amount = quote.items.reduce((acc, i) => acc + (i.unit_price * i.quantity), 0);
+    const total_amount = quote.items.reduce((acc: number, i: any) => acc + (i.unit_price * i.quantity), 0);
     
     let quoteId = id;
     if (id === 'new') {
@@ -501,11 +366,18 @@ const QuoteEditor = () => {
       await supabase.from('quotes').update({ ...mainData, total_amount }).eq('id', id);
     }
     
-    if (quoteId) {
+    if (quoteId && quoteId !== 'new') {
       await supabase.from('quote_items').delete().eq('quote_id', quoteId);
-      await supabase.from('quote_items').insert(quote.items.map(i => ({ ...i, quote_id: quoteId, total: i.unit_price * i.quantity })));
+      await supabase.from('quote_items').insert(quote.items.map((i: any) => ({ ...i, quote_id: quoteId, total: i.unit_price * i.quantity })));
       navigate(`/t/${tenant.slug}/quotes`);
     }
+  };
+
+  const addItem = (item: any) => {
+    setQuote((prev: any) => ({
+      ...prev,
+      items: [...prev.items, { description: item.name, quantity: 1, unit_price: item.price }]
+    }));
   };
 
   if (loading) return <LoadingSpinner />;
@@ -514,7 +386,7 @@ const QuoteEditor = () => {
     <div className="max-w-7xl mx-auto space-y-16 pb-32">
        <div className="flex justify-between items-center">
         <h2 className="text-5xl font-black uppercase italic tracking-tighter">{id === 'new' ? 'Nuevo Presupuesto' : 'Editar Presupuesto'}</h2>
-        <button onClick={saveQuote} className="px-16 py-6 bg-brand-600 text-white rounded-[2.5rem] font-black uppercase text-[12px] tracking-widest hover:bg-brand-500 shadow-2xl transition-all">Guardar Cambios</button>
+        <button onClick={saveQuote} className="px-16 py-6 bg-brand-600 text-white rounded-[2.5rem] font-black uppercase text-[12px] hover:bg-brand-500 shadow-2xl transition-all">Guardar</button>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-16">
         <div className="bg-white p-16 rounded-[4rem] border border-gray-100 shadow-sm space-y-8">
@@ -523,16 +395,40 @@ const QuoteEditor = () => {
            <Input label="Dirección" value={quote.client_address} onChange={(e:any) => setQuote({...quote, client_address: e.target.value})} />
         </div>
         <div className="bg-gray-50 p-16 rounded-[4rem] border border-gray-100 space-y-8">
-           <h4 className="text-[11px] font-black uppercase text-gray-300 tracking-[0.4em]">Añadir del Catálogo Comfee</h4>
+           <h4 className="text-[11px] font-black uppercase text-gray-300 tracking-[0.4em]">Catálogo Rápido</h4>
            <div className="grid grid-cols-1 gap-2">
              {PRODUCT_CATALOG.models.map(m => (
-               <button key={m.id} onClick={() => setQuote({...quote, items: [...quote.items, { description: m.name, quantity: 1, unit_price: m.price }]})} className="flex justify-between items-center p-6 bg-white rounded-2xl border border-gray-50 hover:border-brand-500 transition-all text-left">
+               <button key={m.id} onClick={() => addItem(m)} className="flex justify-between items-center p-6 bg-white rounded-2xl border border-gray-50 hover:border-brand-500 transition-all text-left shadow-sm">
                   <span className="text-[12px] font-black uppercase italic">{m.name}</span>
                   <span className="text-[12px] font-black text-brand-600">{formatCurrency(m.price, language)}</span>
                </button>
              ))}
            </div>
         </div>
+      </div>
+      <div className="bg-white rounded-[3.5rem] border border-gray-100 overflow-hidden shadow-sm">
+        <table className="w-full text-left">
+          <thead className="bg-gray-50 border-b border-gray-100">
+            <tr>
+              <th className="px-10 py-8 text-[11px] font-black uppercase tracking-widest text-gray-300">Concepto</th>
+              <th className="px-10 py-8 text-[11px] font-black uppercase tracking-widest text-gray-300 text-center">Cant.</th>
+              <th className="px-10 py-8 text-[11px] font-black uppercase tracking-widest text-gray-300 text-right">Precio</th>
+              <th className="px-10 py-8 text-[11px] font-black uppercase tracking-widest text-gray-300 text-right">Total</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-50">
+            {quote.items.map((item: any, idx: number) => (
+              <tr key={idx}>
+                <td className="px-10 py-8 italic font-bold uppercase text-xs">{item.description}</td>
+                <td className="px-10 py-8 text-center">{item.quantity}</td>
+                <td className="px-10 py-8 text-right font-bold">{formatCurrency(item.unit_price, language)}</td>
+                <td className="px-10 py-8 text-right font-black text-brand-600">{formatCurrency(item.unit_price * item.quantity, language)}</td>
+                <td className="px-10 py-8 text-center"><button onClick={() => setQuote({...quote, items: quote.items.filter((_:any, i:number) => i !== idx)})} className="text-red-400 font-bold">×</button></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );
@@ -541,18 +437,16 @@ const QuoteEditor = () => {
 // --- ROUTER & APP ---
 const Landing = () => (
   <div className="min-h-screen flex flex-col items-center justify-center p-10 text-center space-y-16 bg-white">
-    <div className="relative space-y-6">
-      <div className="inline-block px-6 py-2.5 bg-brand-50 text-brand-600 rounded-full text-[11px] font-black uppercase tracking-[0.3em] border border-brand-100">SaaS Multi-tenant Premium</div>
-      <h1 className="text-8xl md:text-[12rem] font-black italic tracking-tighter uppercase leading-[0.75] mix-blend-multiply">Confort<br/><span className="text-brand-500">Inteligente</span></h1>
+    <div className="space-y-6">
+      <h1 className="text-8xl md:text-[12rem] font-black italic tracking-tighter uppercase leading-[0.75]">Confort<br/><span className="text-brand-500">Premium</span></h1>
     </div>
-    <div className="flex flex-col md:flex-row gap-8">
-      <Link to="/login" className="px-16 py-7 bg-gray-900 text-white rounded-[2.5rem] font-black uppercase text-[12px] tracking-[0.2em] shadow-2xl hover:scale-110 transition-all">Panel Instalador</Link>
-      <Link to="/signup" className="px-16 py-7 bg-white text-gray-900 border border-gray-100 rounded-[2.5rem] font-black uppercase text-[12px] tracking-[0.2em] shadow-xl hover:bg-gray-50 transition-all">Crear Cuenta Gratis</Link>
+    <div className="flex gap-8">
+      <Link to="/login" className="px-16 py-7 bg-gray-900 text-white rounded-[2.5rem] font-black uppercase text-[12px] shadow-2xl">Panel Instalador</Link>
+      <Link to="/signup" className="px-16 py-7 bg-white text-gray-900 border border-gray-100 rounded-[2.5rem] font-black uppercase text-[12px] shadow-xl">Crear Cuenta</Link>
     </div>
   </div>
 );
 
-// Componente de Ruta Protegida Corregido para no bloquear Onboarding
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { session, loading, memberships } = useApp();
   const location = useLocation();
@@ -560,12 +454,10 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   if (loading) return <LoadingSpinner />;
   if (!session) return <Navigate to="/login" replace />;
 
-  // Si no tiene empresa y no está en onboarding, forzar ir a onboarding
   if (memberships.length === 0 && location.pathname !== '/onboarding') {
     return <Navigate to="/onboarding" replace />;
   }
 
-  // Si tiene empresa y está intentando ir a onboarding, mandarlo al dashboard
   if (memberships.length > 0 && location.pathname === '/onboarding') {
     return <Navigate to="/dashboard" replace />;
   }
@@ -626,18 +518,15 @@ export default function App() {
           <Route path="/signup" element={<Signup />} />
           <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
           <Route path="/c/:slug" element={<PublicTenantWebsite />} />
-          
           <Route path="/dashboard" element={<ProtectedRoute>
             {memberships.length > 0 ? <Navigate to={`/t/${memberships[0].tenant?.slug}/dashboard`} /> : <Navigate to="/onboarding" />}
           </ProtectedRoute>} />
-
           <Route path="/t/:slug" element={<ProtectedRoute><TenantLayout /></ProtectedRoute>}>
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="customers" element={<Customers />} />
             <Route path="quotes" element={<Quotes />} />
             <Route path="quotes/:id" element={<QuoteEditor />} />
           </Route>
-          
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </HashRouter>
