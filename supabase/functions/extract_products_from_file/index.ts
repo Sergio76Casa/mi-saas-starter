@@ -1,29 +1,40 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { GoogleGenAI } from "@google/genai"
+import { GoogleGenAI } from "https://esm.sh/@google/genai@1.34.0"
 
+// Encabezados CORS robustos para peticiones desde el navegador
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
 serve(async (req) => {
-  // Manejo de pre-flight CORS
+  // Manejo crítico de la petición preflight (OPTIONS)
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+    return new Response('ok', { 
+      status: 200, 
+      headers: corsHeaders 
+    })
   }
 
   try {
+    // Validar que el método sea POST
+    if (req.method !== 'POST') {
+      throw new Error("Solo se permiten peticiones POST");
+    }
+
     const formData = await req.formData()
     const file = formData.get('file') as File
     const defaultCategory = formData.get('defaultCategory') as string || 'aire_acondicionado'
 
-    if (!file) throw new Error("No se ha subido ningún archivo")
+    if (!file) {
+      throw new Error("No se ha proporcionado ningún archivo en la petición.");
+    }
 
-    // Fix: Access the API key exclusively via process.env.API_KEY as per the @google/genai coding guidelines.
-    // The environment assumes this variable is pre-configured and accessible in this context.
+    // Fix: Use process.env.API_KEY directly as per mandatory guidelines and removed prohibited manual definition of process.env
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     
-    // Conversión de archivo a base64 para el SDK de Gemini
+    // Procesamiento del archivo a Base64
     const arrayBuffer = await file.arrayBuffer()
     const uint8 = new Uint8Array(arrayBuffer)
     let binary = ''
@@ -46,11 +57,12 @@ serve(async (req) => {
       ]
     }
     
-    Reglas:
+    Reglas de extracción:
     1. Si no detectas la categoría, usa obligatoriamente: ${defaultCategory}
-    2. El precio debe ser un número sin símbolos.
-    3. Solo devuelve el JSON, sin texto extra.`
+    2. El precio debe ser un número (float) sin símbolos de moneda ni puntos como separadores de miles.
+    3. Responde únicamente con el bloque JSON, sin texto adicional.`
 
+    // Uso de gemini-3-flash-preview para tareas de extracción
     const result = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: {
@@ -69,19 +81,33 @@ serve(async (req) => {
       }
     })
 
-    // Access the .text property directly as per the @google/genai documentation (not a method).
+    // Acceso directo a .text según las especificaciones del SDK
     const responseText = result.text;
-    if (!responseText) throw new Error("La IA no devolvió contenido");
+    
+    if (!responseText) {
+      throw new Error("El modelo de IA no pudo generar una respuesta válida para este archivo.");
+    }
 
     return new Response(responseText, {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 200,
+      headers: { 
+        ...corsHeaders, 
+        'Content-Type': 'application/json' 
+      },
     })
 
   } catch (error: any) {
-    // IMPORTANTE: Incluir corsHeaders en la respuesta de error para que el browser pueda leerla
-    return new Response(JSON.stringify({ error: error.message || "Error desconocido en el servidor" }), {
+    console.error("Edge Function Error:", error.message);
+    
+    // Todas las respuestas de error deben incluir también los encabezados CORS
+    return new Response(JSON.stringify({ 
+      error: error.message || "Error interno al procesar el archivo con IA." 
+    }), {
       status: 400,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: { 
+        ...corsHeaders, 
+        'Content-Type': 'application/json' 
+      },
     })
   }
 })
