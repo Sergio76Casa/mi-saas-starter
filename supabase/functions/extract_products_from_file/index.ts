@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { GoogleGenAI } from "https://esm.sh/@google/genai@1.34.0"
 
-// Encabezados CORS obligatorios para que el navegador permita la petición
+// Encabezados CORS estándar para Supabase Edge Functions
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -9,8 +9,7 @@ const corsHeaders = {
 }
 
 serve(async (req) => {
-  // 1. Manejo de Preflight (OPTIONS)
-  // Esta parte resuelve el error de "CORS" y el 500 por intentar leer un body inexistente en OPTIONS
+  // 1. Manejo inmediato de peticiones OPTIONS (Preflight)
   if (req.method === 'OPTIONS') {
     return new Response('ok', { 
       status: 200, 
@@ -19,7 +18,7 @@ serve(async (req) => {
   }
 
   try {
-    // 2. Validación de método POST
+    // 2. Validación de método
     if (req.method !== 'POST') {
       return new Response(JSON.stringify({ error: "Método no permitido. Use POST." }), {
         status: 405,
@@ -27,8 +26,8 @@ serve(async (req) => {
       })
     }
 
-    // 3. Extracción de FormData
-    // NO se usa req.json() para evitar "Unexpected end of JSON input" con multipart/form-data
+    // 3. Procesamiento de FormData
+    // NO usamos req.json() para evitar errores de parseo con multipart/form-data
     const formData = await req.formData()
     const file = formData.get('file') as File
     const defaultCategory = formData.get('defaultCategory') as string || 'aire_acondicionado'
@@ -40,11 +39,16 @@ serve(async (req) => {
       })
     }
 
-    // 4. Inicialización de Gemini 
-    // Siempre usar process.env.API_KEY para la clave de API
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    // 4. Inicialización de Gemini
+    // Se utiliza process.env.API_KEY según las guías de estilo del SDK
+    const apiKey = process.env.API_KEY;
+    if (!apiKey) {
+      throw new Error("Missing API_KEY in environment variables.");
+    }
+
+    const ai = new GoogleGenAI({ apiKey });
     
-    // Procesar archivo a Base64
+    // Conversión del archivo a Base64 para el modelo
     const arrayBuffer = await file.arrayBuffer()
     const uint8 = new Uint8Array(arrayBuffer)
     let binary = ''
@@ -69,8 +73,8 @@ serve(async (req) => {
     
     Reglas de extracción:
     1. Si no detectas la categoría, usa obligatoriamente: ${defaultCategory}
-    2. El precio debe ser un número (float) sin símbolos de moneda ni separadores de miles de texto.
-    3. Responde únicamente con el bloque JSON, sin texto explicativo.`
+    2. El precio debe ser un número (float) sin símbolos de moneda ni puntos como separadores de miles.
+    3. Responde únicamente con el bloque JSON, sin texto adicional.`
 
     // 5. Generación de contenido con Gemini 3 Flash
     const response = await ai.models.generateContent({
@@ -91,13 +95,12 @@ serve(async (req) => {
       }
     })
 
-    // Acceso a .text (propiedad, no método)
+    // 6. Validación y respuesta
     const responseText = response.text;
     if (!responseText) {
-      throw new Error("El modelo de IA no devolvió datos legibles.");
+      throw new Error("La IA no devolvió una respuesta válida.");
     }
 
-    // 6. Respuesta exitosa con CORS
     return new Response(responseText, {
       status: 200,
       headers: { 
@@ -109,9 +112,9 @@ serve(async (req) => {
   } catch (err: any) {
     console.error("Error en extract_products_from_file:", err.message)
     
-    // 7. Respuesta de error con CORS
+    // 7. Respuesta de error garantizando SIEMPRE los headers CORS
     return new Response(JSON.stringify({ 
-      error: err.message || "Error al procesar el archivo con IA." 
+      error: err.message || "Error interno del servidor." 
     }), {
       status: 400,
       headers: { 

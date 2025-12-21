@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { supabase, isConfigured } from '../../supabaseClient';
 import { Tenant } from '../../types';
@@ -131,25 +130,27 @@ export const TenantProducts = () => {
       body.append('file', importFile);
       body.append('defaultCategory', defaultCategory);
 
-      // Invocación a la Edge Function de Supabase
+      // Invocación a la Edge Function
       const { data, error } = await supabase.functions.invoke('extract_products_from_file', {
         body,
       });
 
       if (error) {
-        // Error de la plataforma Supabase (CORS, Red, etc)
-        throw new Error(error.message || "Error al conectar con la función");
+        throw new Error(error.message || "Error de red al conectar con la IA.");
       }
       
       if (data?.error) {
-        // Error lógico devuelto por la función
         throw new Error(data.error);
       }
 
-      setImportPreview(data.products || []);
+      if (!data?.products || !Array.isArray(data.products)) {
+        throw new Error("La IA no devolvió una lista de productos válida.");
+      }
+
+      setImportPreview(data.products);
     } catch (err: any) {
       console.error("Error en extracción IA:", err);
-      alert('Error: ' + (err.message || "No se pudo procesar el archivo. Verifica tu conexión y configuración de Supabase."));
+      alert('Error en Importación: ' + (err.message || "No se pudo procesar el archivo. Revisa la consola para más detalles."));
     } finally {
       setIsImporting(false);
     }
@@ -167,7 +168,7 @@ export const TenantProducts = () => {
       setImportFile(null);
       fetchProducts();
     } else {
-      alert('Error al importar: ' + error.message);
+      alert('Error al importar en base de datos: ' + error.message);
     }
   };
 
