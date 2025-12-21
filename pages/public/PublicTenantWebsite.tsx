@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useLocation } from 'react-router-dom';
 import { supabase, isConfigured } from '../../supabaseClient';
 import { Tenant } from '../../types';
 import { formatCurrency } from '../../i18n';
@@ -157,7 +157,7 @@ const LOCAL_I18N = {
     wizard_models_available: 'Models disponibles',
     wizard_high_efficiency: 'Máxima Eficiència',
     wizard_install_included: 'Instal·lació Inclosa',
-    wizard_status: 'ESTAT',
+    wizard_status: 'ESTADO',
     wizard_kit_title: 'Kit d’Instal·lació',
     wizard_extras_title: 'Materials Extras',
     wizard_data_title: 'Dades de Facturació',
@@ -204,7 +204,8 @@ const LOCAL_I18N = {
 
 export const PublicTenantWebsite = () => {
   const { slug } = useParams();
-  const { dbHealthy, language, setLanguage } = useApp();
+  const location = useLocation();
+  const { dbHealthy, language, setLanguage, session, memberships, profile } = useApp();
   const [tenant, setTenant] = useState<Tenant | null>(null);
   const [dbProducts, setDbProducts] = useState<PublicCatalogResponse['products']>([]);
   const [loading, setLoading] = useState(true);
@@ -325,6 +326,21 @@ export const PublicTenantWebsite = () => {
     }
   };
 
+  const handleAdminClick = () => {
+    const adminUrl = `/t/${slug}/dashboard`;
+    if (!session) {
+      navigate(`/login?returnTo=${encodeURIComponent(adminUrl)}`);
+    } else {
+      // Check if user is member of this specific tenant or superadmin
+      const isMember = memberships.some(m => m.tenant?.slug === slug);
+      if (isMember || profile?.is_superadmin) {
+        navigate(adminUrl);
+      } else {
+        alert("No tienes permisos para acceder al panel de esta empresa.");
+      }
+    }
+  };
+
   const handleContactSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!contactForm.name || !contactForm.email || !contactForm.message) {
@@ -440,7 +456,7 @@ export const PublicTenantWebsite = () => {
               <button onClick={() => setLanguage('es')} className={`px-1.5 rounded transition-all ${language === 'es' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400'}`}>ES</button>
               <button onClick={() => setLanguage('ca')} className={`px-1.5 rounded transition-all ${language === 'ca' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400'}`}>CA</button>
             </div>
-            <button onClick={() => navigate(`/t/${slug}/dashboard`)} className="p-2 text-slate-400 hover:text-slate-900 transition-all bg-slate-50 rounded-lg hover:shadow-sm border border-slate-100 flex items-center gap-2 px-3">
+            <button onClick={handleAdminClick} className="p-2 text-slate-400 hover:text-slate-900 transition-all bg-slate-50 rounded-lg hover:shadow-sm border border-slate-100 flex items-center gap-2 px-3">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
               <span className="text-[10px] font-black uppercase tracking-widest">{tt('nav_admin_btn')}</span>
             </button>

@@ -629,11 +629,16 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const { refreshProfile, enterDemoMode } = useApp();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (!error) { await refreshProfile(); navigate('/'); } else alert("Error de acceso.");
+    if (!error) { 
+      await refreshProfile(); 
+      const returnTo = searchParams.get('returnTo');
+      navigate(returnTo || '/'); 
+    } else alert("Error de acceso.");
   };
 
   return (
@@ -721,10 +726,31 @@ const TenantLayout = () => {
   }, [slug, profile, currentMembership, dbHealthy]);
 
   useEffect(() => {
-    if (!loading && !session) navigate('/login');
-  }, [loading, session, navigate]);
+    if (!loading && !session) {
+      navigate(`/login?returnTo=${encodeURIComponent(location.pathname)}`);
+    }
+  }, [loading, session, navigate, location.pathname]);
 
-  if (loading || !currentTenant) return <LoadingSpinner />;
+  if (loading) return <LoadingSpinner />;
+  
+  // Guard logic: If session exists but NO membership for THIS tenant (and not superadmin)
+  if (session && !currentTenant && !profile?.is_superadmin) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 p-6 text-center">
+        <div className="max-w-md bg-white p-12 rounded-[3.5rem] shadow-xl border border-gray-100">
+           <h2 className="text-3xl font-black text-gray-900 mb-4 tracking-tighter uppercase italic">Acceso Denegado</h2>
+           <p className="text-gray-400 font-medium italic mb-10">No tienes permisos para gestionar esta empresa. Contacta con el administrador.</p>
+           <div className="flex flex-col gap-4">
+              <Link to="/" className="px-8 py-4 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest">Volver al Inicio</Link>
+              <button onClick={signOut} className="text-[10px] font-black uppercase tracking-widest text-red-500">Cerrar Sesión</button>
+           </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!currentTenant) return <LoadingSpinner />;
+
   const isActive = (path: string) => location.pathname.includes(path);
 
   return (
