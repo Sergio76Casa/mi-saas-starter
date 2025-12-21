@@ -1,7 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { GoogleGenAI } from "https://esm.sh/@google/genai@1.34.0"
 
-// Encabezados CORS estándar para Supabase Edge Functions
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -9,46 +8,39 @@ const corsHeaders = {
 }
 
 serve(async (req) => {
-  // 1. Manejo inmediato de peticiones OPTIONS (Preflight)
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { 
-      status: 200, 
-      headers: corsHeaders 
-    })
+    return new Response('ok', { status: 200, headers: corsHeaders })
   }
 
   try {
-    // 2. Validación de método
     if (req.method !== 'POST') {
-      return new Response(JSON.stringify({ error: "Método no permitido. Use POST." }), {
+      return new Response(JSON.stringify({ error: "Método no permitido." }), {
         status: 405,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
 
-    // 3. Procesamiento de FormData
-    // NO usamos req.json() para evitar errores de parseo con multipart/form-data
     const formData = await req.formData()
     const file = formData.get('file') as File
     const defaultCategory = formData.get('defaultCategory') as string || 'aire_acondicionado'
 
-    if (!file) {
-      return new Response(JSON.stringify({ error: "No se ha encontrado el archivo en el campo 'file'." }), {
+    if (!file || file.size === 0) {
+      return new Response(JSON.stringify({ error: "Falta el archivo o el documento está vacío." }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
 
-    // 4. Inicialización de Gemini
-    // Se utiliza process.env.API_KEY según las guías de estilo del SDK
     const apiKey = process.env.API_KEY;
     if (!apiKey) {
-      throw new Error("Missing API_KEY in environment variables.");
+      return new Response(JSON.stringify({ error: "Error de configuración: API_KEY no encontrada." }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
     }
 
     const ai = new GoogleGenAI({ apiKey });
     
-    // Conversión del archivo a Base64 para el modelo
     const arrayBuffer = await file.arrayBuffer()
     const uint8 = new Uint8Array(arrayBuffer)
     let binary = ''
@@ -58,25 +50,28 @@ serve(async (req) => {
     const base64Data = btoa(binary)
 
     const prompt = `Analiza este documento y extrae una lista de productos para un catálogo de climatización.
-    Debes devolver un JSON con esta estructura exacta:
+    
+    Responde ÚNICAMENTE con un objeto JSON con esta estructura:
     {
       "products": [
         { 
-          "name": "Nombre comercial", 
-          "description": "Breve descripción técnica", 
+          "brand": "Marca normalizada (ej: Comfee)", 
+          "model": "Modelo limpio (ej: CF 09)", 
+          "description": "Descripción técnica", 
           "price": 123.45, 
-          "category": "aire_acondicionado | caldera | termo_electrico",
-          "is_active": true
+          "category": "aire_acondicionado | caldera | termo_electrico"
         }
-      ]
+      ],
+      "error": "Mensaje si no hay productos o el archivo es ilegible, de lo contrario null"
     }
     
-    Reglas de extracción:
-    1. Si no detectas la categoría, usa obligatoriamente: ${defaultCategory}
-    2. El precio debe ser un número (float) sin símbolos de moneda ni puntos como separadores de miles.
-    3. Responde únicamente con el bloque JSON, sin texto adicional.`
+    Reglas Estrictas:
+    1. Si el documento es ilegible o no hay productos, devuelve "products": [] y el motivo en "error".
+    2. Normalizar BRAND: Primera letra Mayúscula, resto minúsculas, sin espacios dobles.
+    3. Normalizar MODEL: Eliminar la marca si está repetida dentro del modelo.
+    4. Normalizar CATEGORY: Usar "${defaultCategory}" si no se detecta claramente.
+    5. No respondas con texto, solo el JSON puro.`
 
-    // 5. Generación de contenido con Gemini 3 Flash
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: {
@@ -95,32 +90,27 @@ serve(async (req) => {
       }
     })
 
-    // 6. Validación y respuesta
     const responseText = response.text;
     if (!responseText) {
-      throw new Error("La IA no devolvió una respuesta válida.");
+      return new Response(JSON.stringify({ error: "La IA no pudo procesar el contenido del archivo." }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
     }
 
+    // Devolvemos directamente el JSON de Gemini
     return new Response(responseText, {
       status: 200,
-      headers: { 
-        ...corsHeaders, 
-        'Content-Type': 'application/json' 
-      },
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
 
   } catch (err: any) {
-    console.error("Error en extract_products_from_file:", err.message)
-    
-    // 7. Respuesta de error garantizando SIEMPRE los headers CORS
+    console.error("Error en Edge Function:", err.message)
     return new Response(JSON.stringify({ 
-      error: err.message || "Error interno del servidor." 
+      error: "Error interno al procesar el documento. Inténtalo de nuevo." 
     }), {
       status: 400,
-      headers: { 
-        ...corsHeaders, 
-        'Content-Type': 'application/json' 
-      },
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     })
   }
 })

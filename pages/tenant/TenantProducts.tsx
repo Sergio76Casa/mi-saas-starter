@@ -21,7 +21,6 @@ export const TenantProducts = () => {
   const [filterCategory, setFilterCategory] = useState('all');
   const [filterActive, setFilterActive] = useState('all');
 
-  // CRUD Modal states
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<any>(null);
   const [formData, setFormData] = useState({
@@ -32,12 +31,12 @@ export const TenantProducts = () => {
     is_active: true
   });
 
-  // IA Import Modal states
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
   const [defaultCategory, setDefaultCategory] = useState('aire_acondicionado');
   const [isImporting, setIsImporting] = useState(false);
   const [importPreview, setImportPreview] = useState<any[]>([]);
+  const [importStatus, setImportStatus] = useState<{ type: 'error' | 'success', message: string } | null>(null);
 
   const fetchProducts = async () => {
     setLoading(true);
@@ -118,57 +117,68 @@ export const TenantProducts = () => {
 
   const handleProcessIA = async () => {
     if (!importFile) return;
-    if (!isConfigured) {
-      alert("Error: El cliente Supabase no está configurado correctamente.");
-      return;
-    }
-
     setIsImporting(true);
+    setImportStatus(null);
+    setImportPreview([]);
     
     try {
       const body = new FormData();
       body.append('file', importFile);
       body.append('defaultCategory', defaultCategory);
 
-      // Invocación a la Edge Function
       const { data, error } = await supabase.functions.invoke('extract_products_from_file', {
         body,
       });
 
-      if (error) {
-        throw new Error(error.message || "Error de red al conectar con la IA.");
-      }
-      
-      if (data?.error) {
-        throw new Error(data.error);
+      if (error) throw new Error("Error al conectar con el servidor de IA.");
+      if (data?.error) throw new Error(data.error);
+
+      if (!data?.products || data.products.length === 0) {
+        throw new Error("No se detectó ningún producto en el documento.");
       }
 
-      if (!data?.products || !Array.isArray(data.products)) {
-        throw new Error("La IA no devolvió una lista de productos válida.");
-      }
+      // Normalizar nombres para la previsualización
+      const normalizedProducts = data.products.map((p: any) => ({
+        ...p,
+        name: `${p.brand || ''} ${p.model || ''}`.trim() || 'Producto sin nombre',
+        category: p.category || defaultCategory
+      }));
 
-      setImportPreview(data.products);
+      setImportPreview(normalizedProducts);
+      setImportStatus({ type: 'success', message: 'Procesado correctamente.' });
     } catch (err: any) {
       console.error("Error en extracción IA:", err);
-      alert('Error en Importación: ' + (err.message || "No se pudo procesar el archivo. Revisa la consola para más detalles."));
+      setImportStatus({ 
+        type: 'error', 
+        message: err.message || "Error al procesar el documento. Inténtalo de nuevo." 
+      });
     } finally {
       setIsImporting(false);
     }
   };
 
   const handleConfirmImport = async () => {
+    if (importPreview.length === 0) return;
+    
     const productsToInsert = importPreview.map(p => ({
-      ...p,
+      name: p.name,
+      description: p.description || '',
+      price: p.price || 0,
+      category: p.category || defaultCategory,
+      is_active: true,
       tenant_id: tenant.id
     }));
+
     const { error } = await supabase.from('products').insert(productsToInsert);
+    
     if (!error) {
       setIsImportModalOpen(false);
       setImportPreview([]);
       setImportFile(null);
+      setImportStatus(null);
       fetchProducts();
     } else {
-      alert('Error al importar en base de datos: ' + error.message);
+      alert('Error al guardar en la base de datos: ' + error.message);
     }
   };
 
@@ -195,7 +205,6 @@ export const TenantProducts = () => {
         </div>
       </div>
 
-      {/* Filters */}
       <div className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm flex flex-wrap items-end gap-6">
         <div className="flex-1 min-w-[200px]">
           <Input 
@@ -230,7 +239,6 @@ export const TenantProducts = () => {
         </div>
       </div>
 
-      {/* List */}
       <div className="bg-white border border-gray-100 rounded-[2.8rem] overflow-hidden shadow-sm">
         <table className="w-full text-left">
           <thead className="bg-gray-50 text-gray-400 text-[9px] font-black uppercase tracking-widest">
@@ -278,7 +286,6 @@ export const TenantProducts = () => {
         </table>
       </div>
 
-      {/* CRUD Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-6 animate-in fade-in duration-300">
           <div className="bg-white rounded-[3rem] p-12 w-full max-w-lg shadow-2xl relative animate-in zoom-in-95 duration-300">
@@ -319,7 +326,6 @@ export const TenantProducts = () => {
         </div>
       )}
 
-      {/* IA Import Modal */}
       {isImportModalOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-6 animate-in fade-in duration-300">
           <div className="bg-white rounded-[3rem] p-12 w-full max-w-4xl shadow-2xl relative animate-in zoom-in-95 duration-300 max-h-[90vh] flex flex-col">
@@ -347,6 +353,13 @@ export const TenantProducts = () => {
                     {CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
                   </select>
                 </div>
+
+                {importStatus && (
+                  <div className={`p-4 rounded-xl text-[10px] font-black uppercase tracking-widest ${importStatus.type === 'error' ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-green-50 text-green-600 border border-green-100'}`}>
+                    {importStatus.type === 'error' ? '⚠️ ' : '✅ '} {importStatus.message}
+                  </div>
+                )}
+
                 <button 
                   onClick={handleProcessIA}
                   disabled={isImporting || !importFile}
@@ -357,7 +370,7 @@ export const TenantProducts = () => {
               </div>
               <div className="bg-gray-50 border border-gray-100 rounded-3xl p-6 flex items-center justify-center text-center">
                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest leading-relaxed">
-                  La IA detectará el nombre, descripción y precio. <br/> La API Key se gestiona de forma segura en el servidor.
+                  La IA detectará la marca, modelo y precio de forma inteligente. <br/> Normalización aplicada automáticamente.
                 </p>
               </div>
             </div>
@@ -367,7 +380,7 @@ export const TenantProducts = () => {
                 <table className="w-full text-left text-xs">
                   <thead className="text-[9px] font-black uppercase text-gray-400 tracking-widest border-b border-gray-200">
                     <tr>
-                      <th className="py-4">Nombre</th>
+                      <th className="py-4">Producto (Normalizado)</th>
                       <th className="py-4">Categoría</th>
                       <th className="py-4 text-right">Precio</th>
                       <th className="py-4 text-right"></th>
@@ -376,7 +389,10 @@ export const TenantProducts = () => {
                   <tbody>
                     {importPreview.map((p, idx) => (
                       <tr key={idx} className="border-b border-gray-100">
-                        <td className="py-4 font-bold">{p.name}</td>
+                        <td className="py-4">
+                          <div className="font-bold text-slate-900">{p.name}</div>
+                          <div className="text-[9px] text-slate-400 italic line-clamp-1">{p.description}</div>
+                        </td>
                         <td className="py-4">
                           <select 
                             value={p.category} 
@@ -390,9 +406,9 @@ export const TenantProducts = () => {
                             {CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
                           </select>
                         </td>
-                        <td className="py-4 text-right font-black">{p.price} €</td>
+                        <td className="py-4 text-right font-black">{formatCurrency(p.price, language)}</td>
                         <td className="py-4 text-right">
-                          <button onClick={() => setImportPreview(importPreview.filter((_, i) => i !== idx))} className="text-red-400">×</button>
+                          <button onClick={() => setImportPreview(importPreview.filter((_, i) => i !== idx))} className="text-red-400 text-lg">×</button>
                         </td>
                       </tr>
                     ))}
@@ -409,7 +425,7 @@ export const TenantProducts = () => {
               >
                 Importar {importPreview.length} Productos
               </button>
-              <button onClick={() => { setIsImportModalOpen(false); setImportPreview([]); }} className="px-8 py-5 text-gray-400 font-black uppercase text-xs">Cerrar</button>
+              <button onClick={() => { setIsImportModalOpen(false); setImportPreview([]); setImportStatus(null); }} className="px-8 py-5 text-gray-400 font-black uppercase text-xs">Cerrar</button>
             </div>
           </div>
         </div>
