@@ -1,9 +1,12 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Lectura estricta de variables de entorno de Vite
-// Use type casting to any to bypass the TypeScript error: Property 'env' does not exist on type 'ImportMeta'
-export const SUPABASE_URL = ((import.meta as any).env?.VITE_SUPABASE_URL as string) || '';
-export const SUPABASE_ANON_KEY = ((import.meta as any).env?.VITE_SUPABASE_ANON_KEY as string) || '';
+// Lectura de variables de entorno con fallback (Vite y Node/Process)
+const getEnv = (key: string) => {
+  return (import.meta as any).env?.[key] || (globalThis as any).process?.env?.[key] || '';
+};
+
+export const SUPABASE_URL = getEnv('VITE_SUPABASE_URL');
+export const SUPABASE_ANON_KEY = getEnv('VITE_SUPABASE_ANON_KEY');
 
 export const isConfigured = Boolean(
   SUPABASE_URL && 
@@ -11,11 +14,7 @@ export const isConfigured = Boolean(
   SUPABASE_URL.startsWith('http')
 );
 
-if (!isConfigured && typeof window !== 'undefined') {
-  console.error('❌ ERROR: Faltan VITE_SUPABASE_URL o VITE_SUPABASE_ANON_KEY en el entorno.');
-}
-
-// Inicialización del cliente
+// Inicialización del cliente. Si no está configurado, la AppProvider manejará el estado de salud.
 export const supabase = createClient(
   isConfigured ? SUPABASE_URL : 'https://placeholder.supabase.co', 
   isConfigured ? SUPABASE_ANON_KEY : 'placeholder'

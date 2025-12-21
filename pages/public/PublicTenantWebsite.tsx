@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { supabase, isConfigured } from '../../supabaseClient';
 import { Tenant } from '../../types';
@@ -155,7 +155,7 @@ const LOCAL_I18N = {
     wizard_step_client: 'Client',
     wizard_step_sign: 'Firma',
     wizard_models_available: 'Models disponibles',
-    wizard_high_efficiency: 'Màxima Eficiència',
+    wizard_high_efficiency: 'Máxima Eficiència',
     wizard_install_included: 'Instal·lació Inclosa',
     wizard_status: 'ESTAT',
     wizard_kit_title: 'Kit d’Instal·lació',
@@ -271,11 +271,15 @@ export const PublicTenantWebsite = () => {
     }> = {};
 
     dbProducts.forEach(p => {
-      // Apply filters here
-      const matchesCategory = categoryFilter === 'all' || p.category === categoryFilter;
-      const matchesPrice = p.price <= maxPrice;
+      // Requisito: Si no hay categoría, usar Aire Acondicionado por defecto
+      const effectiveCategory = p.category || 'aire_acondicionado';
+      // Requisito: La marca es la primera palabra del nombre
       const brand = p.name.split(' ')[0];
-      const matchesBrand = !brandFilter || brand.includes(brandFilter);
+
+      // Aplicar filtros combinados (AND)
+      const matchesCategory = categoryFilter === 'all' || effectiveCategory === categoryFilter;
+      const matchesPrice = p.price <= maxPrice;
+      const matchesBrand = !brandFilter || brand === brandFilter;
 
       if (matchesCategory && matchesPrice && matchesBrand) {
         if (!groups[brand]) {
