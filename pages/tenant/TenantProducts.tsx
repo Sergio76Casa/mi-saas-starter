@@ -39,6 +39,7 @@ export const TenantProducts = () => {
   const [importStatus, setImportStatus] = useState<{ type: 'error' | 'success', message: string } | null>(null);
 
   const fetchProducts = async () => {
+    if (!tenant?.id) return;
     setLoading(true);
     let query = supabase
       .from('products')
@@ -57,7 +58,7 @@ export const TenantProducts = () => {
 
   useEffect(() => {
     fetchProducts();
-  }, [tenant.id, searchTerm, filterCategory, filterActive]);
+  }, [tenant?.id, searchTerm, filterCategory, filterActive]);
 
   const handleOpenModal = (product: any = null) => {
     if (product) {
@@ -84,23 +85,39 @@ export const TenantProducts = () => {
 
   const handleSaveProduct = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!tenant?.id) {
+      alert("Error: No se ha detectado el identificador de empresa.");
+      return;
+    }
+
     if (editingProduct) {
       const { error } = await supabase
         .from('products')
         .update(formData)
         .eq('id', editingProduct.id)
         .eq('tenant_id', tenant.id);
-      if (!error) setIsModalOpen(false);
+      
+      if (error) {
+        alert("Error al actualizar: " + error.message);
+      } else {
+        setIsModalOpen(false);
+      }
     } else {
       const { error } = await supabase
         .from('products')
         .insert([{ ...formData, tenant_id: tenant.id }]);
-      if (!error) setIsModalOpen(false);
+      
+      if (error) {
+        alert("Error al guardar: " + error.message);
+      } else {
+        setIsModalOpen(false);
+      }
     }
     fetchProducts();
   };
 
   const handleToggleActive = async (id: string, current: boolean) => {
+    if (!tenant?.id) return;
     await supabase
       .from('products')
       .update({ is_active: !current })
@@ -110,13 +127,13 @@ export const TenantProducts = () => {
   };
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm('¿Eliminar producto?')) return;
+    if (!tenant?.id || !window.confirm('¿Eliminar producto?')) return;
     await supabase.from('products').delete().eq('id', id).eq('tenant_id', tenant.id);
     fetchProducts();
   };
 
   const handleProcessIA = async () => {
-    if (!importFile) return;
+    if (!importFile || !tenant?.id) return;
     setIsImporting(true);
     setImportStatus(null);
     setImportPreview([]);
@@ -137,7 +154,6 @@ export const TenantProducts = () => {
         throw new Error("No se detectó ningún producto en el documento.");
       }
 
-      // Normalizar nombres para la previsualización
       const normalizedProducts = data.products.map((p: any) => ({
         ...p,
         name: `${p.brand || ''} ${p.model || ''}`.trim() || 'Producto sin nombre',
@@ -158,7 +174,7 @@ export const TenantProducts = () => {
   };
 
   const handleConfirmImport = async () => {
-    if (importPreview.length === 0) return;
+    if (!tenant?.id || importPreview.length === 0) return;
     
     const productsToInsert = importPreview.map(p => ({
       name: p.name,
@@ -178,7 +194,7 @@ export const TenantProducts = () => {
       setImportStatus(null);
       fetchProducts();
     } else {
-      alert('Error al guardar en la base de datos: ' + error.message);
+      alert('Error de seguridad RLS al guardar: ' + error.message);
     }
   };
 
