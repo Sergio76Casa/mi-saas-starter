@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-// Always use import {GoogleGenAI} from "@google/genai";
-import { GoogleGenAI } from "@google/genai"
+import { GoogleGenAI } from "https://esm.sh/@google/genai@1.34.0"
 
+// Encabezados CORS obligatorios para que el navegador permita la petición
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -9,7 +9,8 @@ const corsHeaders = {
 }
 
 serve(async (req) => {
-  // 1. Manejo inmediato de preflight OPTIONS (siempre 200 con headers)
+  // 1. Manejo de Preflight (OPTIONS)
+  // Esta parte resuelve el error de "CORS" y el 500 por intentar leer un body inexistente en OPTIONS
   if (req.method === 'OPTIONS') {
     return new Response('ok', { 
       status: 200, 
@@ -18,31 +19,32 @@ serve(async (req) => {
   }
 
   try {
-    // 2. Validación de método (Solo POST permitido)
+    // 2. Validación de método POST
     if (req.method !== 'POST') {
-      return new Response(JSON.stringify({ error: "Método no permitido" }), {
+      return new Response(JSON.stringify({ error: "Método no permitido. Use POST." }), {
         status: 405,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
 
-    // 3. Procesamiento de FormData para archivos
+    // 3. Extracción de FormData
+    // NO se usa req.json() para evitar "Unexpected end of JSON input" con multipart/form-data
     const formData = await req.formData()
     const file = formData.get('file') as File
     const defaultCategory = formData.get('defaultCategory') as string || 'aire_acondicionado'
 
     if (!file) {
-      return new Response(JSON.stringify({ error: "No se ha proporcionado ningún archivo en el campo 'file'." }), {
+      return new Response(JSON.stringify({ error: "No se ha encontrado el archivo en el campo 'file'." }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
 
-    // 4. Inicialización de Gemini
-    // Fix: Use process.env.API_KEY as per GenAI coding guidelines and avoid Deno.env to resolve TS error.
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY })
+    // 4. Inicialización de Gemini 
+    // Siempre usar process.env.API_KEY para la clave de API
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     
-    // Conversión del archivo a Base64
+    // Procesar archivo a Base64
     const arrayBuffer = await file.arrayBuffer()
     const uint8 = new Uint8Array(arrayBuffer)
     let binary = ''
@@ -67,11 +69,10 @@ serve(async (req) => {
     
     Reglas de extracción:
     1. Si no detectas la categoría, usa obligatoriamente: ${defaultCategory}
-    2. El precio debe ser un número (float) sin símbolos de moneda ni puntos como separadores de miles.
-    3. Responde únicamente con el bloque JSON, sin texto adicional.`
+    2. El precio debe ser un número (float) sin símbolos de moneda ni separadores de miles de texto.
+    3. Responde únicamente con el bloque JSON, sin texto explicativo.`
 
-    // Uso del modelo gemini-3-flash-preview (recomendado para tareas de extracción)
-    // Always use ai.models.generateContent to query GenAI.
+    // 5. Generación de contenido con Gemini 3 Flash
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: {
@@ -90,12 +91,13 @@ serve(async (req) => {
       }
     })
 
-    // Extracción del texto generado (propiedad .text, no método)
-    const responseText = response.text
+    // Acceso a .text (propiedad, no método)
+    const responseText = response.text;
     if (!responseText) {
-      throw new Error("La IA no devolvió una respuesta válida.")
+      throw new Error("El modelo de IA no devolvió datos legibles.");
     }
 
+    // 6. Respuesta exitosa con CORS
     return new Response(responseText, {
       status: 200,
       headers: { 
@@ -107,9 +109,9 @@ serve(async (req) => {
   } catch (err: any) {
     console.error("Error en extract_products_from_file:", err.message)
     
-    // 6. Respuesta de error siempre con CORS
+    // 7. Respuesta de error con CORS
     return new Response(JSON.stringify({ 
-      error: err.message || "Error interno del servidor al procesar con IA." 
+      error: err.message || "Error al procesar el archivo con IA." 
     }), {
       status: 400,
       headers: { 
