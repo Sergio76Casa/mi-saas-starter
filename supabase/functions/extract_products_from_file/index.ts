@@ -55,9 +55,10 @@ serve(async (req) => {
     {
       "products": [
         { 
-          "brand": "Marca normalizada (ej: Comfee)", 
-          "model": "Modelo limpio (ej: CF 09)", 
-          "description": "Descripción técnica", 
+          "brand": "MARCA (Ej: LG, Daikin)", 
+          "model": "MODELO/SERIE (Ej: Libero Smart, Sensira)", 
+          "variant": "VARIANTE/POTENCIA (Ej: SM 09, TXC35D, 12L)",
+          "description": "Descripción técnica concisa", 
           "price": 123.45, 
           "category": "aire_acondicionado | caldera | termo_electrico"
         }
@@ -66,11 +67,12 @@ serve(async (req) => {
     }
     
     Reglas Estrictas:
-    1. Si el documento es ilegible o no hay productos, devuelve "products": [] y el motivo en "error".
-    2. Normalizar BRAND: Primera letra Mayúscula, resto minúsculas, sin espacios dobles.
-    3. Normalizar MODEL: Eliminar la marca si está repetida dentro del modelo.
-    4. Normalizar CATEGORY: Usar "${defaultCategory}" si no se detecta claramente.
-    5. No respondas con texto, solo el JSON puro.`
+    1. SEGMENTACIÓN: Separa marca de modelo y de variante.
+    2. NORMALIZACIÓN BRAND: Mayúsculas consistentes (Ej: "MITSUBISHI").
+    3. NORMALIZACIÓN MODEL: Nombre de la serie sin la marca delante.
+    4. NORMALIZACIÓN VARIANT: El código de potencia o modelo específico que diferencia precios.
+    5. CATEGORY: Usar "${defaultCategory}" si no se detecta otra claramente.
+    6. No respondas con texto descriptivo, solo el JSON puro.`
 
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
@@ -98,7 +100,6 @@ serve(async (req) => {
       })
     }
 
-    // Devolvemos directamente el JSON de Gemini
     return new Response(responseText, {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -107,7 +108,7 @@ serve(async (req) => {
   } catch (err: any) {
     console.error("Error en Edge Function:", err.message)
     return new Response(JSON.stringify({ 
-      error: "Error interno al procesar el documento. Inténtalo de nuevo." 
+      error: "Error interno al procesar el documento." 
     }), {
       status: 400,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }

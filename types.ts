@@ -24,6 +24,24 @@ export interface Membership {
   tenant?: Tenant; 
 }
 
+export interface Product {
+  id: string;
+  company_id: string;
+  brand: string;
+  model: string;
+  type: string;
+  pricing: any; // jsonb: puede ser array o objeto con {variant, price}
+  features?: any;
+  installationKits?: any;
+  extras?: any;
+  financing?: any;
+  pdfUrl?: string;
+  imageUrl?: string;
+  brandLogoUrl?: string;
+  is_deleted: boolean;
+  created_at: string;
+}
+
 export interface Customer {
   id: string;
   tenant_id: string;
@@ -43,10 +61,8 @@ export interface Quote {
   tenant_id: string;
   customer_id: string;
   created_by: string;
-  quote_no: string; // Formato YYYY-0001
+  quote_no: string; 
   customer?: Customer;
-  
-  // Datos capturados en el presupuesto (pueden diferir del perfil del cliente)
   client_name: string;
   client_dni: string;
   client_address: string;
@@ -54,15 +70,12 @@ export interface Quote {
   client_email: string;
   client_phone: string;
   maintenance_no?: string;
-  
   total_amount: number;
   status: 'draft' | 'sent' | 'viewed' | 'accepted' | 'rejected' | 'expired';
   created_at: string;
   valid_until: string;
-  
   financing_months?: number;
   financing_fee?: number;
-  
   items?: QuoteItem[];
 }
 
