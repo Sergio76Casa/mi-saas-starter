@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useOutletContext } from 'react-router-dom';
+import { useOutletContext, useNavigate, useParams } from 'react-router-dom';
 import { supabase, isConfigured } from '../../supabaseClient';
 import { Tenant } from '../../types';
 import { useApp } from '../../AppProvider';
@@ -14,29 +14,14 @@ const CATEGORIES = [
 
 export const TenantProducts = () => {
   const { tenant } = useOutletContext<{ tenant: Tenant }>();
+  const { slug } = useParams();
   const { language } = useApp();
+  const navigate = useNavigate();
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState('all');
   const [filterActive, setFilterActive] = useState('all');
-
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingProduct, setEditingProduct] = useState<any>(null);
-  const [formData, setFormData] = useState({
-    name: '',
-    description: '',
-    price: 0,
-    category: 'aire_acondicionado',
-    is_active: true
-  });
-
-  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
-  const [importFile, setImportFile] = useState<File | null>(null);
-  const [defaultCategory, setDefaultCategory] = useState('aire_acondicionado');
-  const [isImporting, setIsImporting] = useState(false);
-  const [importPreview, setImportPreview] = useState<any[]>([]);
-  const [importStatus, setImportStatus] = useState<{ type: 'error' | 'success', message: string } | null>(null);
 
   // Group products by Brand + Series for the specific layout
   const groupedProducts = useMemo(() => {
@@ -93,28 +78,12 @@ export const TenantProducts = () => {
 
   useEffect(() => { fetchProducts(); }, [tenant?.id, searchTerm, filterCategory, filterActive]);
 
-  const handleOpenModal = (product: any = null) => {
-    if (product) {
-      setEditingProduct(product);
-      setFormData({ name: product.name, description: product.description || '', price: product.price, category: product.category || 'aire_acondicionado', is_active: product.is_active });
-    } else {
-      setEditingProduct(null);
-      setFormData({ name: '', description: '', price: 0, category: 'aire_acondicionado', is_active: true });
-    }
-    setIsModalOpen(true);
+  const handleEdit = (productId: string) => {
+    navigate(`/t/${slug}/products/${productId}/edit`);
   };
 
-  const handleSaveProduct = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!tenant?.id) return;
-    if (editingProduct) {
-      const { error } = await supabase.from('products').update(formData).eq('id', editingProduct.id).eq('tenant_id', tenant.id);
-      if (!error) setIsModalOpen(false);
-    } else {
-      const { error } = await supabase.from('products').insert([{ ...formData, tenant_id: tenant.id }]);
-      if (!error) setIsModalOpen(false);
-    }
-    fetchProducts();
+  const handleAddNew = () => {
+    navigate(`/t/${slug}/products/new/edit`);
   };
 
   const handleDeleteFamily = async (ids: string[]) => {
@@ -122,28 +91,6 @@ export const TenantProducts = () => {
     const { error } = await supabase.from('products').delete().in('id', ids).eq('tenant_id', tenant.id);
     if (error) alert("Error al eliminar: " + error.message);
     fetchProducts();
-  };
-
-  const handleProcessIA = async () => {
-    if (!importFile || !tenant?.id) return;
-    setIsImporting(true); setImportStatus(null); setImportPreview([]);
-    try {
-      const body = new FormData();
-      body.append('file', importFile);
-      body.append('defaultCategory', defaultCategory);
-      const { data, error } = await supabase.functions.invoke('extract_products_from_file', { body });
-      if (error) throw new Error("Servicio de IA no disponible.");
-      const normalizedProducts = data.products.map((p: any) => ({ ...p, name: `${p.brand || ''} ${p.model || ''}`.trim() || 'Producto', category: p.category || defaultCategory }));
-      setImportPreview(normalizedProducts);
-      setImportStatus({ type: 'success', message: 'Procesado correctamente.' });
-    } catch (err: any) { setImportStatus({ type: 'error', message: err.message }); } 
-    finally { setIsImporting(false); }
-  };
-
-  const handleConfirmImport = async () => {
-    if (!tenant?.id || importPreview.length === 0) return;
-    const { error } = await supabase.from('products').insert(importPreview.map(p => ({ ...p, tenant_id: tenant.id, is_active: true })));
-    if (!error) { setIsImportModalOpen(false); setImportPreview([]); fetchProducts(); }
   };
 
   return (
@@ -155,7 +102,7 @@ export const TenantProducts = () => {
            </div>
            <h3 className="text-2xl font-black text-slate-800 tracking-tighter">Inventario</h3>
         </div>
-        <button onClick={() => handleOpenModal()} className="w-full md:w-auto px-6 py-2.5 bg-blue-600 text-white text-[11px] font-black uppercase tracking-widest rounded-xl shadow-lg hover:bg-blue-700 transition-all flex items-center justify-center gap-2">
+        <button onClick={handleAddNew} className="w-full md:w-auto px-6 py-2.5 bg-blue-600 text-white text-[11px] font-black uppercase tracking-widest rounded-xl shadow-lg hover:bg-blue-700 transition-all flex items-center justify-center gap-2">
            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 4v16m8-8H4"/></svg>
            Nuevo Producto
         </button>
@@ -176,7 +123,6 @@ export const TenantProducts = () => {
           <tbody className="divide-y divide-slate-50">
             {groupedProducts.map((group) => (
               <tr key={group.id} className="hover:bg-slate-50/30 transition-colors align-top group">
-                {/* MARCA / MODELO */}
                 <td className="px-8 py-8">
                   <div className="flex items-start gap-4">
                     <div className="w-14 h-14 bg-white border border-slate-100 rounded-xl shadow-sm flex items-center justify-center p-2 shrink-0">
@@ -188,15 +134,11 @@ export const TenantProducts = () => {
                     </div>
                   </div>
                 </td>
-
-                {/* TIPO */}
                 <td className="px-6 py-8">
                   <span className="inline-flex items-center px-4 py-1.5 bg-blue-50/50 text-blue-600 text-[10px] font-black uppercase rounded-lg border border-blue-100 tracking-wider">
                     {CATEGORIES.find(c => c.id === group.category)?.label || group.category}
                   </span>
                 </td>
-
-                {/* PRECIOS */}
                 <td className="px-6 py-8">
                   <div className="space-y-1.5">
                     {group.variants.map((v, i) => (
@@ -207,16 +149,12 @@ export const TenantProducts = () => {
                     ))}
                   </div>
                 </td>
-
-                {/* IMÁGENES */}
                 <td className="px-6 py-8 text-center">
                   <div className="flex items-center justify-center gap-1.5">
                     <div className="w-2.5 h-2.5 rounded-full bg-green-500 shadow-sm"></div>
                     <div className="w-2.5 h-2.5 rounded-full bg-blue-500 shadow-sm"></div>
                   </div>
                 </td>
-
-                {/* FICHA */}
                 <td className="px-6 py-8 text-center">
                   <div className="flex justify-center">
                     {group.variants[0].description ? (
@@ -228,11 +166,9 @@ export const TenantProducts = () => {
                     )}
                   </div>
                 </td>
-
-                {/* ACCIONES */}
                 <td className="px-8 py-8 text-right">
                   <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button onClick={() => handleOpenModal(group.variants[0])} className="p-2 text-slate-300 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all">
+                    <button onClick={() => handleEdit(group.id)} className="p-2 text-slate-300 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all">
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
                     </button>
                     <button onClick={() => handleDeleteFamily(group.ids)} className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all">
@@ -248,35 +184,6 @@ export const TenantProducts = () => {
           </tbody>
         </table>
       </div>
-
-      {/* Modal: Nuevo / Editar */}
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-          <div className="bg-white rounded-[2.5rem] p-8 md:p-12 w-full max-w-lg shadow-2xl overflow-y-auto max-h-[90vh]">
-            <h4 className="text-2xl font-black text-slate-900 mb-8 uppercase tracking-tighter italic">{editingProduct ? 'Editar Producto' : 'Añadir Producto'}</h4>
-            <form onSubmit={handleSaveProduct} className="space-y-6">
-              <Input label="Nombre del Producto (Incluir Marca + Modelo + Variante)" value={formData.name} onChange={(e:any) => setFormData({...formData, name: e.target.value})} required />
-              <div className="text-left">
-                <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1">Descripción / Especificaciones</label>
-                <textarea className="w-full px-4 py-3 border border-slate-100 rounded-xl bg-slate-50/50 h-28 text-sm outline-none focus:ring-2 focus:ring-blue-500 resize-none" value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})} />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <Input label="Precio Venta (€)" type="number" step="0.01" value={formData.price} onChange={(e:any) => setFormData({...formData, price: parseFloat(e.target.value)})} required />
-                <div>
-                  <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1">Categoría</label>
-                  <select value={formData.category} onChange={(e) => setFormData({...formData, category: e.target.value})} className="w-full px-4 py-3 border border-slate-100 rounded-xl bg-slate-50/50 text-xs outline-none focus:ring-2 focus:ring-blue-500">
-                    {CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
-                  </select>
-                </div>
-              </div>
-              <div className="flex gap-4 pt-6">
-                <button type="submit" className="flex-1 py-5 bg-blue-600 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl hover:bg-blue-700 active:scale-95 transition-all">Guardar Cambios</button>
-                <button type="button" onClick={() => setIsModalOpen(false)} className="px-8 py-5 text-slate-400 font-black uppercase text-xs tracking-widest">Cancelar</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

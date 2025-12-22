@@ -13,6 +13,7 @@ import { LoadingSpinner } from './components/common/LoadingSpinner';
 import { Input } from './components/common/Input';
 import { PublicTenantWebsite } from './pages/public/PublicTenantWebsite';
 import { TenantProducts } from './pages/tenant/TenantProducts';
+import { ProductEditor } from './pages/tenant/ProductEditor';
 
 // --- Common UI Helpers ---
 
@@ -864,6 +865,7 @@ export default function App() {
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="customers" element={<Customers />} />
             <Route path="products" element={<TenantProducts />} />
+            <Route path="products/:id/edit" element={<ProductEditor />} />
             <Route path="quotes" element={<Quotes />} />
             <Route path="quotes/:id" element={<QuoteEditor />} />
             <Route path="settings" element={<TenantSettings />} />
