@@ -97,24 +97,22 @@ export const TenantProducts = () => {
     setFetchError(null);
 
     try {
-        // Usamos .neq('is_deleted', true) para que también incluya registros donde sea NULL
-        let query = supabase
+        // CORRECCIÓN: Uso estricto de company_id y filtro neq para is_deleted
+        const { data, error } = await supabase
           .from('products')
           .select('*')
           .eq('company_id', tenant.id)
           .neq('is_deleted', true)
-          .order('brand', { ascending: true })
-          .order('model', { ascending: true });
-
-        const { data, error } = await query;
+          .order('brand', { ascending: true });
         
         if (error) {
-            console.error("Error fetching products:", error);
-            setFetchError("Error al conectar con la base de datos.");
+            console.error("Supabase Error [fetchProducts]:", error);
+            setFetchError(`Error de base de datos: ${error.message}`);
         } else {
             setProducts(data as Product[] || []);
         }
-    } catch (err) {
+    } catch (err: any) {
+        console.error("Unexpected Error [fetchProducts]:", err);
         setFetchError("Ocurrió un error inesperado al cargar el inventario.");
     } finally {
         setLoading(false);
@@ -122,7 +120,7 @@ export const TenantProducts = () => {
   };
 
   useEffect(() => { 
-    fetchProducts(); 
+    if (tenant?.id) fetchProducts(); 
   }, [tenant?.id]);
 
   const handleEdit = (productId: string) => {
@@ -136,20 +134,24 @@ export const TenantProducts = () => {
   const handleDeleteFamily = async (ids: string[]) => {
     if (!tenant?.id || !window.confirm(`¿Desea eliminar esta familia de productos (${ids.length} registros)?`)) return;
     
+    // CORRECCIÓN: Uso de company_id para asegurar RLS y borrado correcto
     const { error } = await supabase
       .from('products')
       .update({ is_deleted: true })
       .in('id', ids)
       .eq('company_id', tenant.id);
 
-    if (error) alert("Error al eliminar: " + error.message);
-    else fetchProducts();
+    if (error) {
+        alert("Error al eliminar: " + error.message);
+    } else {
+        fetchProducts();
+    }
   };
 
   if (!tenant?.id && !loading) {
       return (
         <div className="p-12 text-center">
-            <p className="text-slate-400 font-black uppercase text-xs italic">No hay empresa seleccionada</p>
+            <p className="text-slate-400 font-black uppercase text-xs italic tracking-widest">Esperando identificación de empresa...</p>
         </div>
       );
   }
@@ -170,9 +172,12 @@ export const TenantProducts = () => {
       </div>
 
       {fetchError && (
-          <div className="bg-red-50 border border-red-100 text-red-600 p-4 rounded-2xl text-xs font-bold flex items-center gap-3">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-              {fetchError}
+          <div className="bg-red-50 border border-red-100 text-red-600 p-4 rounded-2xl text-xs font-bold flex items-center gap-3 shadow-sm">
+              <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              <div>
+                <p className="font-black uppercase tracking-tight">Error de conexión</p>
+                <p className="opacity-70 font-medium">{fetchError}</p>
+              </div>
           </div>
       )}
 
@@ -217,7 +222,7 @@ export const TenantProducts = () => {
               <th className="px-6 py-5">Tipo</th>
               <th className="px-6 py-5">Variantes / Precios</th>
               <th className="px-6 py-5 text-center">Imágenes</th>
-              <th className="px-6 py-5 text-center">Ficha</th>
+              <th className="px-6 py-5 text-center">Ficha IA</th>
               <th className="px-8 py-5 text-right">Acciones</th>
             </tr>
           </thead>
@@ -249,7 +254,7 @@ export const TenantProducts = () => {
                     {group.variants.map((v, idx) => (
                       <div key={idx} className="text-[11px] font-medium text-slate-600 flex items-center gap-1.5">
                         <span className="text-slate-400 truncate max-w-[280px]">
-                          {group.brand} {group.model} {v.variant}:
+                          {v.variant}:
                         </span>
                         <span className="font-black text-blue-600 whitespace-nowrap">{formatCurrency(v.price, language)}</span>
                       </div>
@@ -260,14 +265,14 @@ export const TenantProducts = () => {
                 <td className="px-6 py-8 text-center">
                   <div className="flex items-center justify-center gap-1.5">
                     {group.imageUrl ? (
-                      <div className="w-2.5 h-2.5 rounded-full bg-green-500 shadow-sm" title="Imagen de producto disponible"></div>
+                      <div className="w-2.5 h-2.5 rounded-full bg-green-500 shadow-sm" title="Imagen disponible"></div>
                     ) : (
-                      <div className="w-2.5 h-2.5 rounded-full bg-slate-200 shadow-sm" title="Sin imagen de producto"></div>
+                      <div className="w-2.5 h-2.5 rounded-full bg-slate-200 shadow-sm" title="Sin imagen"></div>
                     )}
                     {group.brandLogoUrl ? (
-                      <div className="w-2.5 h-2.5 rounded-full bg-blue-500 shadow-sm" title="Logo de marca disponible"></div>
+                      <div className="w-2.5 h-2.5 rounded-full bg-blue-500 shadow-sm" title="Logo disponible"></div>
                     ) : (
-                      <div className="w-2.5 h-2.5 rounded-full bg-slate-200 shadow-sm" title="Sin logo de marca"></div>
+                      <div className="w-2.5 h-2.5 rounded-full bg-slate-200 shadow-sm" title="Sin logo"></div>
                     )}
                   </div>
                 </td>
@@ -294,10 +299,10 @@ export const TenantProducts = () => {
                 </td>
               </tr>
             ))}
-            {!loading && products.length === 0 && (
+            {!loading && products.length === 0 && !fetchError && (
                 <tr><td colSpan={6} className="px-10 py-32 text-center text-slate-300 font-black uppercase text-xs italic tracking-widest">No hay productos todavía en tu inventario</td></tr>
             )}
-            {!loading && products.length > 0 && groupedProducts.length === 0 && (
+            {!loading && products.length > 0 && groupedProducts.length === 0 && !fetchError && (
               <tr><td colSpan={6} className="px-10 py-32 text-center text-slate-300 font-black uppercase text-xs italic tracking-widest">No se encontraron productos con estos filtros</td></tr>
             )}
             {loading && (
