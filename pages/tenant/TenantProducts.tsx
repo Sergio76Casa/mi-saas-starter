@@ -97,10 +97,12 @@ export const TenantProducts = () => {
     setFetchError(null);
 
     try {
+        // CORRECCIÓN: Se añade el filtro neq('is_deleted', true) para el borrado lógico
         const { data, error } = await supabase
           .from('products')
           .select('*')
           .eq('tenant_id', tenant.id)
+          .neq('is_deleted', true)
           .order('brand', { ascending: true });
         
         if (error) {
@@ -132,9 +134,10 @@ export const TenantProducts = () => {
   const handleDeleteFamily = async (ids: string[]) => {
     if (!tenant?.id || !window.confirm(`¿Desea eliminar esta familia de productos (${ids.length} registros)?`)) return;
     
+    // CORRECCIÓN: Se cambia .delete() por .update({ is_deleted: true }) para Soft Delete
     const { error } = await supabase
       .from('products')
-      .delete()
+      .update({ is_deleted: true })
       .in('id', ids)
       .eq('tenant_id', tenant.id);
 

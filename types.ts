@@ -39,6 +39,7 @@ export interface Product {
   image_url?: string;
   brand_logo_url?: string;
   ficha?: any; // Objeto raw de la IA
+  is_deleted: boolean;
   created_at: string;
 }
 

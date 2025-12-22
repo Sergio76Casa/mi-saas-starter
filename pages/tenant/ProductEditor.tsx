@@ -136,7 +136,7 @@ export const ProductEditor = () => {
     setSaving(true);
     const cleanedPricing = productData.pricing.filter(v => v.variant.trim() !== '');
 
-    const payload = {
+    const payload: any = {
       brand: productData.brand.trim(),
       model: productData.model.trim(),
       type: productData.type,
@@ -154,6 +154,8 @@ export const ProductEditor = () => {
 
     let error;
     if (id === 'new') {
+      // CORRECCIÓN: Se asegura que el nuevo producto nazca con is_deleted = false
+      payload.is_deleted = false;
       const { error: err } = await supabase.from('products').insert([payload]);
       error = err;
     } else {
