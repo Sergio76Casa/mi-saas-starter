@@ -52,9 +52,9 @@ export const TenantProducts = () => {
           type: t,
           variants: [],
           ids: [],
-          pdfUrl: p.pdfUrl,
-          imageUrl: p.imageUrl,
-          brandLogoUrl: p.brandLogoUrl,
+          pdfUrl: p.pdf_url,
+          imageUrl: p.image_url,
+          brandLogoUrl: p.brand_logo_url,
           minPrice: Infinity
         };
       }
@@ -97,7 +97,6 @@ export const TenantProducts = () => {
     setFetchError(null);
 
     try {
-        // CORRECCIÓN: Eliminado filtro de is_deleted que causaba error
         const { data, error } = await supabase
           .from('products')
           .select('*')
@@ -133,7 +132,6 @@ export const TenantProducts = () => {
   const handleDeleteFamily = async (ids: string[]) => {
     if (!tenant?.id || !window.confirm(`¿Desea eliminar esta familia de productos (${ids.length} registros)?`)) return;
     
-    // CORRECCIÓN: Cambio de .update({ is_deleted: true }) a .delete() físico
     const { error } = await supabase
       .from('products')
       .delete()

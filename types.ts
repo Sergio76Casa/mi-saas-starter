@@ -32,12 +32,12 @@ export interface Product {
   type: string;
   pricing: any; 
   features?: any;
-  installationKits?: any;
+  installation_kits?: any;
   extras?: any;
   financing?: any;
-  pdfUrl?: string;
-  imageUrl?: string;
-  brandLogoUrl?: string;
+  pdf_url?: string;
+  image_url?: string;
+  brand_logo_url?: string;
   ficha?: any; // Objeto raw de la IA
   created_at: string;
 }
