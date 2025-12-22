@@ -97,11 +97,11 @@ export const TenantProducts = () => {
     setFetchError(null);
 
     try {
-        // CORRECCIÓN: Uso estricto de company_id y filtro neq para is_deleted
+        // CORRECCIÓN: Uso de tenant_id y filtro neq para is_deleted
         const { data, error } = await supabase
           .from('products')
           .select('*')
-          .eq('company_id', tenant.id)
+          .eq('tenant_id', tenant.id)
           .neq('is_deleted', true)
           .order('brand', { ascending: true });
         
@@ -134,12 +134,12 @@ export const TenantProducts = () => {
   const handleDeleteFamily = async (ids: string[]) => {
     if (!tenant?.id || !window.confirm(`¿Desea eliminar esta familia de productos (${ids.length} registros)?`)) return;
     
-    // CORRECCIÓN: Uso de company_id para asegurar RLS y borrado correcto
+    // CORRECCIÓN: Uso de tenant_id para asegurar RLS y borrado correcto
     const { error } = await supabase
       .from('products')
       .update({ is_deleted: true })
       .in('id', ids)
-      .eq('company_id', tenant.id);
+      .eq('tenant_id', tenant.id);
 
     if (error) {
         alert("Error al eliminar: " + error.message);

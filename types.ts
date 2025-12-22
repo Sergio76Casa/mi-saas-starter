@@ -26,7 +26,7 @@ export interface Membership {
 
 export interface Product {
   id: string;
-  company_id: string;
+  tenant_id: string;
   brand: string;
   model: string;
   type: string;

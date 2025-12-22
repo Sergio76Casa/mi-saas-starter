@@ -149,7 +149,7 @@ export const ProductEditor = () => {
       extras: productData.extras,
       financing: productData.financing,
       ficha: productData.ficha,
-      company_id: tenant.id,
+      tenant_id: tenant.id,
       is_deleted: false
     };
 
