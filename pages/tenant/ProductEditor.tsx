@@ -5,6 +5,7 @@ import { Tenant, Product } from '../../types';
 import { useApp } from '../../AppProvider';
 import { Input } from '../../components/common/Input';
 import { LoadingSpinner } from '../../components/common/LoadingSpinner';
+import { formatCurrency } from '../../i18n';
 
 const TYPES = [
   { id: 'aire_acondicionado', label: 'Aire Acondicionado' },
@@ -21,6 +22,7 @@ export const ProductEditor = () => {
   const [saving, setSaving] = useState(false);
   const [isProcessingIA, setIsProcessingIA] = useState(false);
   const [iaStatus, setIaStatus] = useState<{ type: 'idle' | 'loading' | 'success' | 'error', message?: string }>({ type: 'idle' });
+  const [iaResult, setIaResult] = useState<any>(null); // Datos temporales para revisión
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -32,11 +34,11 @@ export const ProductEditor = () => {
     imageUrl: '',
     brandLogoUrl: '',
     pricing: [{ variant: '', price: 0 }],
-    // Campos extendidos para persistencia completa
     features: [] as any,
     installationKits: [] as any,
     extras: [] as any,
-    financing: [] as any
+    financing: [] as any,
+    ficha: {} as any
   });
 
   useEffect(() => {
@@ -60,7 +62,8 @@ export const ProductEditor = () => {
           features: p.features || [],
           installationKits: p.installationKits || [],
           extras: p.extras || [],
-          financing: p.financing || []
+          financing: p.financing || [],
+          ficha: p.ficha || {}
         });
       }
       setLoading(false);
@@ -74,6 +77,7 @@ export const ProductEditor = () => {
 
     setIaStatus({ type: 'loading', message: 'Analizando documento...' });
     setIsProcessingIA(true);
+    setIaResult(null);
 
     try {
       const file = files[0];
@@ -88,21 +92,7 @@ export const ProductEditor = () => {
       if (error) throw error;
 
       if (data && data.products && data.products.length > 0) {
-        const extracted = data.products[0];
-        
-        // Mapeo inteligente sin destruir datos existentes si no vienen en la IA
-        setProductData(prev => ({
-          ...prev,
-          brand: extracted.brand || prev.brand,
-          model: extracted.model || prev.model,
-          type: extracted.category || prev.type,
-          pricing: extracted.price ? [{ variant: extracted.variant || 'Estándar', price: extracted.price }] : prev.pricing,
-          features: extracted.features || prev.features,
-          installationKits: extracted.installationKits || prev.installationKits,
-          extras: extracted.extras || prev.extras,
-          financing: extracted.financing || prev.financing
-        }));
-
+        setIaResult(data);
         setIaStatus({ type: 'success', message: '¡Datos extraídos con éxito!' });
       } else {
         setIaStatus({ type: 'error', message: data.error || 'No se detectaron productos en el archivo.' });
@@ -114,6 +104,32 @@ export const ProductEditor = () => {
       setIsProcessingIA(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
+  };
+
+  const applyIAResult = () => {
+    if (!iaResult || !iaResult.products?.length) return;
+    const extracted = iaResult.products[0];
+
+    setProductData(prev => ({
+      ...prev,
+      brand: extracted.brand || prev.brand,
+      model: extracted.model || prev.model,
+      type: extracted.category || prev.type,
+      pricing: extracted.price ? [{ variant: extracted.variant || 'Estándar', price: extracted.price }] : prev.pricing,
+      pdfUrl: extracted.pdfUrl || prev.pdfUrl,
+      imageUrl: extracted.imageUrl || prev.imageUrl,
+      brandLogoUrl: extracted.brandLogoUrl || prev.brandLogoUrl,
+      // Guardar el raw en ficha
+      ficha: iaResult
+    }));
+    
+    setIaResult(null); // Limpiar panel tras aplicar
+    setIaStatus({ type: 'idle' });
+  };
+
+  const discardIAResult = () => {
+    setIaResult(null);
+    setIaStatus({ type: 'idle' });
   };
 
   const handleSave = async () => {
@@ -132,6 +148,7 @@ export const ProductEditor = () => {
       installationKits: productData.installationKits,
       extras: productData.extras,
       financing: productData.financing,
+      ficha: productData.ficha,
       company_id: tenant.id,
       is_deleted: false
     };
@@ -241,6 +258,47 @@ export const ProductEditor = () => {
             </div>
           </div>
         </section>
+
+        {/* PANEL DE REVISIÓN DE IA */}
+        {iaResult && (
+          <section className="bg-white border-2 border-blue-100 rounded-[1.8rem] p-8 md:p-10 shadow-lg animate-in slide-in-from-top-4 duration-500">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+               <div>
+                  <h3 className="text-xl font-black uppercase italic tracking-tight text-slate-800">Resultado de la IA (Previsualización)</h3>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Revisa los datos antes de aplicarlos al formulario</p>
+               </div>
+               <div className="flex gap-3 w-full md:w-auto">
+                  <button onClick={discardIAResult} className="flex-1 md:flex-none px-6 py-3 bg-slate-50 text-slate-400 rounded-xl font-black text-[10px] uppercase tracking-widest border border-slate-100 hover:bg-slate-100">Descartar</button>
+                  <button onClick={applyIAResult} className="flex-1 md:flex-none px-8 py-3 bg-blue-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg hover:bg-blue-700 transition-all">Aplicar al formulario</button>
+               </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+               <div className="space-y-4">
+                  <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
+                     <span className="text-[9px] font-black text-slate-300 uppercase block mb-1">Marca / Modelo Detectado</span>
+                     <p className="font-black text-slate-800 uppercase italic">{iaResult.products[0].brand} {iaResult.products[0].model}</p>
+                  </div>
+                  <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
+                     <span className="text-[9px] font-black text-slate-300 uppercase block mb-1">Tipo Detectado</span>
+                     <p className="font-bold text-blue-600 uppercase text-xs">{TYPES.find(t => t.id === iaResult.products[0].category)?.label || iaResult.products[0].category}</p>
+                  </div>
+               </div>
+
+               <div className="md:col-span-2 p-6 bg-blue-50/30 rounded-2xl border border-blue-50">
+                  <span className="text-[9px] font-black text-blue-300 uppercase block mb-3">Variantes y Precios Extraídos</span>
+                  <div className="space-y-2">
+                     {iaResult.products.map((p: any, idx: number) => (
+                        <div key={idx} className="flex justify-between items-center bg-white p-3 rounded-xl border border-blue-100 shadow-sm">
+                           <span className="text-xs font-bold text-slate-700">{p.variant || 'Estándar'}</span>
+                           <span className="font-black text-blue-600">{formatCurrency(p.price, language)}</span>
+                        </div>
+                     ))}
+                  </div>
+               </div>
+            </div>
+          </section>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           <div className="space-y-8">

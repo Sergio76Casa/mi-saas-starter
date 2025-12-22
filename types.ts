@@ -30,7 +30,7 @@ export interface Product {
   brand: string;
   model: string;
   type: string;
-  pricing: any; // jsonb: puede ser array o objeto con {variant, price}
+  pricing: any; 
   features?: any;
   installationKits?: any;
   extras?: any;
@@ -38,6 +38,7 @@ export interface Product {
   pdfUrl?: string;
   imageUrl?: string;
   brandLogoUrl?: string;
+  ficha?: any; // Objeto raw de la IA
   is_deleted: boolean;
   created_at: string;
 }
