@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { supabase, isConfigured } from '../../supabaseClient';
 import { Tenant } from '../../types';
@@ -83,6 +83,7 @@ export const TenantProducts = () => {
     setIsModalOpen(true);
   };
 
+  // Fixed type annotation: added React namespace
   const handleSaveProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!tenant?.id) {
@@ -313,7 +314,7 @@ export const TenantProducts = () => {
                 <textarea 
                   className="w-full px-4 py-3 border border-gray-100 rounded-2xl shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-500 transition-all text-sm bg-gray-50/50 h-24 resize-none"
                   value={formData.description}
-                  onChange={(e) => setFormData({...formData, description: e.target.value})}
+                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setFormData({...formData, description: e.target.value})}
                 />
               </div>
               <div className="grid grid-cols-2 gap-6">

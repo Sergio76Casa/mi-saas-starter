@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Link, useNavigate, useParams, useLocation } from 'react-router-dom';
 import { supabase, isConfigured } from '../../supabaseClient';
 import { Tenant } from '../../types';
@@ -109,7 +109,7 @@ const LOCAL_I18N = {
     alert_success: '¡Presupuesto generado con éxito!',
     footer_copy: 'EcoQuote AI · Smart Installation Solution',
     cat_all: 'Todas',
-    cat_ac: 'Aire Acondicionado',
+    cat_ac: 'Aire Concondicionado',
     cat_boiler: 'Calderas',
     cat_thermo: 'Termos eléctricos'
   },
@@ -341,6 +341,7 @@ export const PublicTenantWebsite = () => {
     }
   };
 
+  // Fixed type annotation: added React namespace
   const handleContactSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!contactForm.name || !contactForm.email || !contactForm.message) {
@@ -357,6 +358,7 @@ export const PublicTenantWebsite = () => {
     }, 1000);
   };
 
+  // Fixed type annotation: added React namespace
   const startDrawing = (e: React.MouseEvent | React.TouchEvent) => {
     setIsDrawing(true);
     const canvas = canvasRef.current;
@@ -368,6 +370,7 @@ export const PublicTenantWebsite = () => {
     ctx.moveTo(pos.x, pos.y);
   };
 
+  // Fixed type annotation: added React namespace
   const draw = (e: React.MouseEvent | React.TouchEvent) => {
     if (!isDrawing) return;
     const canvas = canvasRef.current;
@@ -386,6 +389,7 @@ export const PublicTenantWebsite = () => {
 
   const stopDrawing = () => setIsDrawing(false);
 
+  // Fixed type annotation: added React namespace
   const getPos = (e: React.MouseEvent | React.TouchEvent) => {
     const canvas = canvasRef.current;
     if (!canvas) return { x: 0, y: 0 };
@@ -496,7 +500,7 @@ export const PublicTenantWebsite = () => {
                       className="w-full px-4 py-3 border border-gray-100 rounded-2xl shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-sm bg-gray-50/50 h-32 resize-none" 
                       placeholder="..." 
                       value={contactForm.message} 
-                      onChange={(e) => setContactForm({...contactForm, message: e.target.value})} 
+                      onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setContactForm({...contactForm, message: e.target.value})} 
                       required 
                     />
                   </div>
@@ -543,28 +547,6 @@ export const PublicTenantWebsite = () => {
               </div>
             </section>
           </div>
-
-          <section className="py-32 bg-slate-50 px-10 border-y border-slate-100 mt-20">
-            <div className="max-w-7xl mx-auto">
-              <div className="text-center mb-24">
-                <h2 className="text-5xl font-black tracking-tight uppercase italic leading-none mb-4">{tt('how_it_works')}</h2>
-                <div className="w-24 h-2 bg-blue-600 mx-auto mt-6 rounded-full"></div>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
-                 {[
-                   { t: tt('step1_title'), d: tt('step1_desc'), i: "❄️" },
-                   { t: tt('step2_title'), d: tt('step2_desc'), i: "⚙️" },
-                   { t: tt('step3_title'), d: tt('step3_desc'), i: "✍️" }
-                 ].map((s, i) => (
-                   <div key={i} className="bg-white p-14 rounded-[3.5rem] border border-slate-200/60 shadow-sm hover:shadow-2xl transition-all group text-left">
-                      <div className="text-5xl mb-10 group-hover:scale-125 transition-transform inline-block">{s.i}</div>
-                      <h3 className="text-2xl font-black mb-6 uppercase italic leading-none">{s.t}</h3>
-                      <p className="text-slate-400 font-medium italic leading-relaxed text-sm">{s.d}</p>
-                   </div>
-                 ))}
-              </div>
-            </div>
-          </section>
 
           <section id="catalog" className="py-32 px-6 md:px-12 scroll-mt-24">
              <div className="max-w-7xl mx-auto">
