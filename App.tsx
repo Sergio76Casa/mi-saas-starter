@@ -48,10 +48,10 @@ const SuperAdminFloatingBar = () => {
   const { profile } = useApp();
   if (!profile?.is_superadmin) return null;
   return (
-    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] animate-in slide-in-from-bottom-10 duration-500">
-      <Link to="/admin/dashboard" className="flex items-center gap-3 px-6 py-3 bg-slate-900 text-white rounded-full shadow-2xl border border-white/10 hover:scale-105 transition-all group">
-        <span className="text-[10px] font-black uppercase tracking-[0.2em]">Panel del Sistema Central</span>
-        <span className="group-hover:translate-x-1 transition-transform">→</span>
+    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] animate-in slide-in-from-bottom-10 duration-500 w-[90%] md:w-auto">
+      <Link to="/admin/dashboard" className="flex items-center justify-center gap-3 px-6 py-3 bg-slate-900 text-white rounded-full shadow-2xl border border-white/10 hover:scale-105 transition-all group">
+        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-center">Panel del Sistema Central</span>
+        <span className="group-hover:translate-x-1 transition-transform hidden md:inline">→</span>
       </Link>
     </div>
   );
@@ -161,23 +161,23 @@ const QuoteEditor = () => {
   };
 
   return (
-    <div className="max-w-5xl mx-auto animate-in fade-in duration-700 pb-24">
-      <div className="flex justify-between items-center mb-10">
+    <div className="max-w-5xl mx-auto animate-in fade-in duration-700 pb-24 px-4 md:px-0">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6">
         <div>
-          <h3 className="text-4xl font-black text-gray-900 tracking-tighter">{t('new_quote')}</h3>
+          <h3 className="text-3xl md:text-4xl font-black text-gray-900 tracking-tighter">{t('new_quote')}</h3>
           <p className="text-[10px] font-black uppercase text-gray-400 tracking-[0.2em] mt-2">Ref: {new Date().getFullYear()}-XXXX</p>
         </div>
-        <div className="flex gap-4">
-          <button onClick={() => navigate(-1)} className="px-6 py-3 text-gray-400 text-[10px] font-black uppercase">Cancelar</button>
-          <button onClick={handleSave} disabled={loading} className="px-10 py-4 bg-brand-600 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-xl">
-            {loading ? 'Guardando...' : 'Finalizar y Congelar'}
+        <div className="flex w-full md:w-auto gap-4">
+          <button onClick={() => navigate(-1)} className="flex-1 md:flex-none px-6 py-3 text-gray-400 text-[10px] font-black uppercase border border-gray-100 rounded-xl">Cancelar</button>
+          <button onClick={handleSave} disabled={loading} className="flex-2 md:flex-none px-10 py-4 bg-brand-600 text-white rounded-xl md:rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-xl">
+            {loading ? '...' : 'Finalizar'}
           </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 md:gap-10">
         <div className="lg:col-span-2 space-y-8">
-          <section className="bg-white p-10 rounded-[2.8rem] border border-gray-100 shadow-sm">
+          <section className="bg-white p-6 md:p-10 rounded-[1.5rem] md:rounded-[2.8rem] border border-gray-100 shadow-sm">
             <h4 className="text-xs font-black uppercase tracking-widest text-brand-600 mb-8 flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-brand-500"></span> Datos del Cliente
             </h4>
@@ -193,7 +193,7 @@ const QuoteEditor = () => {
               </select>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
               <Input label="Nombre" value={formData.client_name} onChange={(e:any) => setFormData({...formData, client_name: e.target.value})} />
               <Input label={t('dni')} value={formData.client_dni} onChange={(e:any) => setFormData({...formData, client_dni: e.target.value})} />
               <div className="md:col-span-2">
@@ -204,49 +204,51 @@ const QuoteEditor = () => {
             </div>
           </section>
 
-          <section className="bg-white p-10 rounded-[2.8rem] border border-gray-100 shadow-sm">
+          <section className="bg-white p-6 md:p-10 rounded-[1.5rem] md:rounded-[2.8rem] border border-gray-100 shadow-sm">
             <h4 className="text-xs font-black uppercase tracking-widest text-brand-600 mb-8 flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-brand-500"></span> Conceptos del Presupuesto
             </h4>
             
-            <table className="w-full text-left mb-8">
-              <thead className="text-[9px] font-black uppercase tracking-widest text-gray-400 border-b border-gray-50">
-                <tr>
-                  <th className="py-4">Descripción</th>
-                  <th className="py-4 text-center">Cant.</th>
-                  <th className="py-4 text-right">Precio</th>
-                  <th className="py-4 text-right">Total</th>
-                  <th className="py-4 text-right"></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {(formData.items || []).map(item => (
-                  <tr key={item.id} className="text-sm">
-                    <td className="py-4 font-bold text-gray-700">{item.description}</td>
-                    <td className="py-4">
-                      <input 
-                        type="number" 
-                        value={item.quantity} 
-                        onChange={(e) => updateItemQty(item.id, parseInt(e.target.value))}
-                        className="w-16 mx-auto block bg-gray-50 border border-gray-100 rounded-lg py-1 px-2 text-center"
-                      />
-                    </td>
-                    <td className="py-4 text-right text-gray-400">{formatCurrency(item.unit_price, language)}</td>
-                    <td className="py-4 text-right font-black text-gray-900">{formatCurrency(item.total, language)}</td>
-                    <td className="py-4 text-right">
-                      <button onClick={() => removeItem(item.id)} className="text-red-400 hover:text-red-600 px-2">×</button>
-                    </td>
+            <div className="overflow-x-auto -mx-6 px-6 md:mx-0 md:px-0 mb-8">
+              <table className="w-full text-left min-w-[500px]">
+                <thead className="text-[9px] font-black uppercase tracking-widest text-gray-400 border-b border-gray-50">
+                  <tr>
+                    <th className="py-4">Descripción</th>
+                    <th className="py-4 text-center">Cant.</th>
+                    <th className="py-4 text-right">Precio</th>
+                    <th className="py-4 text-right">Total</th>
+                    <th className="py-4 text-right"></th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {(formData.items || []).map(item => (
+                    <tr key={item.id} className="text-sm">
+                      <td className="py-4 font-bold text-gray-700">{item.description}</td>
+                      <td className="py-4">
+                        <input 
+                          type="number" 
+                          value={item.quantity} 
+                          onChange={(e) => updateItemQty(item.id, parseInt(e.target.value))}
+                          className="w-16 mx-auto block bg-gray-50 border border-gray-100 rounded-lg py-1 px-2 text-center"
+                        />
+                      </td>
+                      <td className="py-4 text-right text-gray-400">{formatCurrency(item.unit_price, language)}</td>
+                      <td className="py-4 text-right font-black text-gray-900">{formatCurrency(item.total, language)}</td>
+                      <td className="py-4 text-right">
+                        <button onClick={() => removeItem(item.id)} className="text-red-400 hover:text-red-600 px-2 text-xl">×</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
 
             <div className="space-y-6">
               <div>
                 <span className="text-[10px] font-black uppercase text-gray-400 block mb-3">Modelos Comfee (PDF)</span>
                 <div className="flex flex-wrap gap-2">
                   {PDF_PRODUCTS.map(p => (
-                    <button key={p.name} onClick={() => addItem(p.name, p.price)} className="px-4 py-2 bg-gray-50 hover:bg-brand-50 hover:text-brand-600 border border-gray-100 rounded-xl text-[10px] font-black transition-all">{p.name} ({p.price}€)</button>
+                    <button key={p.name} onClick={() => addItem(p.name, p.price)} className="px-3 py-2 md:px-4 md:py-2 bg-gray-50 hover:bg-brand-50 hover:text-brand-600 border border-gray-100 rounded-lg md:rounded-xl text-[9px] md:text-[10px] font-black transition-all">{p.name}</button>
                   ))}
                 </div>
               </div>
@@ -255,7 +257,7 @@ const QuoteEditor = () => {
                 <span className="text-[10px] font-black uppercase text-gray-400 block mb-3">Kits de Instalación</span>
                 <div className="flex flex-wrap gap-2">
                   {PDF_KITS.map(k => (
-                    <button key={k.name} onClick={() => addItem(k.name, k.price)} className="px-4 py-2 bg-gray-50 hover:bg-brand-50 hover:text-brand-600 border border-gray-100 rounded-xl text-[10px] font-black transition-all">{k.name} ({k.price}€)</button>
+                    <button key={k.name} onClick={() => addItem(k.name, k.price)} className="px-3 py-2 md:px-4 md:py-2 bg-gray-50 hover:bg-brand-50 hover:text-brand-600 border border-gray-100 rounded-lg md:rounded-xl text-[9px] md:text-[10px] font-black transition-all">{k.name}</button>
                   ))}
                 </div>
               </div>
@@ -263,7 +265,7 @@ const QuoteEditor = () => {
               <div>
                 <button 
                   onClick={() => addItem('Concepto Manual', 0)}
-                  className="w-full py-4 border-2 border-dashed border-gray-100 rounded-2xl text-[10px] font-black text-gray-400 uppercase tracking-widest hover:border-brand-500 hover:text-brand-600 transition-all"
+                  className="w-full py-4 border-2 border-dashed border-gray-100 rounded-xl md:rounded-2xl text-[10px] font-black text-gray-400 uppercase tracking-widest hover:border-brand-500 hover:text-brand-600 transition-all"
                 >
                   + Añadir Concepto Personalizado
                 </button>
@@ -273,7 +275,7 @@ const QuoteEditor = () => {
         </div>
 
         <aside className="space-y-8">
-          <div className="bg-slate-900 text-white p-10 rounded-[2.8rem] shadow-2xl relative overflow-hidden sticky top-32">
+          <div className="bg-slate-900 text-white p-6 md:p-10 rounded-[1.5rem] md:rounded-[2.8rem] shadow-2xl relative overflow-hidden lg:sticky lg:top-32">
             <div className="absolute -top-10 -right-10 w-40 h-40 bg-brand-500/20 blur-[80px] rounded-full"></div>
             <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-brand-400 mb-8">Resumen Total (IVA incl.)</h4>
             
@@ -282,15 +284,15 @@ const QuoteEditor = () => {
                 <span>Subtotal</span>
                 <span>{formatCurrency(subtotal, language)}</span>
               </div>
-              <div className="flex justify-between text-4xl font-black pt-4 border-t border-white/10">
+              <div className="flex justify-between text-3xl md:text-4xl font-black pt-4 border-t border-white/10">
                 <span>TOTAL</span>
                 <span>{formatCurrency(subtotal, language)}</span>
               </div>
             </div>
 
             <div className="pt-8 border-t border-white/10">
-              <label className="text-[9px] font-black uppercase tracking-widest text-brand-400 block mb-4">Calculadora de Financiación</label>
-              <div className="grid grid-cols-3 gap-2 mb-6">
+              <label className="text-[9px] font-black uppercase tracking-widest text-brand-400 block mb-4">Financiación</label>
+              <div className="grid grid-cols-5 gap-1 mb-6">
                 {[12, 24, 36, 48, 60].map(m => (
                   <button 
                     key={m} 
@@ -301,30 +303,28 @@ const QuoteEditor = () => {
                   </button>
                 ))}
               </div>
-              <div className="bg-white/5 p-6 rounded-2xl text-center">
+              <div className="bg-white/5 p-4 md:p-6 rounded-2xl text-center">
                  <div className="text-[10px] font-black uppercase text-slate-500 mb-1">Cuota Mensual Est.</div>
-                 <div className="text-2xl font-black text-brand-500">{formatCurrency(monthlyFee, language)}</div>
-                 <div className="text-[8px] text-slate-600 mt-2 italic">*Coeficiente PDF: {FINANCING_COEFFICIENTS[formData.financing_months || 12]}</div>
+                 <div className="text-xl md:text-2xl font-black text-brand-500">{formatCurrency(monthlyFee, language)}</div>
               </div>
             </div>
 
             <div className="mt-8 text-[9px] text-slate-500 text-center uppercase font-black leading-relaxed">
-              Válido durante 1 mes <br/>
               Hasta {formatDate(formData.valid_until || '', language)}
             </div>
           </div>
 
-          <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 max-h-[500px] overflow-auto shadow-sm">
+          <div className="bg-white p-6 md:p-8 rounded-[1.5rem] md:rounded-[2.5rem] border border-gray-100 max-h-[400px] overflow-auto shadow-sm">
             <h4 className="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-6">Materiales Extras</h4>
             <div className="space-y-2">
               {PDF_EXTRAS.map(e => (
                 <button 
                   key={e.name} 
                   onClick={() => addItem(e.name, e.price)}
-                  className="w-full text-left p-4 hover:bg-gray-50 rounded-xl border border-transparent hover:border-gray-100 transition-all group flex justify-between items-center"
+                  className="w-full text-left p-3 md:p-4 hover:bg-gray-50 rounded-xl border border-transparent hover:border-gray-100 transition-all group flex justify-between items-center"
                 >
-                  <span className="text-[11px] font-bold text-gray-600 group-hover:text-gray-900 leading-tight">{e.name}</span>
-                  <span className="text-[10px] font-black text-brand-600 shrink-0 ml-2">{e.price}€</span>
+                  <span className="text-[10px] md:text-[11px] font-bold text-gray-600 group-hover:text-gray-900 leading-tight pr-2">{e.name}</span>
+                  <span className="text-[10px] font-black text-brand-600 shrink-0">{e.price}€</span>
                 </button>
               ))}
             </div>
@@ -359,14 +359,14 @@ const Customers = () => {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <h3 className="text-3xl font-black text-gray-900 tracking-tighter">{t('customers')}</h3>
-        <button onClick={() => setIsCreating(true)} className="px-6 py-3 bg-brand-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg hover:shadow-brand-500/20 transition-all">+ Nuevo Cliente</button>
+        <button onClick={() => setIsCreating(true)} className="w-full md:w-auto px-6 py-3 bg-brand-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg">+ Nuevo Cliente</button>
       </div>
 
       {isCreating && (
-        <div className="bg-white p-10 rounded-[2.5rem] border border-gray-100 shadow-xl space-y-4">
-           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="bg-white p-6 md:p-10 rounded-[1.5rem] md:rounded-[2.5rem] border border-gray-100 shadow-xl space-y-4">
+           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
              <Input label="Nombre" value={newCust.name} onChange={(e:any) => setNewCust({...newCust, name: e.target.value})} />
              <Input label="Email" value={newCust.email} onChange={(e:any) => setNewCust({...newCust, email: e.target.value})} />
              <Input label="Teléfono" value={newCust.phone} onChange={(e:any) => setNewCust({...newCust, phone: e.target.value})} />
@@ -374,15 +374,15 @@ const Customers = () => {
              <Input label={t('address')} value={newCust.address} onChange={(e:any) => setNewCust({...newCust, address: e.target.value})} />
              <Input label={t('population')} value={newCust.population} onChange={(e:any) => setNewCust({...newCust, population: e.target.value})} />
            </div>
-           <div className="flex gap-4">
-             <button onClick={handleCreate} className="px-8 py-3 bg-slate-900 text-white text-[10px] font-black uppercase rounded-xl">Guardar</button>
-             <button onClick={() => setIsCreating(false)} className="px-8 py-3 text-gray-400 text-[10px] font-black uppercase">Cancelar</button>
+           <div className="flex flex-col md:flex-row gap-4">
+             <button onClick={handleCreate} className="w-full md:w-auto px-8 py-3 bg-slate-900 text-white text-[10px] font-black uppercase rounded-xl">Guardar</button>
+             <button onClick={() => setIsCreating(false)} className="w-full md:w-auto px-8 py-3 text-gray-400 text-[10px] font-black uppercase">Cancelar</button>
            </div>
         </div>
       )}
 
-      <div className="bg-white border border-gray-100 rounded-[2.8rem] overflow-hidden shadow-sm">
-        <table className="w-full text-left">
+      <div className="bg-white border border-gray-100 rounded-[1.5rem] md:rounded-[2.8rem] overflow-hidden shadow-sm overflow-x-auto">
+        <table className="w-full text-left min-w-[600px]">
           <thead className="bg-gray-50 text-gray-400 text-[9px] font-black uppercase tracking-widest">
             <tr><th className="px-10 py-6">Cliente</th><th className="px-10 py-6">Contacto</th><th className="px-10 py-6 text-right">Acciones</th></tr>
           </thead>
@@ -419,13 +419,13 @@ const Quotes = () => {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <h3 className="text-3xl font-black text-gray-900 tracking-tighter">{t('quotes')}</h3>
-        <button onClick={() => navigate(`/t/${tenant.slug}/quotes/new`)} className="px-6 py-3 bg-brand-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg">+ Crear Presupuesto</button>
+        <button onClick={() => navigate(`/t/${tenant.slug}/quotes/new`)} className="w-full md:w-auto px-6 py-3 bg-brand-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg">+ Crear Presupuesto</button>
       </div>
 
-      <div className="bg-white border border-gray-100 rounded-[2.8rem] overflow-hidden shadow-sm">
-        <table className="w-full text-left">
+      <div className="bg-white border border-gray-100 rounded-[1.5rem] md:rounded-[2.8rem] overflow-hidden shadow-sm overflow-x-auto">
+        <table className="w-full text-left min-w-[700px]">
           <thead className="bg-gray-50 text-gray-400 text-[9px] font-black uppercase tracking-widest">
             <tr><th className="px-10 py-6">Ref/Fecha</th><th className="px-10 py-6">Cliente</th><th className="px-10 py-6">Importe</th><th className="px-10 py-6 text-right">Estado</th></tr>
           </thead>
@@ -460,9 +460,9 @@ const TenantSettings = () => {
   };
 
   return (
-    <div className="max-w-2xl animate-in fade-in duration-500">
+    <div className="max-w-2xl animate-in fade-in duration-500 mx-auto md:mx-0">
       <h3 className="text-3xl font-black text-gray-900 tracking-tighter mb-10">{t('settings')}</h3>
-      <div className="bg-white p-10 rounded-[2.8rem] border border-gray-100 shadow-sm space-y-8">
+      <div className="bg-white p-6 md:p-10 rounded-[1.5rem] md:rounded-[2.8rem] border border-gray-100 shadow-sm space-y-8">
          <Input label="Nombre de la Empresa" value={name} onChange={(e:any) => setName(e.target.value)} />
          <div className="p-6 bg-gray-50 rounded-2xl border border-gray-100">
             <label className="text-[9px] font-black uppercase text-gray-400 block mb-2 tracking-widest">Plan de Suscripción</label>
@@ -471,8 +471,8 @@ const TenantSettings = () => {
                <button className="text-[9px] font-black text-slate-400 uppercase underline">Cambiar Plan</button>
             </div>
          </div>
-         <button onClick={handleSave} disabled={saving} className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest hover:bg-black transition-all shadow-xl">
-            {saving ? 'Guardando...' : 'Actualizar Perfil'}
+         <button onClick={handleSave} disabled={saving} className="w-full py-4 bg-slate-900 text-white rounded-xl md:rounded-2xl font-black text-[11px] uppercase tracking-widest hover:bg-black transition-all shadow-xl">
+            {saving ? '...' : 'Actualizar Perfil'}
          </button>
       </div>
     </div>
@@ -494,35 +494,44 @@ const AdminLayout = () => {
   const isActive = (path: string) => location.pathname.includes(path);
 
   return (
-    <div className="flex min-h-screen bg-[#050505] text-slate-100 font-sans">
-      <aside className="w-72 bg-slate-900/40 backdrop-blur-xl border-r border-white/5 flex flex-col shrink-0">
-        <div className="p-8 h-24 flex items-center"><div className="font-black text-2xl tracking-tighter text-white flex items-center gap-2"><div className="w-8 h-8 bg-brand-500 rounded-lg flex items-center justify-center text-xs">S</div>SYSTEM<span className="text-brand-500">ADMIN</span></div></div>
-        <nav className="flex-1 p-6 space-y-2">
-          <Link to="/admin/dashboard" className={`flex items-center gap-3 px-5 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all ${isActive('dashboard') ? 'bg-brand-600 text-white shadow-2xl shadow-brand-500/40' : 'text-slate-400 hover:bg-white/5 hover:text-white'}`}>📊 Dashboard</Link>
-          <Link to="/admin/cms" className={`flex items-center gap-3 px-5 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all ${isActive('cms') ? 'bg-brand-600 text-white shadow-2xl shadow-brand-500/40' : 'text-slate-400 hover:bg-white/5 hover:text-white'}`}>📝 Platform CMS</Link>
-          <Link to="/admin/tenants" className={`flex items-center gap-3 px-5 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all ${isActive('tenants') ? 'bg-brand-600 text-white shadow-2xl shadow-brand-500/40' : 'text-slate-400 hover:bg-white/5 hover:text-white'}`}>🏢 Tenants/Empresas</Link>
+    <div className="flex flex-col lg:flex-row min-h-screen bg-[#050505] text-slate-100 font-sans">
+      <aside className="w-full lg:w-72 bg-slate-900/40 backdrop-blur-xl border-b lg:border-r border-white/5 flex flex-col shrink-0">
+        <div className="p-6 md:p-8 h-20 md:h-24 flex items-center justify-between lg:justify-start">
+          <div className="font-black text-xl md:text-2xl tracking-tighter text-white flex items-center gap-2">
+            <div className="w-8 h-8 bg-brand-500 rounded-lg flex items-center justify-center text-xs">S</div>SYSTEM<span className="text-brand-500">ADMIN</span>
+          </div>
+        </div>
+        <nav className="p-4 md:p-6 flex flex-row lg:flex-col gap-2 overflow-x-auto lg:overflow-x-visible">
+          <Link to="/admin/dashboard" className={`flex items-center gap-3 px-5 py-3 md:py-4 rounded-xl md:rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all shrink-0 ${isActive('dashboard') ? 'bg-brand-600 text-white shadow-2xl' : 'text-slate-400 hover:bg-white/5'}`}>📊 Dashboard</Link>
+          <Link to="/admin/cms" className={`flex items-center gap-3 px-5 py-3 md:py-4 rounded-xl md:rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all shrink-0 ${isActive('cms') ? 'bg-brand-600 text-white shadow-2xl' : 'text-slate-400 hover:bg-white/5'}`}>📝 CMS</Link>
+          <Link to="/admin/tenants" className={`flex items-center gap-3 px-5 py-3 md:py-4 rounded-xl md:rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all shrink-0 ${isActive('tenants') ? 'bg-brand-600 text-white shadow-2xl' : 'text-slate-400 hover:bg-white/5'}`}>🏢 Tenants</Link>
         </nav>
-        <div className="p-6 border-t border-white/5"><button onClick={signOut} className="w-full flex items-center gap-3 px-5 py-4 text-[10px] font-black uppercase tracking-widest text-red-400 hover:bg-red-400/10 rounded-2xl transition-all">🚪 {t('logout')}</button></div>
+        <div className="hidden lg:block p-6 border-t border-white/5 mt-auto">
+          <button onClick={signOut} className="w-full flex items-center gap-3 px-5 py-4 text-[10px] font-black uppercase tracking-widest text-red-400 hover:bg-red-400/10 rounded-2xl transition-all">🚪 {t('logout')}</button>
+        </div>
       </aside>
       <main className="flex-1 flex flex-col h-screen overflow-hidden">
-        <header className="h-24 bg-white/[0.02] border-b border-white/5 flex items-center justify-between px-10 shrink-0">
-          <div className="flex flex-col"><h2 className="text-xl font-black text-white tracking-tight">Consola de Control</h2></div>
-          <div className="flex items-center gap-6"><Link to="/" className="text-[10px] font-black text-slate-400 hover:text-brand-500 uppercase tracking-widest transition-colors">Web Pública ↗</Link><div className="h-12 w-12 bg-gradient-to-tr from-brand-600 to-brand-400 text-white rounded-2xl flex items-center justify-center font-black shadow-xl text-sm">SA</div></div>
+        <header className="h-20 md:h-24 bg-white/[0.02] border-b border-white/5 flex items-center justify-between px-6 md:px-10 shrink-0">
+          <div className="flex flex-col"><h2 className="text-lg md:text-xl font-black text-white tracking-tight">Consola</h2></div>
+          <div className="flex items-center gap-4 md:gap-6">
+            <Link to="/" className="text-[10px] font-black text-slate-400 hover:text-brand-500 uppercase tracking-widest transition-colors hidden sm:block">Web Pública ↗</Link>
+            <div className="h-10 w-10 md:h-12 md:w-12 bg-gradient-to-tr from-brand-600 to-brand-400 text-white rounded-xl md:rounded-2xl flex items-center justify-center font-black shadow-xl text-xs md:sm">SA</div>
+          </div>
         </header>
-        <div className="flex-1 overflow-auto p-12 bg-[radial-gradient(circle_at_top_right,_rgba(34,197,94,0.05),_transparent)]"><Outlet /></div>
+        <div className="flex-1 overflow-auto p-6 md:p-12 bg-[radial-gradient(circle_at_top_right,_rgba(34,197,94,0.05),_transparent)]"><Outlet /></div>
       </main>
     </div>
   );
 };
 
 const AdminDashboard = () => (
-  <div className="space-y-12 animate-in fade-in duration-700">
-    <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-      {[ { label: 'Total Tenants', val: '24', icon: '🏢' }, { label: 'Usuarios Activos', val: '1,2k', icon: '👥' }, { label: 'Ingresos MRR', val: '8.450€', icon: '💰' }, { label: 'Uptime', val: '99.9%', icon: '⚡' } ].map((s, i) => (
-        <div key={i} className="bg-white/5 border border-white/5 p-8 rounded-[2.5rem] relative overflow-hidden group hover:bg-white/10 transition-all">
-          <div className="absolute -right-6 -bottom-6 text-8xl opacity-5 group-hover:scale-110 transition-all">{s.icon}</div>
-          <div className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-2">{s.label}</div>
-          <div className="text-4xl font-black text-white tracking-tighter">{s.val}</div>
+  <div className="space-y-8 md:space-y-12 animate-in fade-in duration-700">
+    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 md:gap-8">
+      {[ { label: 'Tenants', val: '24', icon: '🏢' }, { label: 'Usuarios', val: '1,2k', icon: '👥' }, { label: 'MRR', val: '8.450€', icon: '💰' }, { label: 'Uptime', val: '99.9%', icon: '⚡' } ].map((s, i) => (
+        <div key={i} className="bg-white/5 border border-white/5 p-6 md:p-8 rounded-[1.5rem] md:rounded-[2.5rem] relative overflow-hidden group hover:bg-white/10 transition-all">
+          <div className="absolute -right-4 -bottom-4 text-6xl md:text-8xl opacity-5 group-hover:scale-110 transition-all">{s.icon}</div>
+          <div className="text-slate-500 text-[9px] md:text-[10px] font-black uppercase tracking-widest mb-2">{s.label}</div>
+          <div className="text-3xl md:text-4xl font-black text-white tracking-tighter">{s.val}</div>
         </div>
       ))}
     </div>
@@ -551,21 +560,24 @@ const AdminTenants = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center"><h3 className="text-2xl font-black text-white tracking-tight">Directorio de Empresas</h3><button onClick={() => setIsCreating(true)} className="px-6 py-3 bg-brand-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg">+ Registrar Empresa</button></div>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <h3 className="text-xl md:text-2xl font-black text-white tracking-tight">Directorio</h3>
+        <button onClick={() => setIsCreating(true)} className="w-full sm:w-auto px-6 py-3 bg-brand-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg">+ Empresa</button>
+      </div>
       {isCreating && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-xl z-[100] flex items-center justify-center p-6">
-           <div className="bg-slate-900 border border-white/10 p-10 rounded-[3rem] w-full max-w-md shadow-2xl">
+           <div className="bg-slate-900 border border-white/10 p-8 md:p-10 rounded-[2rem] md:rounded-[3rem] w-full max-w-md shadow-2xl">
               <h4 className="text-xl font-black text-white mb-6">Nuevo Registro</h4>
               <div className="space-y-4">
                  <input placeholder="Nombre de Empresa" className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white text-sm" value={newTenant.name} onChange={e => setNewTenant({...newTenant, name: e.target.value})} />
                  <input placeholder="url-personalizada" className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white text-sm" value={newTenant.slug} onChange={e => setNewTenant({...newTenant, slug: e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, '-')})} />
               </div>
-              <div className="flex gap-4 mt-10"><button onClick={handleCreateTenant} className="flex-1 py-4 bg-brand-600 text-white rounded-xl font-black text-[10px] uppercase">Crear Empresa</button><button onClick={() => setIsCreating(false)} className="px-8 py-4 text-slate-400 font-black text-[10px] uppercase">Cerrar</button></div>
+              <div className="flex gap-4 mt-10"><button onClick={handleCreateTenant} className="flex-1 py-4 bg-brand-600 text-white rounded-xl font-black text-[10px] uppercase">Crear</button><button onClick={() => setIsCreating(false)} className="px-8 py-4 text-slate-400 font-black text-[10px] uppercase">Cerrar</button></div>
            </div>
         </div>
       )}
-      <div className="bg-white/5 border border-white/5 rounded-[2.5rem] overflow-hidden">
-        <table className="w-full text-left">
+      <div className="bg-white/5 border border-white/5 rounded-[1.5rem] md:rounded-[2.5rem] overflow-hidden overflow-x-auto">
+        <table className="w-full text-left min-w-[500px]">
           <thead className="bg-white/5 text-slate-500 text-[10px] font-black uppercase tracking-widest"><tr><th className="px-10 py-6">Empresa</th><th className="px-10 py-6">Licencia</th><th className="px-10 py-6 text-right">Acciones</th></tr></thead>
           <tbody className="divide-y divide-white/5">
             {tenants.map(t => (
@@ -603,18 +615,18 @@ const AdminCMS = () => {
 
   return (
     <div className="space-y-6">
-      <h3 className="text-2xl font-black text-white tracking-tight">Editor Global (CMS)</h3>
+      <h3 className="text-xl md:text-2xl font-black text-white tracking-tight">Editor Global (CMS)</h3>
       {editing && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-xl z-[100] flex items-center justify-center p-6">
-           <div className="bg-slate-900 border border-white/10 p-12 rounded-[3rem] w-full max-w-xl shadow-2xl">
-              <h4 className="text-xl font-black text-white mb-8">Editar Nodo: <span className="text-brand-500 text-xs font-mono">{editing.key}</span></h4>
-              <div className="space-y-6"><textarea value={editing.es} onChange={e => setEditing({...editing, es: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-2xl p-6 text-sm text-slate-200 h-32 outline-none" /><textarea value={editing.ca} onChange={e => setEditing({...editing, ca: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-2xl p-6 text-sm text-slate-200 h-32 outline-none" /></div>
-              <div className="flex gap-4 mt-10"><button onClick={handleSave} className="flex-1 py-4 bg-brand-600 text-white rounded-2xl font-black text-[10px] uppercase">Publicar</button><button onClick={() => setEditing(null)} className="px-8 py-4 text-slate-400 font-black text-[10px] uppercase">Cerrar</button></div>
+           <div className="bg-slate-900 border border-white/10 p-8 md:p-12 rounded-[2rem] md:rounded-[3rem] w-full max-w-xl shadow-2xl overflow-y-auto max-h-[90vh]">
+              <h4 className="text-lg md:text-xl font-black text-white mb-8">Editar Nodo: <span className="text-brand-500 text-[10px] font-mono">{editing.key}</span></h4>
+              <div className="space-y-6"><textarea value={editing.es} onChange={e => setEditing({...editing, es: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-xl md:rounded-2xl p-6 text-sm text-slate-200 h-32 outline-none" /><textarea value={editing.ca} onChange={e => setEditing({...editing, ca: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-xl md:rounded-2xl p-6 text-sm text-slate-200 h-32 outline-none" /></div>
+              <div className="flex gap-4 mt-10"><button onClick={handleSave} className="flex-1 py-4 bg-brand-600 text-white rounded-xl md:rounded-2xl font-black text-[10px] uppercase">Publicar</button><button onClick={() => setEditing(null)} className="px-8 py-4 text-slate-400 font-black text-[10px] uppercase">Cerrar</button></div>
            </div>
         </div>
       )}
-      <div className="bg-white/5 border border-white/5 rounded-[2.5rem] overflow-hidden">
-        <table className="w-full text-left"><thead className="bg-white/5 text-slate-500 text-[10px] font-black uppercase tracking-widest"><tr><th className="px-10 py-6">Clave</th><th className="px-10 py-6 text-right">Acción</th></tr></thead><tbody className="divide-y divide-white/5">{content.map(item => (
+      <div className="bg-white/5 border border-white/5 rounded-[1.5rem] md:rounded-[2.5rem] overflow-hidden overflow-x-auto">
+        <table className="w-full text-left min-w-[500px]"><thead className="bg-white/5 text-slate-500 text-[10px] font-black uppercase tracking-widest"><tr><th className="px-10 py-6">Clave</th><th className="px-10 py-6 text-right">Acción</th></tr></thead><tbody className="divide-y divide-white/5">{content.map(item => (
           <tr key={item.key} className="hover:bg-white/[0.02] transition-colors"><td className="px-10 py-6 font-mono text-[10px] text-brand-400 font-black tracking-widest">{item.key}</td><td className="px-10 py-6 text-right"><button onClick={() => setEditing(item)} className="px-5 py-2 bg-slate-800 text-white rounded-xl text-[9px] font-black uppercase">Editar</button></td></tr>
         ))}</tbody></table>
       </div>
@@ -642,17 +654,17 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#f8fafc] p-6 font-sans">
+    <div className="min-h-screen flex items-center justify-center bg-[#f8fafc] p-4 md:p-6 font-sans">
       <div className="max-w-md w-full animate-in zoom-in-95 duration-500">
-        <div className="bg-white p-12 rounded-[3.5rem] shadow-2xl border border-slate-100 relative overflow-hidden text-center">
+        <div className="bg-white p-8 md:p-12 rounded-[2rem] md:rounded-[3.5rem] shadow-2xl border border-slate-100 relative overflow-hidden text-center">
           <div className="absolute top-0 left-0 w-full h-2 bg-brand-500"></div>
-          <h2 className="text-4xl font-black mb-10 text-gray-900 tracking-tighter leading-none">Acceso</h2>
+          <h2 className="text-3xl md:text-4xl font-black mb-10 text-gray-900 tracking-tighter leading-none uppercase italic">Acceso</h2>
           <form onSubmit={handleLogin} className="space-y-6">
             <Input label="Email" type="email" value={email} onChange={(e: any) => setEmail(e.target.value)} required />
             <Input label="Contraseña" type="password" value={password} onChange={(e: any) => setPassword(e.target.value)} required />
-            <button type="submit" className="w-full py-5 bg-slate-900 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest transition-all shadow-xl">ENTRAR</button>
+            <button type="submit" className="w-full py-5 bg-slate-900 text-white rounded-xl md:rounded-2xl font-black text-[11px] uppercase tracking-widest transition-all shadow-xl">ENTRAR</button>
           </form>
-          <button onClick={() => { enterDemoMode(); navigate('/t/demo/dashboard'); }} className="w-full py-4 mt-8 bg-white text-gray-700 border border-gray-100 rounded-2xl font-black text-[10px] uppercase tracking-widest">Workspace de Prueba</button>
+          <button onClick={() => { enterDemoMode(); navigate('/t/demo/dashboard'); }} className="w-full py-4 mt-8 bg-white text-gray-700 border border-gray-100 rounded-xl md:rounded-2xl font-black text-[10px] uppercase tracking-widest">Modo Demo</button>
         </div>
       </div>
     </div>
@@ -672,14 +684,14 @@ const Signup = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-6 font-sans">
-      <div className="max-w-md w-full bg-white p-12 rounded-[3.5rem] shadow-2xl border border-gray-100 text-center">
-        <h2 className="text-4xl font-black mb-10 text-gray-900 tracking-tighter">Registro</h2>
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4 md:p-6 font-sans">
+      <div className="max-w-md w-full bg-white p-8 md:p-12 rounded-[2rem] md:rounded-[3.5rem] shadow-2xl border border-gray-100 text-center">
+        <h2 className="text-3xl md:text-4xl font-black mb-10 text-gray-900 tracking-tighter uppercase italic">Registro</h2>
         <form onSubmit={handleSignup} className="space-y-6">
           <Input label="Nombre" type="text" value={fullName} onChange={(e: any) => setFullName(e.target.value)} required />
           <Input label="Email" type="email" value={email} onChange={(e: any) => setEmail(e.target.value)} required />
           <Input label="Contraseña" type="password" value={password} onChange={(e: any) => setPassword(e.target.value)} required />
-          <button type="submit" className="w-full py-5 bg-brand-600 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-xl">REGISTRARME</button>
+          <button type="submit" className="w-full py-5 bg-brand-600 text-white rounded-xl md:rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-xl">REGISTRARME</button>
         </form>
       </div>
     </div>
@@ -690,15 +702,21 @@ const Landing = () => {
   const { session, memberships } = useApp();
   const dashboardLink = memberships.length > 0 ? `/t/${memberships[0].tenant?.slug}/dashboard` : '/onboarding';
   return (
-    <div className="min-h-screen bg-white font-sans text-center">
-      <header className="flex items-center justify-between px-10 py-6 sticky top-0 bg-white/80 backdrop-blur-md z-50">
+    <div className="min-h-screen bg-white font-sans text-center overflow-x-hidden">
+      <header className="flex items-center justify-between px-6 md:px-10 py-6 sticky top-0 bg-white/80 backdrop-blur-md z-50">
         <div className="text-2xl font-black text-brand-600 italic">ACME</div>
-        <div className="flex items-center gap-8"><LanguageSwitcher />{session ? <Link to={dashboardLink} className="px-8 py-3 bg-slate-900 text-white text-[10px] font-black uppercase rounded-full">Panel Admin</Link> : <Link to="/login" className="px-8 py-3 bg-brand-600 text-white text-[10px] font-black uppercase rounded-full">Empezar</Link>}</div>
+        <div className="flex items-center gap-4 md:gap-8">
+          <div className="hidden sm:block"><LanguageSwitcher /></div>
+          {session ? <Link to={dashboardLink} className="px-6 md:px-8 py-3 bg-slate-900 text-white text-[10px] font-black uppercase rounded-full">Panel</Link> : <Link to="/login" className="px-6 md:px-8 py-3 bg-brand-600 text-white text-[10px] font-black uppercase rounded-full">Empezar</Link>}
+        </div>
       </header>
-      <main className="max-w-7xl mx-auto px-6 py-40">
-        <h1 className="text-8xl font-black text-gray-900 mb-10 tracking-tighter leading-[0.9]">Controla tu negocio con precisión.</h1>
-        <p className="text-xl text-gray-500 mb-16 max-w-2xl mx-auto font-medium">La plataforma definitiva para instaladores bilingües.</p>
-        <Link to={session ? dashboardLink : "/signup"} className="px-12 py-6 bg-slate-900 text-white rounded-[2.5rem] text-sm font-black uppercase tracking-widest shadow-2xl">EMPEZAR GRATIS</Link>
+      <main className="max-w-7xl mx-auto px-6 py-20 md:py-40">
+        <h1 className="text-5xl md:text-8xl font-black text-gray-900 mb-10 tracking-tighter leading-[1] md:leading-[0.9] uppercase italic">Controla tu negocio con precisión.</h1>
+        <p className="text-lg md:text-xl text-gray-500 mb-16 max-w-2xl mx-auto font-medium italic">La plataforma definitiva para instaladores bilingües.</p>
+        <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+          <Link to={session ? dashboardLink : "/signup"} className="w-full sm:w-auto px-12 py-6 bg-slate-900 text-white rounded-2xl md:rounded-[2.5rem] text-sm font-black uppercase tracking-widest shadow-2xl">EMPEZAR GRATIS</Link>
+          {!session && <div className="sm:hidden"><LanguageSwitcher /></div>}
+        </div>
       </main>
       <SuperAdminFloatingBar />
     </div>
@@ -733,15 +751,14 @@ const TenantLayout = () => {
 
   if (loading) return <LoadingSpinner />;
   
-  // Guard logic: If session exists but NO membership for THIS tenant (and not superadmin)
   if (session && !currentTenant && !profile?.is_superadmin) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 p-6 text-center">
-        <div className="max-w-md bg-white p-12 rounded-[3.5rem] shadow-xl border border-gray-100">
-           <h2 className="text-3xl font-black text-gray-900 mb-4 tracking-tighter uppercase italic">Acceso Denegado</h2>
-           <p className="text-gray-400 font-medium italic mb-10">No tienes permisos para gestionar esta empresa. Contacta con el administrador.</p>
+        <div className="max-w-md bg-white p-8 md:p-12 rounded-[2rem] md:rounded-[3.5rem] shadow-xl border border-gray-100">
+           <h2 className="text-2xl md:text-3xl font-black text-gray-900 mb-4 tracking-tighter uppercase italic leading-none">Acceso Denegado</h2>
+           <p className="text-gray-400 font-medium italic mb-10">No tienes permisos para esta empresa.</p>
            <div className="flex flex-col gap-4">
-              <Link to="/" className="px-8 py-4 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest">Volver al Inicio</Link>
+              <Link to="/" className="px-8 py-4 bg-slate-900 text-white rounded-xl font-black text-[10px] uppercase tracking-widest">Inicio</Link>
               <button onClick={signOut} className="text-[10px] font-black uppercase tracking-widest text-red-500">Cerrar Sesión</button>
            </div>
         </div>
@@ -754,24 +771,27 @@ const TenantLayout = () => {
   const isActive = (path: string) => location.pathname.includes(path);
 
   return (
-    <div className="flex min-h-screen bg-[#fcfcfc] font-sans">
-      <aside className="w-80 bg-white border-r border-gray-100 flex flex-col shrink-0 z-30">
-        <div className="p-8 h-24 flex items-center justify-between font-black text-xl text-brand-600 uppercase italic truncate">{currentTenant.name}</div>
-        <nav className="flex-1 p-6 space-y-2">
-          <Link to={`/t/${slug}/dashboard`} className={`flex items-center gap-4 px-6 py-4 rounded-[1.8rem] font-black text-[10px] uppercase tracking-widest transition-all ${isActive('dashboard') ? 'bg-brand-600 text-white shadow-xl' : 'text-gray-400 hover:bg-gray-50'}`}>📊 {t('dashboard')}</Link>
-          <Link to={`/t/${slug}/customers`} className={`flex items-center gap-4 px-6 py-4 rounded-[1.8rem] font-black text-[10px] uppercase tracking-widest transition-all ${isActive('customers') ? 'bg-brand-600 text-white shadow-xl' : 'text-gray-400 hover:bg-gray-50'}`}>👥 {t('customers')}</Link>
-          <Link to={`/t/${slug}/products`} className={`flex items-center gap-4 px-6 py-4 rounded-[1.8rem] font-black text-[10px] uppercase tracking-widest transition-all ${isActive('products') ? 'bg-brand-600 text-white shadow-xl' : 'text-gray-400 hover:bg-gray-50'}`}>📦 Inventario</Link>
-          <Link to={`/t/${slug}/quotes`} className={`flex items-center gap-4 px-6 py-4 rounded-[1.8rem] font-black text-[10px] uppercase tracking-widest transition-all ${isActive('quotes') ? 'bg-brand-600 text-white shadow-xl' : 'text-gray-400 hover:bg-gray-50'}`}>📄 {t('quotes')}</Link>
-          <Link to={`/t/${slug}/settings`} className={`flex items-center gap-4 px-6 py-4 rounded-[1.8rem] font-black text-[10px] uppercase tracking-widest transition-all ${isActive('settings') ? 'bg-brand-600 text-white shadow-xl' : 'text-gray-400 hover:bg-gray-50'}`}>⚙️ {t('settings')}</Link>
+    <div className="flex flex-col lg:flex-row min-h-screen bg-[#fcfcfc] font-sans">
+      <aside className="w-full lg:w-80 bg-white border-b lg:border-r border-gray-100 flex flex-col shrink-0 z-30">
+        <div className="p-6 md:p-8 h-20 md:h-24 flex items-center justify-between font-black text-xl text-brand-600 uppercase italic truncate">{currentTenant.name}</div>
+        <nav className="p-4 md:p-6 flex flex-row lg:flex-col gap-2 overflow-x-auto lg:overflow-x-visible">
+          <Link to={`/t/${slug}/dashboard`} className={`flex items-center gap-3 px-5 py-3 md:py-4 rounded-xl md:rounded-[1.8rem] font-black text-[10px] uppercase tracking-widest transition-all shrink-0 ${isActive('dashboard') ? 'bg-brand-600 text-white shadow-xl' : 'text-gray-400 hover:bg-gray-50'}`}>📊 Panel</Link>
+          <Link to={`/t/${slug}/customers`} className={`flex items-center gap-3 px-5 py-3 md:py-4 rounded-xl md:rounded-[1.8rem] font-black text-[10px] uppercase tracking-widest transition-all shrink-0 ${isActive('customers') ? 'bg-brand-600 text-white shadow-xl' : 'text-gray-400 hover:bg-gray-50'}`}>👥 {t('customers')}</Link>
+          <Link to={`/t/${slug}/products`} className={`flex items-center gap-3 px-5 py-3 md:py-4 rounded-xl md:rounded-[1.8rem] font-black text-[10px] uppercase tracking-widest transition-all shrink-0 ${isActive('products') ? 'bg-brand-600 text-white shadow-xl' : 'text-gray-400 hover:bg-gray-50'}`}>📦 Inventario</Link>
+          <Link to={`/t/${slug}/quotes`} className={`flex items-center gap-3 px-5 py-3 md:py-4 rounded-xl md:rounded-[1.8rem] font-black text-[10px] uppercase tracking-widest transition-all shrink-0 ${isActive('quotes') ? 'bg-brand-600 text-white shadow-xl' : 'text-gray-400 hover:bg-gray-50'}`}>📄 {t('quotes')}</Link>
+          <Link to={`/t/${slug}/settings`} className={`flex items-center gap-3 px-5 py-3 md:py-4 rounded-xl md:rounded-[1.8rem] font-black text-[10px] uppercase tracking-widest transition-all shrink-0 ${isActive('settings') ? 'bg-brand-600 text-white shadow-xl' : 'text-gray-400 hover:bg-gray-50'}`}>⚙️ {t('settings')}</Link>
         </nav>
-        <div className="p-8 border-t border-gray-50"><button onClick={signOut} className="w-full flex items-center gap-3 px-6 py-4 text-[10px] font-black uppercase text-red-500 hover:bg-red-50 rounded-2xl transition-all">🚪 {t('logout')}</button></div>
+        <div className="hidden lg:block p-8 border-t border-gray-50 mt-auto"><button onClick={signOut} className="w-full flex items-center gap-3 px-6 py-4 text-[10px] font-black uppercase text-red-500 hover:bg-red-50 rounded-2xl transition-all">🚪 {t('logout')}</button></div>
       </aside>
       <main className="flex-1 flex flex-col h-screen overflow-hidden">
-        <header className="h-24 bg-white border-b border-gray-100 flex items-center justify-between px-12 shrink-0">
-          <div className="flex flex-col"><h2 className="text-2xl font-black text-gray-900 tracking-tight">{currentTenant.name}</h2></div>
-          <div className="flex gap-4"><a href={`#/c/${slug}`} target="_blank" rel="noreferrer" className="px-4 py-2 bg-gray-50 text-gray-400 text-[9px] font-black uppercase rounded-full border border-gray-100 hover:text-gray-900 transition-all">Ver Web Pública ↗</a>{profile?.is_superadmin && <Link to="/admin/dashboard" className="px-4 py-2 bg-slate-900 text-white text-[9px] font-black uppercase rounded-full shadow-lg">SYSTEM ADMIN</Link>}</div>
+        <header className="h-20 md:h-24 bg-white border-b border-gray-100 flex items-center justify-between px-6 md:px-12 shrink-0">
+          <div className="flex flex-col"><h2 className="text-lg md:text-2xl font-black text-gray-900 tracking-tight leading-none uppercase italic">{currentTenant.name}</h2></div>
+          <div className="flex gap-2 md:gap-4">
+            <a href={`#/c/${slug}`} target="_blank" rel="noreferrer" className="hidden sm:flex px-4 py-2 bg-gray-50 text-gray-400 text-[9px] font-black uppercase rounded-full border border-gray-100 hover:text-gray-900 transition-all">Web ↗</a>
+            {profile?.is_superadmin && <Link to="/admin/dashboard" className="px-3 md:px-4 py-2 bg-slate-900 text-white text-[9px] font-black uppercase rounded-full shadow-lg">ADMIN</Link>}
+          </div>
         </header>
-        <div className="flex-1 overflow-auto p-12"><Outlet context={{ tenant: currentTenant }} /></div>
+        <div className="flex-1 overflow-auto p-6 md:p-12"><Outlet context={{ tenant: currentTenant }} /></div>
       </main>
       <SuperAdminFloatingBar />
     </div>
@@ -782,17 +802,17 @@ const Dashboard = () => {
   const { tenant } = useOutletContext<{ tenant: Tenant }>();
   const { t } = useApp();
   return (
-    <div className="space-y-10 animate-in fade-in duration-500">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
+    <div className="space-y-8 md:space-y-10 animate-in fade-in duration-500">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-10">
           {[ { l: t('total_revenue'), v: '0.00 €', i: '💰' }, { l: t('active_quotes'), v: '0', i: '⏳' }, { l: t('total_customers'), v: '0', i: '👥' } ].map((s, i) => (
-            <div key={i} className="bg-white p-10 rounded-[2.8rem] shadow-sm border border-gray-100 hover:shadow-2xl transition-all group">
-              <div className="w-14 h-14 bg-gray-50 text-gray-900 rounded-2xl flex items-center justify-center text-2xl mb-6 group-hover:bg-brand-600 group-hover:text-white transition-all">{s.i}</div>
-              <h3 className="text-gray-400 text-[10px] font-black uppercase tracking-widest">{s.l}</h3>
-              <p className="text-4xl font-black mt-2 text-gray-900 tracking-tighter">{s.v}</p>
+            <div key={i} className="bg-white p-6 md:p-10 rounded-[1.5rem] md:rounded-[2.8rem] shadow-sm border border-gray-100 hover:shadow-2xl transition-all group">
+              <div className="w-12 h-12 md:w-14 md:h-14 bg-gray-50 text-gray-900 rounded-2xl flex items-center justify-center text-xl md:text-2xl mb-6 group-hover:bg-brand-600 group-hover:text-white transition-all">{s.i}</div>
+              <h3 className="text-gray-400 text-[9px] md:text-[10px] font-black uppercase tracking-widest">{s.l}</h3>
+              <p className="text-3xl md:text-4xl font-black mt-2 text-gray-900 tracking-tighter">{s.v}</p>
             </div>
           ))}
         </div>
-        <div className="bg-white p-12 rounded-[3.5rem] border border-gray-50 h-80 flex items-center justify-center text-gray-300 font-black uppercase tracking-widest text-xs italic">Hub de {tenant.name}</div>
+        <div className="bg-white p-12 rounded-[2rem] md:rounded-[3.5rem] border border-gray-50 h-64 md:h-80 flex items-center justify-center text-gray-300 font-black uppercase tracking-widest text-xs italic text-center">Espacio de trabajo para {tenant.name}</div>
     </div>
   );
 };
@@ -817,13 +837,13 @@ const Onboarding = () => {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-[#f8fafc] p-6 text-center font-sans">
-            <div className="max-w-md w-full bg-white p-12 rounded-[3.5rem] shadow-2xl border border-gray-100">
-                <h2 className="text-4xl font-black mb-10 text-gray-900 tracking-tighter leading-none">Tu Nuevo Equipo</h2>
+        <div className="min-h-screen flex items-center justify-center bg-[#f8fafc] p-4 md:p-6 text-center font-sans">
+            <div className="max-w-md w-full bg-white p-8 md:p-12 rounded-[2rem] md:rounded-[3.5rem] shadow-2xl border border-gray-100">
+                <h2 className="text-3xl md:text-4xl font-black mb-10 text-gray-900 tracking-tighter leading-none uppercase italic">Workspace</h2>
                 <form onSubmit={handleCreate} className="space-y-6">
-                    <Input label="Nombre de la Empresa" value={name} onChange={(e:any) => { setName(e.target.value); setSlug(e.target.value.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-')); }} required />
+                    <Input label="Nombre Empresa" value={name} onChange={(e:any) => { setName(e.target.value); setSlug(e.target.value.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-')); }} required />
                     <Input label="Slug / URL personalizada" value={slug} onChange={(e: any) => setSlug(e.target.value)} required />
-                    <button type="submit" disabled={loading} className="w-full py-5 bg-slate-900 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-xl">{loading ? 'CREANDO...' : 'EMPEZAR'}</button>
+                    <button type="submit" disabled={loading} className="w-full py-5 bg-slate-900 text-white rounded-xl md:rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-xl">{loading ? '...' : 'EMPEZAR'}</button>
                 </form>
             </div>
         </div>

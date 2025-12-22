@@ -109,7 +109,7 @@ const LOCAL_I18N = {
     alert_success: '¡Presupuesto generado con éxito!',
     footer_copy: 'EcoQuote AI · Smart Installation Solution',
     cat_all: 'Todas',
-    cat_ac: 'Aire Concondicionado',
+    cat_ac: 'Aire Acondicionado',
     cat_boiler: 'Calderas',
     cat_thermo: 'Termos eléctricos'
   },
@@ -211,17 +211,14 @@ export const PublicTenantWebsite = () => {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  // Helper for local translations based strictly on language
   const tt = (key: keyof typeof LOCAL_I18N['es']) => LOCAL_I18N[language]?.[key] ?? LOCAL_I18N.es[key];
 
-  // States for Wizard & UI
   const [view, setView] = useState<'landing' | 'wizard'>('landing');
   const [step, setStep] = useState(1);
   const [brandFilter, setBrandFilter] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [maxPrice, setMaxPrice] = useState(5000);
 
-  // States for Contact Modal
   const [isContactModalOpen, setIsContactModalOpen] = useState(false);
   const [contactForm, setContactForm] = useState({ name: '', email: '', phone: '', message: '' });
   const [contactStatus, setContactStatus] = useState<'idle' | 'sending' | 'success'>('idle');
@@ -240,14 +237,9 @@ export const PublicTenantWebsite = () => {
   useEffect(() => {
     const fetchCatalog = async () => {
       if (!isConfigured || !dbHealthy) { setLoading(false); return; }
-      
-      // ONLY LOAD DATA VIA RPC - NO DIRECT TABLE SELECTS IN PUBLIC WEBSITE
       const { data, error } = await supabase.rpc('get_public_catalog', { p_slug: slug });
-      
-      if (error || !data) {
-        setTenant(null);
-        setDbProducts([]);
-      } else {
+      if (error || !data) { setTenant(null); setDbProducts([]); } 
+      else {
         const payload = data as PublicCatalogResponse;
         setTenant(payload.tenant ? (payload.tenant as any) : null);
         setDbProducts(Array.isArray(payload.products) ? payload.products : []);
@@ -257,108 +249,56 @@ export const PublicTenantWebsite = () => {
     fetchCatalog();
   }, [slug, dbHealthy]);
 
-  useEffect(() => {
-    if (view === 'wizard') {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-  }, [view, step]);
+  useEffect(() => { if (view === 'wizard') window.scrollTo({ top: 0, behavior: 'smooth' }); }, [view, step]);
 
   const brandGroups = useMemo(() => {
-    const groups: Record<string, { 
-      brand: string, 
-      minPrice: number, 
-      products: any[], 
-      features: string[] 
-    }> = {};
-
+    const groups: Record<string, { brand: string, minPrice: number, products: any[], features: string[] }> = {};
     dbProducts.forEach(p => {
-      // Requisito: Si no hay categoría, usar Aire Acondicionado por defecto
       const effectiveCategory = p.category || 'aire_acondicionado';
-      // Requisito: La marca es la primera palabra del nombre
       const brand = p.name.split(' ')[0];
-
-      // Aplicar filtros combinados (AND)
       const matchesCategory = categoryFilter === 'all' || effectiveCategory === categoryFilter;
       const matchesPrice = p.price <= maxPrice;
       const matchesBrand = !brandFilter || brand === brandFilter;
 
       if (matchesCategory && matchesPrice && matchesBrand) {
         if (!groups[brand]) {
-          groups[brand] = { 
-            brand, 
-            minPrice: p.price, 
-            products: [], 
-            features: [tt('brand_feat_warranty'), tt('brand_feat_low_cons')] 
-          };
+          groups[brand] = { brand, minPrice: p.price, products: [], features: [tt('brand_feat_warranty'), tt('brand_feat_low_cons')] };
         }
         groups[brand].products.push(p);
         if (p.price < groups[brand].minPrice) groups[brand].minPrice = p.price;
-        
         const description = (p.description || '').toLowerCase();
         if (description.includes('a++') && !groups[brand].features.includes(`${tt('brand_feat_efficiency')} A++`)) groups[brand].features.push(`${tt('brand_feat_efficiency')} A++`);
         if (description.includes('a+++') && !groups[brand].features.includes(`${tt('brand_feat_efficiency')} A+++`)) groups[brand].features.push(`${tt('brand_feat_efficiency')} A+++`);
-        if (description.includes('multi-split') && !groups[brand].features.includes('Multi-split')) groups[brand].features.push('Multi-split');
         if (description.includes('inverter') && !groups[brand].features.includes('Inverter')) groups[brand].features.push('Inverter');
-        if ((description.includes('pequeñas') || description.includes('grandes')) && !groups[brand].features.includes(tt('brand_feat_adaptable'))) {
-          groups[brand].features.push(tt('brand_feat_adaptable'));
-        }
       }
     });
-
     return Object.values(groups);
   }, [dbProducts, brandFilter, maxPrice, categoryFilter, language]);
 
-  const navigateToHome = () => {
-    setView('landing');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
+  const navigateToHome = () => { setView('landing'); window.scrollTo({ top: 0, behavior: 'smooth' }); };
   const navigateToCatalog = () => {
-    const scrollToCatalog = () => {
-      const el = document.getElementById('catalog');
-      if (el) el.scrollIntoView({ behavior: 'smooth' });
-    };
-    if (view !== 'landing') {
-      setView('landing');
-      setTimeout(scrollToCatalog, 100);
-    } else {
-      scrollToCatalog();
-    }
+    const scrollToCatalog = () => { const el = document.getElementById('catalog'); if (el) el.scrollIntoView({ behavior: 'smooth' }); };
+    if (view !== 'landing') { setView('landing'); setTimeout(scrollToCatalog, 100); } 
+    else scrollToCatalog();
   };
 
   const handleAdminClick = () => {
     const adminUrl = `/t/${slug}/dashboard`;
-    if (!session) {
-      navigate(`/login?returnTo=${encodeURIComponent(adminUrl)}`);
-    } else {
-      // Check if user is member of this specific tenant or superadmin
+    if (!session) navigate(`/login?returnTo=${encodeURIComponent(adminUrl)}`);
+    else {
       const isMember = memberships.some(m => m.tenant?.slug === slug);
-      if (isMember || profile?.is_superadmin) {
-        navigate(adminUrl);
-      } else {
-        alert("No tienes permisos para acceder al panel de esta empresa.");
-      }
+      if (isMember || profile?.is_superadmin) navigate(adminUrl);
+      else alert("No tienes permisos para esta empresa.");
     }
   };
 
-  // Fixed type annotation: added React namespace
   const handleContactSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!contactForm.name || !contactForm.email || !contactForm.message) {
-      return;
-    }
+    if (!contactForm.name || !contactForm.email || !contactForm.message) return;
     setContactStatus('sending');
-    setTimeout(() => {
-      setContactStatus('success');
-      setTimeout(() => {
-        setIsContactModalOpen(false);
-        setContactStatus('idle');
-        setContactForm({ name: '', email: '', phone: '', message: '' });
-      }, 2000);
-    }, 1000);
+    setTimeout(() => { setContactStatus('success'); setTimeout(() => { setIsContactModalOpen(false); setContactStatus('idle'); setContactForm({ name: '', email: '', phone: '', message: '' }); }, 2000); }, 1000);
   };
 
-  // Fixed type annotation: added React namespace
   const startDrawing = (e: React.MouseEvent | React.TouchEvent) => {
     setIsDrawing(true);
     const canvas = canvasRef.current;
@@ -370,7 +310,6 @@ export const PublicTenantWebsite = () => {
     ctx.moveTo(pos.x, pos.y);
   };
 
-  // Fixed type annotation: added React namespace
   const draw = (e: React.MouseEvent | React.TouchEvent) => {
     if (!isDrawing) return;
     const canvas = canvasRef.current;
@@ -389,7 +328,6 @@ export const PublicTenantWebsite = () => {
 
   const stopDrawing = () => setIsDrawing(false);
 
-  // Fixed type annotation: added React namespace
   const getPos = (e: React.MouseEvent | React.TouchEvent) => {
     const canvas = canvasRef.current;
     if (!canvas) return { x: 0, y: 0 };
@@ -399,14 +337,7 @@ export const PublicTenantWebsite = () => {
     return { x: clientX - rect.left, y: clientY - rect.top };
   };
 
-  const clearCanvas = () => {
-    const canvas = canvasRef.current;
-    const ctx = canvas?.getContext('2d');
-    if (canvas && ctx) {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      setIsSigned(false);
-    }
-  };
+  const clearCanvas = () => { const canvas = canvasRef.current; const ctx = canvas?.getContext('2d'); if (canvas && ctx) { ctx.clearRect(0, 0, canvas.width, canvas.height); setIsSigned(false); } };
 
   const validateStep4 = () => {
     const errors: any = {};
@@ -423,9 +354,9 @@ export const PublicTenantWebsite = () => {
 
   if (loading) return <LoadingSpinner />;
   if (!tenant) return (
-    <div className="min-h-screen flex items-center justify-center bg-white p-12 text-center">
+    <div className="min-h-screen flex items-center justify-center bg-white p-6 text-center">
        <div className="animate-in fade-in zoom-in duration-500">
-         <h1 className="text-9xl font-black text-slate-100 mb-4 tracking-tighter uppercase italic">404</h1>
+         <h1 className="text-7xl md:text-9xl font-black text-slate-100 mb-4 tracking-tighter uppercase italic">404</h1>
          <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">{tt('error_404_msg')}</p>
          <Link to="/" className="mt-10 inline-block px-8 py-3 bg-blue-600 text-white rounded-full font-black uppercase text-[10px]">{tt('error_404_btn')}</Link>
        </div>
@@ -435,211 +366,102 @@ export const PublicTenantWebsite = () => {
   const subtotal = (selectedProduct?.price || 0) + (selectedKit?.price || 0) + selectedExtras.reduce((acc, n) => acc + (PDF_EXTRAS.find(e => n === e.name)?.price || 0), 0);
 
   return (
-    <div className="min-h-screen bg-white text-slate-900 selection:bg-blue-600/20">
-      {/* Header */}
-      <nav className="flex items-center justify-between px-6 md:px-16 py-6 sticky top-0 bg-white/90 backdrop-blur-md z-[60] border-b border-slate-100">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-white shadow-sm rounded-lg flex items-center justify-center overflow-hidden border border-slate-50 relative">
-             <div className="w-6 h-6 bg-blue-500 rounded-full blur-[2px] opacity-20 absolute"></div>
-             <svg className="w-8 h-8 text-blue-600 relative" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L4.5 20.29L5.21 21L12 18L18.79 21L19.5 20.29L12 2Z"/></svg>
+    <div className="min-h-screen bg-white text-slate-900 selection:bg-blue-600/20 overflow-x-hidden">
+      <nav className="flex items-center justify-between px-4 md:px-16 py-4 md:py-6 sticky top-0 bg-white/90 backdrop-blur-md z-[60] border-b border-slate-100">
+        <div className="flex items-center gap-2 md:gap-3">
+          <div className="w-8 h-8 md:w-10 md:h-10 bg-white shadow-sm rounded-lg flex items-center justify-center border border-slate-50 overflow-hidden">
+             <svg className="w-6 h-6 md:w-8 md:h-8 text-blue-600" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L4.5 20.29L5.21 21L12 18L18.79 21L19.5 20.29L12 2Z"/></svg>
           </div>
-          <div className="flex flex-col -gap-1">
-             <span className="text-xl font-black italic tracking-tighter uppercase leading-none">{tenant.name}</span>
-             <span className="text-[7px] font-bold text-slate-400 uppercase tracking-widest leading-none ml-1">Instal·lacions Integrals</span>
+          <div className="flex flex-col">
+             <span className="text-base md:text-xl font-black italic tracking-tighter uppercase leading-none truncate max-w-[120px] md:max-w-none">{tenant.name}</span>
           </div>
         </div>
-        <div className="flex items-center gap-10">
+        <div className="flex items-center gap-2 md:gap-10">
           <div className="hidden lg:flex items-center gap-8">
             <button onClick={navigateToHome} className={`px-4 py-2 rounded-lg text-[13px] font-bold transition-all ${view === 'landing' ? 'bg-blue-50 text-blue-600' : 'text-slate-500 hover:text-blue-600'}`}>{tt('nav_home')}</button>
             <button onClick={navigateToCatalog} className="text-[13px] font-bold text-slate-500 hover:text-blue-600 transition-colors">{tt('nav_products')}</button>
             <button onClick={() => setIsContactModalOpen(true)} className="text-[13px] font-bold text-slate-500 hover:text-blue-600 transition-colors">{tt('nav_contact')}</button>
           </div>
-          <div className="h-6 w-px bg-slate-200 hidden md:block"></div>
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-1 text-[11px] font-bold text-slate-600 cursor-pointer border border-slate-100 rounded-lg px-2 py-1 bg-slate-50">
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 text-[9px] md:text-[11px] font-bold text-slate-600 border border-slate-100 rounded-lg px-2 py-1 bg-slate-50">
               <button onClick={() => setLanguage('es')} className={`px-1.5 rounded transition-all ${language === 'es' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400'}`}>ES</button>
               <button onClick={() => setLanguage('ca')} className={`px-1.5 rounded transition-all ${language === 'ca' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400'}`}>CA</button>
             </div>
-            <button onClick={handleAdminClick} className="p-2 text-slate-400 hover:text-slate-900 transition-all bg-slate-50 rounded-lg hover:shadow-sm border border-slate-100 flex items-center gap-2 px-3">
+            <button onClick={handleAdminClick} className="p-2 text-slate-400 hover:text-slate-900 transition-all bg-slate-50 rounded-lg border border-slate-100">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
-              <span className="text-[10px] font-black uppercase tracking-widest">{tt('nav_admin_btn')}</span>
             </button>
           </div>
         </div>
       </nav>
 
-      {/* Contact Modal */}
       {isContactModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[200] flex items-center justify-center p-6 animate-in fade-in duration-300">
-          <div className="bg-white rounded-[3.5rem] p-10 md:p-14 w-full max-w-xl shadow-2xl relative animate-in zoom-in-95 duration-300">
-            <button onClick={() => setIsContactModalOpen(false)} className="absolute top-8 right-8 text-slate-300 hover:text-slate-900 transition-colors">
-              <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M6 18L18 6M6 6l12 12"/></svg>
-            </button>
-            
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[200] flex items-center justify-center p-4 animate-in fade-in duration-300">
+          <div className="bg-white rounded-[2rem] md:rounded-[3.5rem] p-8 md:p-14 w-full max-w-xl shadow-2xl relative overflow-y-auto max-h-[90vh]">
+            <button onClick={() => setIsContactModalOpen(false)} className="absolute top-6 right-6 text-slate-300 hover:text-slate-900"><svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M6 18L18 6M6 6l12 12"/></svg></button>
             {contactStatus === 'success' ? (
-              <div className="text-center py-12">
-                <div className="w-20 h-20 bg-green-50 text-green-500 rounded-full flex items-center justify-center mx-auto mb-8 animate-bounce">
-                  <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" d="M5 13l4 4L19 7"/></svg>
-                </div>
-                <h3 className="text-3xl font-black italic uppercase leading-none">{tt('contact_success')}</h3>
-                <p className="text-slate-400 font-medium italic mt-2">{tt('contact_success_desc')}</p>
-              </div>
+              <div className="text-center py-8"><div className="w-16 h-16 bg-green-50 text-green-500 rounded-full flex items-center justify-center mx-auto mb-6"><svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" d="M5 13l4 4L19 7"/></svg></div><h3 className="text-2xl font-black italic uppercase">{tt('contact_success')}</h3></div>
             ) : (
-              <>
-                <h3 className="text-4xl font-black tracking-tighter uppercase italic leading-none mb-4">{tt('contact_title')}</h3>
-                <p className="text-slate-400 font-medium italic mb-10">{tt('contact_desc')}</p>
-                <form onSubmit={handleContactSubmit} className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <Input label={tt('wizard_fullname') + " *"} placeholder={tt('wizard_fullname')} value={contactForm.name} onChange={(e:any) => setContactForm({...contactForm, name: e.target.value})} required />
-                    <Input label={tt('wizard_email') + " *"} type="email" placeholder={tt('wizard_email')} value={contactForm.email} onChange={(e:any) => setContactForm({...contactForm, email: e.target.value})} required />
-                  </div>
-                  <Input label={tt('contact_phone')} placeholder={tt('contact_phone')} value={contactForm.phone} onChange={(e:any) => setContactForm({...contactForm, phone: e.target.value})} />
-                  <div className="text-left">
-                    <label className="block text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1.5 ml-1">{tt('contact_message')}</label>
-                    <textarea 
-                      className="w-full px-4 py-3 border border-gray-100 rounded-2xl shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-sm bg-gray-50/50 h-32 resize-none" 
-                      placeholder="..." 
-                      value={contactForm.message} 
-                      onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setContactForm({...contactForm, message: e.target.value})} 
-                      required 
-                    />
-                  </div>
-                  <div className="flex gap-4 pt-4">
-                    <button type="button" onClick={() => setIsContactModalOpen(false)} className="px-8 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">{tt('contact_btn_cancel')}</button>
-                    <button type="submit" disabled={contactStatus === 'sending'} className="flex-1 py-4 bg-blue-600 text-white rounded-2xl font-black uppercase text-[12px] tracking-widest shadow-xl shadow-blue-600/30 active:scale-95 transition-all">
-                      {contactStatus === 'sending' ? tt('contact_sending') : tt('contact_btn_send')}
-                    </button>
-                  </div>
-                </form>
-              </>
+              <><h3 className="text-3xl font-black tracking-tighter uppercase italic mb-8">{tt('contact_title')}</h3>
+                <form onSubmit={handleContactSubmit} className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4"><Input label={tt('wizard_fullname')} value={contactForm.name} onChange={(e:any) => setContactForm({...contactForm, name: e.target.value})} required /><Input label={tt('wizard_email')} type="email" value={contactForm.email} onChange={(e:any) => setContactForm({...contactForm, email: e.target.value})} required /></div>
+                  <Input label={tt('contact_phone')} value={contactForm.phone} onChange={(e:any) => setContactForm({...contactForm, phone: e.target.value})} />
+                  <textarea className="w-full px-4 py-3 border border-gray-100 rounded-xl shadow-sm bg-gray-50/50 h-24 resize-none text-sm outline-none focus:ring-2 focus:ring-blue-500" placeholder={tt('contact_message')} value={contactForm.message} onChange={(e) => setContactForm({...contactForm, message: e.target.value})} required />
+                  <button type="submit" className="w-full py-4 bg-blue-600 text-white rounded-xl font-black uppercase text-[12px] tracking-widest shadow-xl shadow-blue-600/30">{contactStatus === 'sending' ? tt('contact_sending') : tt('contact_btn_send')}</button>
+                </form></>
             )}
           </div>
         </div>
       )}
 
       {view === 'landing' ? (
-        <main className="animate-in fade-in duration-1000 pb-40">
-          <div className="px-6 md:px-12 pt-6">
-            <section className="relative rounded-[2.5rem] h-[650px] overflow-hidden group shadow-2xl">
-              <img src="https://images.unsplash.com/photo-1556911220-e15b29be8c8f?q=80&w=2070&auto=format&fit=crop" className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" alt="Hero" />
-              <div className="absolute inset-0 bg-gradient-to-r from-slate-900/70 via-slate-900/30 to-transparent"></div>
-              <div className="relative h-full flex flex-col justify-center items-start px-12 md:px-24 max-w-4xl text-left">
-                <div className="flex items-center gap-2 px-4 py-1.5 bg-blue-600/90 text-white rounded-full text-[10px] font-black uppercase tracking-widest mb-8 border border-white/20">
-                  <div className="w-1.5 h-1.5 bg-white rounded-full animate-pulse"></div>
-                  {tt('hero_badge')}
-                </div>
-                <h1 className="text-6xl md:text-8xl font-black text-white leading-[0.9] tracking-tighter mb-10 uppercase">
-                  {tt('hero_title_1')} <br/>
-                  <span className="text-blue-400 italic">{tt('hero_title_2')}</span>
-                </h1>
-                <p className="text-lg md:text-xl text-white/80 max-w-xl font-medium leading-relaxed mb-12">
-                  {tt('hero_desc')}
-                </p>
-                <div className="flex flex-wrap gap-4">
-                  <button onClick={navigateToCatalog} className="px-10 py-5 bg-blue-600 text-white rounded-2xl font-black uppercase text-[12px] tracking-widest hover:bg-blue-700 transition-all shadow-xl shadow-blue-600/30 flex items-center gap-3 active:scale-95">
-                    {tt('hero_cta_catalog')}
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 14l-7 7m0 0l-7-7m7 7V3"/></svg>
-                  </button>
-                  <button onClick={() => { setView('wizard'); setStep(1); }} className="px-10 py-5 bg-white/10 backdrop-blur-md border border-white/30 text-white rounded-2xl font-black uppercase text-[12px] tracking-widest hover:bg-white/20 transition-all active:scale-95">
-                    {tt('hero_cta_wizard')}
-                  </button>
+        <main className="animate-in fade-in duration-1000 pb-20">
+          <div className="px-4 md:px-12 pt-4 md:pt-6">
+            <section className="relative rounded-[1.5rem] md:rounded-[2.5rem] min-h-[450px] md:h-[650px] overflow-hidden group shadow-2xl flex items-center">
+              <img src="https://images.unsplash.com/photo-1556911220-e15b29be8c8f?q=80&w=2070&auto=format&fit=crop" className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000" alt="Hero" />
+              <div className="absolute inset-0 bg-gradient-to-r from-slate-900/80 via-slate-900/40 to-transparent"></div>
+              <div className="relative px-6 md:px-24 max-w-4xl text-left">
+                <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-600/90 text-white rounded-full text-[8px] md:text-[10px] font-black uppercase tracking-widest mb-6 border border-white/20">{tt('hero_badge')}</div>
+                <h1 className="text-4xl md:text-8xl font-black text-white leading-[1] tracking-tighter mb-8 uppercase italic">{tt('hero_title_1')} <br/><span className="text-blue-400">{tt('hero_title_2')}</span></h1>
+                <p className="text-sm md:text-xl text-white/80 max-w-xl font-medium mb-10 italic">{tt('hero_desc')}</p>
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <button onClick={navigateToCatalog} className="w-full sm:w-auto px-8 py-4 bg-blue-600 text-white rounded-xl font-black uppercase text-[11px] tracking-widest shadow-xl flex items-center justify-center gap-2">{tt('hero_cta_catalog')}</button>
+                  <button onClick={() => { setView('wizard'); setStep(1); }} className="w-full sm:w-auto px-8 py-4 bg-white/10 backdrop-blur-md border border-white/30 text-white rounded-xl font-black uppercase text-[11px] tracking-widest">{tt('hero_cta_wizard')}</button>
                 </div>
               </div>
             </section>
           </div>
 
-          <section id="catalog" className="py-32 px-6 md:px-12 scroll-mt-24">
+          <section id="catalog" className="py-20 md:py-32 px-4 md:px-12 scroll-mt-24">
              <div className="max-w-7xl mx-auto">
-               <div className="text-left mb-16">
-                  <h2 className="text-4xl font-black tracking-tighter uppercase italic leading-none mb-2">{tt('catalog_title')}</h2>
-                  <p className="text-slate-400 font-bold text-sm italic">{tt('catalog_subtitle')}</p>
+               <div className="text-left mb-12">
+                  <h2 className="text-3xl md:text-4xl font-black tracking-tighter uppercase italic mb-2">{tt('catalog_title')}</h2>
+                  <p className="text-slate-400 font-bold text-xs italic">{tt('catalog_subtitle')}</p>
                </div>
                
-               <div className="bg-white border border-slate-100 rounded-[2.5rem] p-8 mb-20 shadow-sm flex flex-col md:flex-row items-center justify-between gap-10">
-                 <div className="flex flex-col gap-4 w-full md:w-auto">
-                   <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
-                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
-                     Categoría
-                   </span>
-                   <div className="flex flex-wrap gap-2">
-                     {[
-                       { id: 'all', label: tt('cat_all') },
-                       { id: 'aire_acondicionado', label: tt('cat_ac') },
-                       { id: 'caldera', label: tt('cat_boiler') },
-                       { id: 'termo_electrico', label: tt('cat_thermo') }
-                     ].map(t => (
-                       <button key={t.id} onClick={() => setCategoryFilter(t.id)} className={`px-6 py-3 rounded-full text-[12px] font-bold transition-all ${categoryFilter === t.id ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'}`}>{t.label}</button>
-                     ))}
-                   </div>
-                 </div>
-
-                 <div className="h-10 w-px bg-slate-100 hidden md:block"></div>
-
-                 <div className="flex flex-col gap-4 w-full md:w-auto">
-                   <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{tt('filter_brand')}</span>
-                   <select value={brandFilter} onChange={(e) => setBrandFilter(e.target.value)} className="px-6 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-[12px] font-bold text-slate-600 outline-none w-full md:w-56 appearance-none cursor-pointer">
-                     <option value="">{tt('filter_all_brands')}</option>
-                     {Array.from(new Set(dbProducts.map(p => p.name.split(' ')[0]))).map(brand => (
-                       <option key={brand} value={brand}>{brand}</option>
-                     ))}
-                   </select>
-                 </div>
-
-                 <div className="h-10 w-px bg-slate-100 hidden md:block"></div>
-
-                 <div className="flex flex-col gap-4 w-full md:w-auto flex-1 max-w-xs">
-                   <div className="flex justify-between items-center">
-                     <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{tt('filter_max_price')}</span>
-                     <span className="text-[12px] font-black text-blue-600">{maxPrice} €</span>
-                   </div>
-                   <input type="range" min="0" max="10000" value={maxPrice} onChange={(e) => setMaxPrice(parseInt(e.target.value))} className="w-full accent-blue-600 h-1.5 bg-slate-100 rounded-lg" />
-                 </div>
+               <div className="bg-white border border-slate-100 rounded-[1.5rem] md:rounded-[2.5rem] p-6 md:p-8 mb-12 shadow-sm flex flex-col md:flex-row items-center gap-6">
+                 <div className="w-full md:w-auto overflow-x-auto"><div className="flex gap-2 whitespace-nowrap">
+                   {['all', 'aire_acondicionado', 'caldera', 'termo_electrico'].map(id => (
+                     <button key={id} onClick={() => setCategoryFilter(id)} className={`px-4 py-2 rounded-full text-[10px] font-bold transition-all ${categoryFilter === id ? 'bg-blue-600 text-white shadow-lg' : 'bg-slate-50 text-slate-500'}`}>{id === 'all' ? tt('cat_all') : tt(`cat_${id === 'aire_acondicionado' ? 'ac' : id === 'caldera' ? 'boiler' : 'thermo'}`)}</button>
+                   ))}
+                 </div></div>
+                 <div className="hidden md:block h-10 w-px bg-slate-100"></div>
+                 <select value={brandFilter} onChange={(e) => setBrandFilter(e.target.value)} className="w-full md:w-48 px-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl text-[11px] font-bold text-slate-600 outline-none">{tt('filter_all_brands')}{Array.from(new Set(dbProducts.map(p => p.name.split(' ')[0]))).map(brand => (<option key={brand} value={brand}>{brand}</option>))}</select>
+                 <div className="w-full md:flex-1 max-w-xs"><div className="flex justify-between text-[9px] font-black uppercase text-slate-400 mb-2"><span>Precio Máx.</span><span>{maxPrice} €</span></div><input type="range" min="0" max="10000" value={maxPrice} onChange={(e) => setMaxPrice(parseInt(e.target.value))} className="w-full accent-blue-600 h-1.5 bg-slate-100 rounded-lg" /></div>
                </div>
 
-               {brandGroups.length === 0 ? (
-                 <div className="py-20 text-center text-slate-300 font-black uppercase tracking-[0.2em] italic">
-                   {tt('no_products_filter')}
-                 </div>
-               ) : (
-                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12">
+               {brandGroups.length === 0 ? (<div className="py-20 text-center text-slate-300 font-black uppercase italic">{tt('no_products_filter')}</div>) : (
+                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 md:gap-12">
                     {brandGroups.map(group => (
-                      <div key={group.brand} className="group bg-white rounded-[4rem] p-10 border border-slate-100 shadow-sm hover:shadow-2xl transition-all flex flex-col text-left relative overflow-hidden">
-                         <div className="h-64 bg-slate-50 rounded-[3.5rem] mb-10 flex items-center justify-center relative shadow-inner overflow-hidden">
-                            <div className="absolute top-6 left-6 w-12 h-12 bg-white rounded-full shadow-sm flex items-center justify-center p-2 opacity-80">
-                              <span className="text-[8px] font-black text-slate-400">{tt('brand_tag')}</span>
-                            </div>
-                            <svg className="w-24 h-24 text-blue-100 group-hover:scale-110 transition-transform duration-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-                            <div className="absolute top-8 right-8 px-4 py-2 bg-white text-blue-600 rounded-full text-[9px] font-black uppercase tracking-widest shadow-sm">{tt('brand_card_gama')} {group.brand}</div>
+                      <div key={group.brand} className="bg-white rounded-[2rem] md:rounded-[3rem] p-6 md:p-8 border border-slate-100 shadow-sm hover:shadow-xl transition-all flex flex-col text-left">
+                         <div className="h-48 md:h-64 bg-slate-50 rounded-[1.5rem] md:rounded-[2.5rem] mb-6 md:mb-8 flex items-center justify-center relative shadow-inner overflow-hidden">
+                            <svg className="w-16 h-16 md:w-24 md:h-24 text-blue-100" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                            <div className="absolute top-4 right-4 px-3 py-1 bg-white text-blue-600 rounded-full text-[8px] font-black uppercase tracking-widest shadow-sm">{group.brand}</div>
                          </div>
-                         
-                         <h3 className="text-4xl font-black mb-1 uppercase italic tracking-tighter">{group.brand}</h3>
-                         <p className="text-[11px] font-black uppercase tracking-widest text-slate-400 mb-8 italic">{tt('brand_card_models')}</p>
-                         
-                         <div className="flex flex-wrap gap-2 mb-12">
-                            {group.features.slice(0, 5).map(feat => (
-                              <span key={feat} className="px-3 py-1.5 bg-slate-50 text-slate-600 rounded-full text-[9px] font-black uppercase border border-slate-100 tracking-wider">
-                                {feat}
-                              </span>
-                            ))}
-                         </div>
-
-                         <div className="flex items-center justify-between border-t border-slate-50 pt-10 mt-auto">
-                            <div>
-                               <p className="text-[40px] font-black text-slate-900 tracking-tighter leading-none">
-                                  <span className="text-lg text-slate-300 mr-2 uppercase italic font-bold">{tt('brand_card_from')}</span>
-                                  {formatCurrency(group.minPrice, language)}
-                               </p>
-                            </div>
-                            <button 
-                              onClick={() => { 
-                                setSelectedProduct(group.products[0]); 
-                                setView('wizard'); 
-                                setStep(1); 
-                              }} 
-                              className="w-16 h-16 bg-blue-600 text-white rounded-[1.8rem] flex items-center justify-center hover:bg-slate-900 transition-all shadow-xl shadow-blue-600/20 active:scale-95"
-                            >
-                               <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 4v16m8-8H4"/></svg>
-                            </button>
+                         <h3 className="text-3xl font-black mb-1 uppercase italic tracking-tighter">{group.brand}</h3>
+                         <div className="flex flex-wrap gap-2 mb-8">{group.features.slice(0, 3).map(feat => (<span key={feat} className="px-2 py-1 bg-slate-50 text-slate-600 rounded-full text-[8px] font-black uppercase border border-slate-100">{feat}</span>))}</div>
+                         <div className="flex items-center justify-between border-t border-slate-50 pt-6 mt-auto">
+                            <div><p className="text-2xl md:text-3xl font-black text-slate-900 tracking-tighter leading-none"><span className="text-[10px] text-slate-300 mr-1 uppercase italic">Des de</span>{formatCurrency(group.minPrice, language)}</p></div>
+                            <button onClick={() => { setSelectedProduct(group.products[0]); setView('wizard'); setStep(1); }} className="w-12 h-12 bg-blue-600 text-white rounded-xl flex items-center justify-center active:scale-95 shadow-lg"><svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 4v16m8-8H4"/></svg></button>
                          </div>
                       </div>
                     ))}
@@ -649,56 +471,26 @@ export const PublicTenantWebsite = () => {
           </section>
         </main>
       ) : (
-        /* Wizard Section */
-        <div className="max-w-5xl mx-auto py-24 px-8 animate-in slide-in-from-bottom-12 duration-700">
-           <div className="mb-20 flex justify-between items-center bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm relative overflow-hidden">
-              <div className="absolute top-0 left-0 w-full h-1 bg-slate-50"><div className="h-full bg-blue-600 transition-all duration-700 shadow-[0_0_20px_rgba(37,99,235,0.4)]" style={{ width: `${(step / 5) * 100}%` }}></div></div>
+        <div className="max-w-5xl mx-auto py-10 md:py-24 px-4 md:px-8 animate-in slide-in-from-bottom-12 duration-700">
+           <div className="mb-10 md:mb-20 flex justify-start items-center bg-white p-4 md:p-6 rounded-2xl md:rounded-[2.5rem] border border-slate-100 shadow-sm relative overflow-x-auto whitespace-nowrap gap-4 scrollbar-hide">
               {[1, 2, 3, 4, 5].map(num => (
-                <div key={num} className="flex items-center gap-4 relative z-10">
-                   <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black text-sm transition-all border-2 ${step === num ? 'bg-blue-600 border-blue-600 text-white shadow-xl scale-110' : step > num ? 'bg-blue-50 border-blue-100 text-blue-600' : 'bg-white border-slate-100 text-slate-200'}`}>
-                      {step > num ? <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"/></svg> : num}
-                   </div>
-                   <div className="hidden lg:block text-left leading-none">
-                      <p className={`text-[10px] font-black uppercase tracking-widest ${step >= num ? 'text-slate-900' : 'text-slate-400'}`}>
-                        {num === 1 ? tt('wizard_step_product') : num === 2 ? tt('wizard_step_install') : num === 3 ? tt('wizard_step_extras') : num === 4 ? tt('wizard_step_client') : tt('wizard_step_sign')}
-                      </p>
-                   </div>
+                <div key={num} className="flex items-center gap-2 md:gap-4 shrink-0">
+                   <div className={`w-8 h-8 md:w-12 md:h-12 rounded-lg md:rounded-2xl flex items-center justify-center font-black text-xs md:text-sm transition-all border-2 ${step === num ? 'bg-blue-600 border-blue-600 text-white shadow-xl scale-110' : step > num ? 'bg-blue-50 border-blue-100 text-blue-600' : 'bg-white border-slate-100 text-slate-200'}`}>{step > num ? <svg className="w-4 h-4 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"/></svg> : num}</div>
+                   <p className={`text-[8px] md:text-[10px] font-black uppercase tracking-widest hidden sm:block ${step >= num ? 'text-slate-900' : 'text-slate-400'}`}>{num === 1 ? 'Producto' : num === 2 ? 'Kit' : num === 3 ? 'Extras' : num === 4 ? 'Datos' : 'Firma'}</p>
                 </div>
               ))}
            </div>
 
-           <div className="bg-white p-12 md:p-20 rounded-[4.5rem] border border-slate-100 shadow-2xl relative text-left min-h-[500px] flex flex-col">
+           <div className="bg-white p-6 md:p-20 rounded-[2rem] md:rounded-[4.5rem] border border-slate-100 shadow-2xl relative text-left min-h-[450px] flex flex-col">
               {step === 1 && (
                 <div className="animate-in fade-in duration-500 flex-1">
-                   <h2 className="text-4xl font-black tracking-tighter mb-10 italic leading-none uppercase">
-                     {tt('wizard_models_available')} {selectedProduct?.name.split(' ')[0]}
-                   </h2>
-                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                   <h2 className="text-3xl md:text-4xl font-black tracking-tighter mb-8 italic uppercase">{tt('wizard_models_available')}</h2>
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
                       {dbProducts.filter((p: any) => !selectedProduct || p.name.split(' ')[0] === selectedProduct.name.split(' ')[0]).map((p: any) => (
-                        <button 
-                          key={p.id} 
-                          onClick={() => setSelectedProduct(p)}
-                          className={`p-10 rounded-[3rem] border-2 text-left transition-all relative group flex flex-col h-full ${selectedProduct?.id === p.id ? 'border-blue-600 bg-blue-50 shadow-xl' : 'border-slate-100 hover:border-blue-200 bg-white'}`}
-                        >
-                           {selectedProduct?.id === p.id && (
-                             <div className="absolute top-8 right-8 w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white">
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"/></svg>
-                             </div>
-                           )}
-                           <div className="mb-4">
-                              <span className="px-3 py-1 bg-white border border-blue-100 text-blue-600 rounded-full text-[9px] font-black uppercase tracking-widest shadow-sm">
-                                {tt('wizard_high_efficiency')}
-                              </span>
-                           </div>
-                           <h3 className="font-black text-2xl text-slate-900 uppercase italic mb-3 leading-none">{p.name}</h3>
-                           <p className="text-slate-400 text-sm italic mb-8 line-clamp-2 flex-1">{p.description || p.desc}</p>
-                           <div className="flex justify-between items-end border-t border-slate-100/50 pt-6 mt-4">
-                              <div className="flex flex-col">
-                                 <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest">{tt('wizard_status')}</span>
-                                 <span className="text-[11px] font-bold text-slate-600">{tt('wizard_install_included')}</span>
-                              </div>
-                              <p className="text-3xl font-black text-blue-600 tracking-tighter">{formatCurrency(p.price, language)}</p>
-                           </div>
+                        <button key={p.id} onClick={() => setSelectedProduct(p)} className={`p-6 md:p-10 rounded-2xl md:rounded-[3rem] border-2 text-left transition-all relative flex flex-col h-full ${selectedProduct?.id === p.id ? 'border-blue-600 bg-blue-50' : 'border-slate-100 bg-white'}`}>
+                           <h3 className="font-black text-xl md:text-2xl text-slate-900 uppercase italic mb-2 leading-none">{p.name}</h3>
+                           <p className="text-slate-400 text-xs italic mb-6 line-clamp-2 flex-1">{p.description || p.desc}</p>
+                           <p className="text-2xl md:text-3xl font-black text-blue-600 tracking-tighter">{formatCurrency(p.price, language)}</p>
                         </button>
                       ))}
                    </div>
@@ -707,13 +499,12 @@ export const PublicTenantWebsite = () => {
 
               {step === 2 && (
                 <div className="animate-in fade-in duration-500 flex-1">
-                   <h2 className="text-5xl font-black tracking-tighter mb-12 italic leading-none uppercase">{tt('wizard_kit_title')}</h2>
-                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                   <h2 className="text-3xl md:text-5xl font-black tracking-tighter mb-8 italic uppercase">{tt('wizard_kit_title')}</h2>
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {PDF_KITS.map(kit => (
-                        <button key={kit.name} onClick={() => setSelectedKit(kit)} className={`p-10 rounded-[3rem] border-2 text-left transition-all relative group ${selectedKit?.name === kit.name ? 'border-blue-600 bg-blue-50/50 shadow-xl' : 'border-slate-100 hover:border-blue-200 bg-white'}`}>
-                           {selectedKit?.name === kit.name && <div className="absolute top-8 right-8 w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"/></svg></div>}
-                           <h3 className="font-black text-2xl text-slate-900 uppercase italic mb-2 leading-none">{kit.name}</h3>
-                           <p className="text-3xl font-black text-blue-600">{formatCurrency(kit.price, language)}</p>
+                        <button key={kit.name} onClick={() => setSelectedKit(kit)} className={`p-6 md:p-10 rounded-2xl md:rounded-[3rem] border-2 text-left transition-all ${selectedKit?.name === kit.name ? 'border-blue-600 bg-blue-50' : 'border-slate-100 bg-white'}`}>
+                           <h3 className="font-black text-lg md:text-2xl text-slate-900 uppercase italic mb-1">{kit.name}</h3>
+                           <p className="text-2xl font-black text-blue-600">{formatCurrency(kit.price, language)}</p>
                         </button>
                       ))}
                    </div>
@@ -722,14 +513,14 @@ export const PublicTenantWebsite = () => {
 
               {step === 3 && (
                 <div className="animate-in fade-in duration-500 flex-1">
-                   <h2 className="text-5xl font-black tracking-tighter mb-12 italic leading-none uppercase">{tt('wizard_extras_title')}</h2>
-                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 overflow-y-auto max-h-[400px] pr-2">
+                   <h2 className="text-3xl md:text-5xl font-black tracking-tighter mb-8 italic uppercase">{tt('wizard_extras_title')}</h2>
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3 overflow-y-auto max-h-[350px] pr-2">
                       {PDF_EXTRAS.map(extra => {
                         const isSel = selectedExtras.includes(extra.name);
                         return (
-                          <button key={extra.name} onClick={() => setSelectedExtras(prev => isSel ? prev.filter(i => i !== extra.name) : [...prev, extra.name])} className={`flex items-center justify-between p-6 rounded-[2rem] border-2 transition-all ${isSel ? 'border-blue-600 bg-blue-50' : 'border-slate-50 bg-slate-50/50'}`}>
-                             <div className="text-left"><p className="font-bold text-[11px] uppercase text-slate-900 leading-tight">{extra.name}</p><p className="text-xs font-black text-blue-600 mt-1">{formatCurrency(extra.price, language)}</p></div>
-                             <div className={`w-8 h-8 rounded-xl border-2 flex items-center justify-center ${isSel ? 'bg-blue-600 border-blue-600 text-white' : 'border-slate-200 bg-white'}`}>{isSel && <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"/></svg>}</div>
+                          <button key={extra.name} onClick={() => setSelectedExtras(prev => isSel ? prev.filter(i => i !== extra.name) : [...prev, extra.name])} className={`flex items-center justify-between p-4 rounded-xl md:rounded-[2rem] border-2 transition-all ${isSel ? 'border-blue-600 bg-blue-50' : 'border-slate-50 bg-slate-50/50'}`}>
+                             <p className="font-bold text-[10px] uppercase text-slate-900 leading-tight pr-2">{extra.name}</p>
+                             <p className="text-[10px] font-black text-blue-600 shrink-0">{formatCurrency(extra.price, language)}</p>
                           </button>
                         );
                       })}
@@ -739,62 +530,51 @@ export const PublicTenantWebsite = () => {
 
               {step === 4 && (
                 <div className="animate-in fade-in duration-500 flex-1">
-                   <h2 className="text-5xl font-black tracking-tighter mb-12 italic leading-none uppercase">{tt('wizard_data_title')}</h2>
-                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
-                      <div><Input label={tt('wizard_fullname')} placeholder={tt('wizard_fullname')} value={formData.name} onChange={(e:any) => setFormData({...formData, name: e.target.value})} />{formErrors.name && <p className="text-[9px] text-red-500 font-black uppercase mt-1 ml-1">{formErrors.name}</p>}</div>
-                      <div><Input label={tt('wizard_email')} placeholder={tt('wizard_email')} type="email" value={formData.email} onChange={(e:any) => setFormData({...formData, email: e.target.value})} />{formErrors.email && <p className="text-[9px] text-red-500 font-black uppercase mt-1 ml-1">{formErrors.email}</p>}</div>
-                      <div><Input label={tt('wizard_phone')} placeholder={tt('wizard_phone')} value={formData.phone} onChange={(e:any) => setFormData({...formData, phone: e.target.value.replace(/\D/g,'')})} />{formErrors.phone && <p className="text-[9px] text-red-500 font-black uppercase mt-1 ml-1">{formErrors.phone}</p>}</div>
+                   <h2 className="text-3xl md:text-5xl font-black tracking-tighter mb-8 italic uppercase">{tt('wizard_data_title')}</h2>
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <Input label={tt('wizard_fullname')} value={formData.name} onChange={(e:any) => setFormData({...formData, name: e.target.value})} />
+                      <Input label={tt('wizard_email')} type="email" value={formData.email} onChange={(e:any) => setFormData({...formData, email: e.target.value})} />
+                      <Input label={tt('wizard_phone')} value={formData.phone} onChange={(e:any) => setFormData({...formData, phone: e.target.value.replace(/\D/g,'')})} />
                       <div className="grid grid-cols-2 gap-4">
-                        <div><Input label={tt('wizard_cp')} placeholder={tt('wizard_cp')} value={formData.cp} onChange={(e:any) => setFormData({...formData, cp: e.target.value.slice(0,5).replace(/\D/g,'')})} />{formErrors.cp && <p className="text-[9px] text-red-500 font-black uppercase mt-1 ml-1">{formErrors.cp}</p>}</div>
-                        <div><Input label={tt('wizard_wo')} placeholder={tt('wizard_wo')} value={formData.wo} onChange={(e:any) => setFormData({...formData, wo: e.target.value.slice(0,8).replace(/\D/g,'')})} />{formErrors.wo && <p className="text-[9px] text-red-500 font-black uppercase mt-1 ml-1">{formErrors.wo}</p>}</div>
+                        <Input label={tt('wizard_cp')} value={formData.cp} onChange={(e:any) => setFormData({...formData, cp: e.target.value.slice(0,5).replace(/\D/g,'')})} />
+                        <Input label={tt('wizard_wo')} value={formData.wo} onChange={(e:any) => setFormData({...formData, wo: e.target.value.slice(0,8).replace(/\D/g,'')})} />
                       </div>
-                      <div className="md:col-span-2"><Input label={tt('wizard_address')} placeholder={tt('wizard_address')} value={formData.address} onChange={(e:any) => setFormData({...formData, address: e.target.value})} />{formErrors.address && <p className="text-[9px] text-red-500 font-black uppercase mt-1 ml-1">{formErrors.address}</p>}</div>
+                      <div className="md:col-span-2"><Input label={tt('wizard_address')} value={formData.address} onChange={(e:any) => setFormData({...formData, address: e.target.value})} /></div>
                    </div>
                 </div>
               )}
 
               {step === 5 && (
                 <div className="animate-in fade-in duration-500 flex-1 text-center">
-                   <h2 className="text-5xl font-black tracking-tighter mb-4 italic leading-none uppercase">{tt('wizard_sign_title')}</h2>
-                   <p className="text-slate-400 mb-12 font-medium italic">{tt('wizard_sign_desc')}</p>
-                   <div className="max-w-xl mx-auto border-4 border-slate-100 rounded-[3.5rem] bg-white shadow-inner mb-6 relative overflow-hidden h-80">
+                   <h2 className="text-3xl md:text-5xl font-black tracking-tighter mb-4 italic uppercase">{tt('wizard_sign_title')}</h2>
+                   <div className="w-full border-2 border-slate-100 rounded-2xl bg-white shadow-inner mb-4 relative overflow-hidden h-64 md:h-80">
                       <canvas ref={canvasRef} width={600} height={320} className="w-full h-full cursor-crosshair touch-none" onMouseDown={startDrawing} onMouseMove={draw} onMouseUp={stopDrawing} onMouseLeave={stopDrawing} onTouchStart={startDrawing} onTouchMove={draw} onTouchEnd={stopDrawing} />
-                      {!isSigned && <div className="absolute inset-0 flex items-center justify-center pointer-events-none text-slate-100 text-6xl font-black opacity-30 uppercase italic">{tt('wizard_sign_here')}</div>}
                    </div>
-                   <button onClick={clearCanvas} className="text-red-500 font-black uppercase text-[10px] tracking-widest hover:underline mb-12">{tt('wizard_clear_sign')}</button>
-                   <div className="max-w-xl mx-auto bg-slate-900 text-white p-10 rounded-[3rem] shadow-2xl relative overflow-hidden text-left mb-10 group">
-                      <div className="absolute top-0 right-0 w-32 h-32 bg-blue-600/20 blur-[60px] rounded-full group-hover:scale-110 transition-transform duration-700"></div>
-                      <div className="flex justify-between items-end"><span className="text-2xl font-black italic uppercase">{tt('wizard_final_investment')}</span><span className="text-5xl font-black text-blue-600 tracking-tighter">{formatCurrency(subtotal, language)}</span></div>
+                   <button onClick={clearCanvas} className="text-red-500 font-black uppercase text-[9px] mb-8">{tt('wizard_clear_sign')}</button>
+                   <div className="bg-slate-900 text-white p-6 md:p-10 rounded-2xl md:rounded-[3rem] text-left">
+                      <div className="flex justify-between items-end"><span className="text-lg md:text-2xl font-black italic uppercase">Total</span><span className="text-3xl md:text-5xl font-black text-blue-600 tracking-tighter">{formatCurrency(subtotal, language)}</span></div>
                    </div>
                 </div>
               )}
 
-              <div className="flex gap-4 mt-auto pt-10 border-t border-slate-50">
-                {step > 1 && <button onClick={() => setStep(step - 1)} className="px-10 py-6 border-2 border-slate-100 rounded-3xl font-black uppercase text-[10px] tracking-widest text-slate-400 hover:bg-slate-50 transition-all">{tt('wizard_btn_back')}</button>}
+              <div className="flex flex-col md:flex-row gap-3 mt-auto pt-8 border-t border-slate-50">
+                {step > 1 && <button onClick={() => setStep(step - 1)} className="w-full md:w-auto px-10 py-5 border-2 border-slate-100 rounded-xl md:rounded-3xl font-black uppercase text-[10px] text-slate-400">{tt('wizard_btn_back')}</button>}
                 <button onClick={() => {
                     if (step === 1 && !selectedProduct) return alert(tt('alert_unit_req'));
                     if (step === 2 && !selectedKit) return alert(tt('alert_kit_req'));
                     if (step === 4 && !validateStep4()) return;
-                    if (step === 5) {
-                      if (!isSigned) return alert(tt('alert_sign_req'));
-                      alert(tt('alert_success'));
-                      setView('landing'); return;
-                    }
+                    if (step === 5) { if (!isSigned) return alert(tt('alert_sign_req')); alert(tt('alert_success')); setView('landing'); return; }
                     setStep(step + 1);
-                  }} className={`flex-1 py-7 ${step === 5 ? 'bg-blue-600' : 'bg-slate-900'} text-white rounded-3xl font-black uppercase text-xs tracking-widest shadow-xl hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3`}>
+                  }} className="flex-1 py-5 bg-slate-900 text-white rounded-xl md:rounded-3xl font-black uppercase text-[11px] tracking-widest shadow-xl flex items-center justify-center gap-2">
                    {step === 5 ? tt('wizard_btn_finish') : tt('wizard_btn_continue')}
-                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
                 </button>
               </div>
            </div>
         </div>
       )}
 
-      <footer className="py-32 border-t border-slate-100 text-center bg-white mt-40">
-         <div className="flex items-center justify-center gap-2 mb-10 opacity-30 grayscale">
-            <svg className="w-10 h-10 text-slate-900" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L4.5 20.29L5.21 21L12 18L18.79 21L19.5 20.29L12 2Z"/></svg>
-            <span className="text-3xl font-black text-slate-900 tracking-tighter italic uppercase">{tenant?.name}</span>
-         </div>
+      <footer className="py-20 md:py-32 border-t border-slate-100 text-center bg-white mt-20">
          <div className="text-[9px] font-black uppercase tracking-[0.3em] text-slate-400 italic">© 2025 · {tt('footer_copy')}</div>
       </footer>
     </div>
