@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useOutletContext } from 'react-router-dom';
 import { supabase } from '../../supabaseClient';
 import { Tenant, Product } from '../../types';
@@ -16,9 +16,13 @@ export const ProductEditor = () => {
   const { id, slug } = useParams();
   const navigate = useNavigate();
   const { tenant } = useOutletContext<{ tenant: Tenant }>();
-  const { language, t } = useApp();
+  const { language } = useApp();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [isProcessingIA, setIsProcessingIA] = useState(false);
+  const [iaStatus, setIaStatus] = useState<{ type: 'idle' | 'loading' | 'success' | 'error', message?: string }>({ type: 'idle' });
+  
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [productData, setProductData] = useState({
     brand: '',
@@ -27,7 +31,12 @@ export const ProductEditor = () => {
     pdfUrl: '',
     imageUrl: '',
     brandLogoUrl: '',
-    pricing: [{ variant: '', price: 0 }]
+    pricing: [{ variant: '', price: 0 }],
+    // Campos extendidos para persistencia completa
+    features: [] as any,
+    installationKits: [] as any,
+    extras: [] as any,
+    financing: [] as any
   });
 
   useEffect(() => {
@@ -47,7 +56,11 @@ export const ProductEditor = () => {
           pdfUrl: p.pdfUrl || '',
           imageUrl: p.imageUrl || '',
           brandLogoUrl: p.brandLogoUrl || '',
-          pricing: Array.isArray(p.pricing) ? p.pricing : (p.pricing ? [p.pricing] : [{ variant: '', price: 0 }])
+          pricing: Array.isArray(p.pricing) ? p.pricing : (p.pricing ? [p.pricing] : [{ variant: '', price: 0 }]),
+          features: p.features || [],
+          installationKits: p.installationKits || [],
+          extras: p.extras || [],
+          financing: p.financing || []
         });
       }
       setLoading(false);
@@ -55,10 +68,56 @@ export const ProductEditor = () => {
     fetchProduct();
   }, [id]);
 
+  const handleProcessIA = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setIaStatus({ type: 'loading', message: 'Analizando documento...' });
+    setIsProcessingIA(true);
+
+    try {
+      const file = files[0];
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('defaultCategory', productData.type);
+
+      const { data, error } = await supabase.functions.invoke('extract_products_from_file', {
+        body: formData,
+      });
+
+      if (error) throw error;
+
+      if (data && data.products && data.products.length > 0) {
+        const extracted = data.products[0];
+        
+        // Mapeo inteligente sin destruir datos existentes si no vienen en la IA
+        setProductData(prev => ({
+          ...prev,
+          brand: extracted.brand || prev.brand,
+          model: extracted.model || prev.model,
+          type: extracted.category || prev.type,
+          pricing: extracted.price ? [{ variant: extracted.variant || 'Estándar', price: extracted.price }] : prev.pricing,
+          features: extracted.features || prev.features,
+          installationKits: extracted.installationKits || prev.installationKits,
+          extras: extracted.extras || prev.extras,
+          financing: extracted.financing || prev.financing
+        }));
+
+        setIaStatus({ type: 'success', message: '¡Datos extraídos con éxito!' });
+      } else {
+        setIaStatus({ type: 'error', message: data.error || 'No se detectaron productos en el archivo.' });
+      }
+    } catch (err: any) {
+      console.error("IA Error:", err);
+      setIaStatus({ type: 'error', message: 'Error al procesar IA. Verifica el archivo.' });
+    } finally {
+      setIsProcessingIA(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
   const handleSave = async () => {
     setSaving(true);
-    
-    // Validate pricing data
     const cleanedPricing = productData.pricing.filter(v => v.variant.trim() !== '');
 
     const payload = {
@@ -69,6 +128,10 @@ export const ProductEditor = () => {
       pdfUrl: productData.pdfUrl,
       imageUrl: productData.imageUrl,
       brandLogoUrl: productData.brandLogoUrl,
+      features: productData.features,
+      installationKits: productData.installationKits,
+      extras: productData.extras,
+      financing: productData.financing,
       company_id: tenant.id,
       is_deleted: false
     };
@@ -129,7 +192,56 @@ export const ProductEditor = () => {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-6 py-10 space-y-12">
+      <main className="max-w-7xl mx-auto px-6 py-10 space-y-8">
+        {/* BLOQUE IMPORTACIÓN AUTOMÁTICA IA */}
+        <section className="bg-gradient-to-br from-blue-600 to-blue-800 rounded-[1.8rem] p-8 md:p-10 shadow-xl shadow-blue-600/20 text-white relative overflow-hidden">
+          <div className="absolute top-0 right-0 p-8 opacity-10">
+            <svg className="w-32 h-32" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L4.5 20.29L5.21 21L12 18L18.79 21L19.5 20.29L12 2Z"/></svg>
+          </div>
+          <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
+            <div className="max-w-md">
+              <h2 className="text-xl md:text-2xl font-black uppercase italic tracking-tighter mb-2">Importación automática (IA)</h2>
+              <p className="text-blue-100 text-sm font-medium italic opacity-80">Sube un catálogo PDF o fotos de la ficha técnica y nosotros rellenamos el formulario por ti.</p>
+            </div>
+            <div className="flex flex-col items-center gap-4 w-full md:w-auto">
+              <input 
+                type="file" 
+                ref={fileInputRef} 
+                onChange={handleProcessIA} 
+                className="hidden" 
+                accept="application/pdf,image/*" 
+              />
+              <button 
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isProcessingIA}
+                className="w-full md:w-auto px-10 py-4 bg-white text-blue-600 rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-2xl hover:scale-105 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
+              >
+                {isProcessingIA ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent animate-spin rounded-full"></div>
+                    Procesando...
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                    Subir PDF o Imágenes
+                  </>
+                )}
+              </button>
+              
+              {iaStatus.type !== 'idle' && (
+                <div className={`text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-full border ${
+                  iaStatus.type === 'success' ? 'bg-green-500/20 border-green-500/50 text-green-200' : 
+                  iaStatus.type === 'error' ? 'bg-red-500/20 border-red-500/50 text-red-200' : 
+                  'bg-white/10 border-white/20 text-blue-100'
+                }`}>
+                  {iaStatus.message}
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           <div className="space-y-8">
             <div className="bg-white rounded-[1.8rem] p-8 border border-slate-100 shadow-sm">
