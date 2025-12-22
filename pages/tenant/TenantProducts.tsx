@@ -18,6 +18,7 @@ export const TenantProducts = () => {
   const navigate = useNavigate();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('all');
   const [maxPrice, setMaxPrice] = useState(10000);
@@ -88,23 +89,41 @@ export const TenantProducts = () => {
   }, [products, searchTerm, filterType, maxPrice]);
 
   const fetchProducts = async () => {
-    if (!tenant?.id) return;
+    if (!tenant?.id) {
+        setLoading(false);
+        return;
+    }
     setLoading(true);
-    // Real schema: company_id, is_deleted
-    let query = supabase
-      .from('products')
-      .select('*')
-      .eq('company_id', tenant.id)
-      .eq('is_deleted', false)
-      .order('brand', { ascending: true })
-      .order('model', { ascending: true });
+    setFetchError(null);
 
-    const { data } = await query;
-    if (data) setProducts(data as Product[]);
-    setLoading(false);
+    try {
+        // Usamos .neq('is_deleted', true) para que también incluya registros donde sea NULL
+        let query = supabase
+          .from('products')
+          .select('*')
+          .eq('company_id', tenant.id)
+          .neq('is_deleted', true)
+          .order('brand', { ascending: true })
+          .order('model', { ascending: true });
+
+        const { data, error } = await query;
+        
+        if (error) {
+            console.error("Error fetching products:", error);
+            setFetchError("Error al conectar con la base de datos.");
+        } else {
+            setProducts(data as Product[] || []);
+        }
+    } catch (err) {
+        setFetchError("Ocurrió un error inesperado al cargar el inventario.");
+    } finally {
+        setLoading(false);
+    }
   };
 
-  useEffect(() => { fetchProducts(); }, [tenant?.id]);
+  useEffect(() => { 
+    fetchProducts(); 
+  }, [tenant?.id]);
 
   const handleEdit = (productId: string) => {
     navigate(`/t/${slug}/products/${productId}/edit`);
@@ -116,7 +135,7 @@ export const TenantProducts = () => {
 
   const handleDeleteFamily = async (ids: string[]) => {
     if (!tenant?.id || !window.confirm(`¿Desea eliminar esta familia de productos (${ids.length} registros)?`)) return;
-    // Logic: mark as deleted (soft delete as per schema)
+    
     const { error } = await supabase
       .from('products')
       .update({ is_deleted: true })
@@ -124,8 +143,16 @@ export const TenantProducts = () => {
       .eq('company_id', tenant.id);
 
     if (error) alert("Error al eliminar: " + error.message);
-    fetchProducts();
+    else fetchProducts();
   };
+
+  if (!tenant?.id && !loading) {
+      return (
+        <div className="p-12 text-center">
+            <p className="text-slate-400 font-black uppercase text-xs italic">No hay empresa seleccionada</p>
+        </div>
+      );
+  }
 
   return (
     <div className="space-y-6 md:space-y-8 animate-in fade-in duration-500 pb-20 px-4 md:px-0">
@@ -141,6 +168,13 @@ export const TenantProducts = () => {
            Nuevo Producto
         </button>
       </div>
+
+      {fetchError && (
+          <div className="bg-red-50 border border-red-100 text-red-600 p-4 rounded-2xl text-xs font-bold flex items-center gap-3">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              {fetchError}
+          </div>
+      )}
 
       <div className="flex flex-col md:flex-row gap-4 bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
         <div className="flex-1">
@@ -190,7 +224,6 @@ export const TenantProducts = () => {
           <tbody className="divide-y divide-slate-50">
             {groupedProducts.map((group) => (
               <tr key={group.id} className="hover:bg-slate-50/30 transition-colors align-top group">
-                {/* MARCA / MODELO */}
                 <td className="px-8 py-8">
                   <div className="flex items-start gap-4">
                     <div className="w-14 h-14 bg-white border border-slate-100 rounded-xl shadow-sm flex items-center justify-center p-2 shrink-0">
@@ -206,13 +239,11 @@ export const TenantProducts = () => {
                     </div>
                   </div>
                 </td>
-                {/* TIPO */}
                 <td className="px-6 py-8">
                   <span className="inline-flex items-center px-4 py-1.5 bg-blue-50/50 text-blue-600 text-[10px] font-black uppercase rounded-lg border border-blue-100 tracking-wider">
                     {TYPES.find(c => c.id === group.type)?.label || group.type}
                   </span>
                 </td>
-                {/* PRECIOS */}
                 <td className="px-6 py-8">
                   <div className="space-y-2">
                     {group.variants.map((v, idx) => (
@@ -226,7 +257,6 @@ export const TenantProducts = () => {
                     {group.variants.length === 0 && <span className="text-[10px] text-slate-300 italic">Sin precios definidos</span>}
                   </div>
                 </td>
-                {/* IMÁGENES */}
                 <td className="px-6 py-8 text-center">
                   <div className="flex items-center justify-center gap-1.5">
                     {group.imageUrl ? (
@@ -241,7 +271,6 @@ export const TenantProducts = () => {
                     )}
                   </div>
                 </td>
-                {/* FICHA */}
                 <td className="px-6 py-8 text-center">
                   <div className="flex justify-center">
                     {group.pdfUrl ? (
@@ -253,7 +282,6 @@ export const TenantProducts = () => {
                     )}
                   </div>
                 </td>
-                {/* ACCIONES */}
                 <td className="px-8 py-8 text-right">
                   <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button onClick={() => handleEdit(group.id)} className="p-2 text-slate-300 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all">
@@ -266,8 +294,14 @@ export const TenantProducts = () => {
                 </td>
               </tr>
             ))}
-            {groupedProducts.length === 0 && !loading && (
+            {!loading && products.length === 0 && (
+                <tr><td colSpan={6} className="px-10 py-32 text-center text-slate-300 font-black uppercase text-xs italic tracking-widest">No hay productos todavía en tu inventario</td></tr>
+            )}
+            {!loading && products.length > 0 && groupedProducts.length === 0 && (
               <tr><td colSpan={6} className="px-10 py-32 text-center text-slate-300 font-black uppercase text-xs italic tracking-widest">No se encontraron productos con estos filtros</td></tr>
+            )}
+            {loading && (
+                <tr><td colSpan={6} className="px-10 py-32 text-center text-slate-300 font-black uppercase text-[10px] italic tracking-[0.2em] animate-pulse">Cargando productos...</td></tr>
             )}
           </tbody>
         </table>
