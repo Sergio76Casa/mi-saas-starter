@@ -1,38 +1,20 @@
+<div align="center">
+<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+</div>
 
-# SaaS Multi-tenant Bilingüe (ES/CA)
+# Run and deploy your AI Studio app
 
-Sistema completo para gestión de empresas con soporte para dos webs (Plataforma y Cliente) y dos idiomas.
+This contains everything you need to run your app locally.
 
-## Estructura de Rutas
+View your app in AI Studio: https://ai.studio/apps/drive/1AOECXKKbtd1yvISAnsleFg1V2r8Kk2MP
 
-1. **Plataforma Principal**
-   - `/` : Landing Page (Editable desde Superadmin).
-   - `/pricing`: Precios.
-   - `/admin`: Panel Superadmin (CMS Global, Estadísticas).
+## Run Locally
 
-2. **Webs de Clientes**
-   - `/c/[slug]`: Web pública de cada empresa (ej: `/c/mi-empresa`).
-   - `/p/[id]`: Vista pública de un presupuesto.
+**Prerequisites:**  Node.js
 
-3. **Panel de Gestión (Tenant)**
-   - `/t/[slug]/dashboard`: Resumen.
-   - `/t/[slug]/website`: CMS para editar la web pública (`/c/[slug]`).
-   - `/t/[slug]/quotes`: Gestión de presupuestos.
 
-## Idiomas (i18n)
-
-- Todo el sistema soporta Español (ES) y Catalán (CA).
-- El idioma se selecciona en la barra superior y se guarda en `localStorage`.
-- Los PDFs y formatos de moneda (EUR) respetan el idioma seleccionado.
-
-## Instalación
-
-1. Crear proyecto en Supabase.
-2. Ejecutar `supabase/schema.sql` en el Editor SQL.
-3. Configurar `.env` con URL y KEY de Supabase.
-4. `npm install` y `npm start`.
-
-## Gestión de Contenidos (CMS)
-
-- **Tabla `platform_content`**: Guarda los textos de la web principal.
-- **Tabla `tenant_content`**: Guarda los textos de las webs de los clientes.
+1. Install dependencies:
+   `npm install`
+2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
+3. Run the app:
+   `npm run dev`

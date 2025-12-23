@@ -1,96 +1,155 @@
 
-export type Language = 'es' | 'ca';
+export type LocalizedText = Record<string, string>; // { es: "Hola", en: "Hello" }
 
-export interface Profile {
-  id: string;
-  email: string;
-  full_name?: string;
-  is_superadmin: boolean;
+export interface Feature {
+  title: string | LocalizedText;
+  description: string | LocalizedText;
+  icon?: string;
 }
 
-export interface Tenant {
+export interface PricingOption {
   id: string;
-  name: string;
-  slug: string;
-  plan: 'free' | 'pro' | 'enterprise';
-  created_at: string;
+  name: string | LocalizedText;
+  price: number;
+  cost?: number; // Coste interno
 }
 
-export interface Membership {
+export interface InstallKit {
   id: string;
-  user_id: string;
-  tenant_id: string;
-  role: 'owner' | 'admin' | 'staff' | 'viewer';
-  tenant?: Tenant; 
+  name: string | LocalizedText;
+  price: number;
 }
+
+export interface Extra {
+  id: string;
+  name: string | LocalizedText;
+  price: number;
+}
+
+export interface FinancingOption {
+  label: string | LocalizedText;
+  months: number;
+  commission?: number; // Legacy percentage based
+  coefficient?: number; // PDF based (e.g., 0.087)
+}
+
+export interface TechnicalSpecs {
+  powerCooling?: string;
+  powerHeating?: string;
+  efficiency?: string;
+  gasType?: string;
+  voltage?: string;
+  dimensions?: string;
+  warranty?: string;
+}
+
+export type ProductOrigin = 'global' | 'local';
+export type ProductStatus = 'active' | 'inactive' | 'draft';
+export type ProductCategory = 'Aire Acondicionado' | 'Caldera' | 'Termo Eléctrico' | 'Aerotermia';
 
 export interface Product {
   id: string;
-  tenant_id: string;
+  origin?: ProductOrigin; // Nuevo
+  status?: ProductStatus; // Nuevo
+  reference?: string; // Nuevo
+  
   brand: string;
   model: string;
-  type: string;
-  pricing: any; 
-  features?: any;
-  installation_kits?: any;
-  extras?: any;
-  financing?: any;
-  pdf_url?: string;
-  image_url?: string;
-  brand_logo_url?: string;
-  ficha?: any; // Objeto raw de la IA
-  is_deleted: boolean;
-  created_at: string;
+  type: string; // Se mantiene como string libre o Category
+  category?: ProductCategory;
+
+  description?: string | LocalizedText;
+  
+  // Inventory
+  stock?: number;
+  minStockAlert?: number;
+
+  // Technical Details
+  technical?: TechnicalSpecs;
+  features: Feature[];
+
+  // Pricing & Config
+  pricing: PricingOption[];
+  installationKits: InstallKit[];
+  extras: Extra[];
+  financing: FinancingOption[];
+  
+  rawContext?: string;
+  pdfUrl?: string; 
+  imageUrl?: string; 
+  brandLogoUrl?: string; 
+  is_deleted?: boolean; 
 }
 
-export interface Customer {
-  id: string;
-  tenant_id: string;
-  created_by?: string;
-  referred_by?: string;
-  name: string;
+export interface ClientData {
+  nombre: string;
+  apellidos: string;
   email: string;
-  phone?: string;
-  address?: string;
-  dni?: string;
-  population?: string;
-  created_at: string;
+  telefono: string;
+  direccion: string;
+  poblacion: string;
+  cp: string;
+  wo?: string; 
 }
 
-export interface Quote {
+export interface ContactData {
+  nombre: string;
+  email: string;
+  mensaje: string;
+}
+
+export interface SavedQuote {
   id: string;
-  tenant_id: string;
-  customer_id: string;
-  created_by: string;
-  quote_no: string; 
-  customer?: Customer;
-  client_name: string;
-  client_dni: string;
-  client_address: string;
-  client_population: string;
-  client_email: string;
-  client_phone: string;
-  maintenance_no?: string;
-  total_amount: number;
-  status: 'draft' | 'sent' | 'viewed' | 'accepted' | 'rejected' | 'expired';
-  created_at: string;
-  valid_until: string;
-  financing_months?: number;
-  financing_fee?: number;
-  items?: QuoteItem[];
+  date: string;
+  clientName: string;
+  clientEmail: string;
+  brand: string;
+  model: string;
+  price: number;
+  financing: string; 
+  emailSent: boolean;
+  pdfUrl: string;
+  dniUrl?: string;
+  incomeUrl?: string;
+  wo?: string; 
+  is_deleted?: boolean; 
 }
 
-export interface QuoteItem {
-  id: string;
-  quote_id: string;
-  description: string;
-  quantity: number;
-  unit_price: number;
-  total: number;
+export interface QuotePayload {
+  brand: string;
+  model: string;
+  price: number;
+  extras: string[];
+  financing: string;
+  client: ClientData;
+  sendEmail: boolean;
+  signature?: string; 
+  dniUrl?: string; 
+  incomeUrl?: string; 
 }
 
-export interface PlatformContent {
-  key: string; 
-  es: string;
-  ca: string;
+export interface CompanyAddress {
+  label: string; 
+  value: string; 
+}
+
+export interface CompanyInfo {
+  id?: string;
+  address: string; 
+  addresses?: CompanyAddress[]; 
+  phone: string;
+  email: string;
+  logoUrl?: string;
+  brandName?: string; 
+  companyDescription?: string | LocalizedText; 
+  showLogo?: boolean; 
+  partnerLogoUrl?: string; 
+  isoLogoUrl?: string; 
+  isoLinkUrl?: string; 
+  logo2Url?: string; 
+  logo2LinkUrl?: string; 
+  facebookUrl?: string;
+  instagramUrl?: string;
+  twitterUrl?: string;
+  linkedinUrl?: string;
 }

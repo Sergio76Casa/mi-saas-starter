@@ -1,181 +1,26 @@
+import i18n from 'i18next';
+import { initReactI18next } from 'react-i18next';
+import LanguageDetector from 'i18next-browser-languagedetector';
 
-import { Language } from './types';
+import es from './locales/es';
+import en from './locales/en';
+import ca from './locales/ca';
+import fr from './locales/fr';
 
-export const translations = {
-  es: {
-    loading: "Cargando...",
-    save: "Guardar",
-    saved: "Guardado",
-    cancel: "Cancelar",
-    edit: "Editar",
-    delete: "Eliminar",
-    back: "Volver",
-    status: "Estado",
-    actions: "Acciones",
-    date: "Fecha",
-    total: "Total",
-    created: "Creado",
-    language: "Idioma",
-    login_title: "Inicia sesión en tu cuenta",
-    signup_title: "Crea tu cuenta",
-    email: "Correo Electrónico",
-    password: "Contraseña",
-    fullname: "Nombre Completo",
-    login_btn: "Entrar",
-    signup_btn: "Registrarse",
-    no_account: "¿No tienes una cuenta?",
-    have_account: "¿Ya tienes cuenta?",
-    demo_mode: "Entrar en Modo Demo",
-    onboarding_title: "Crea tu Workspace",
-    onboarding_subtitle: "Para empezar, necesitamos configurar tu empresa o equipo.",
-    company_name: "Nombre de la Empresa",
-    company_slug: "URL de tu web (Slug)",
-    create_company_btn: "Crear y Empezar",
-    slug_hint: "Tu web será: acmesaas.com/c/",
-    start_cta: "Empezar",
-    login_nav: "Iniciar Sesión",
-    pricing_nav: "Precios",
-    home_hero_title_default: "Gestiona tu negocio con precisión.",
-    home_hero_subtitle_default: "La plataforma todo en uno para presupuestos y gestión.",
-    dashboard: "Panel de Control",
-    customers: "Clientes",
-    quotes: "Presupuestos",
-    settings: "Configuración",
-    website: "Mi Web Pública",
-    admin_panel: "Superadmin",
-    logout: "Cerrar Sesión",
-    view_admin: "Panel Admin",
-    view_public: "Ver Web",
-    manage_website: "Gestionar Web Pública",
-    public_link: "Enlace Público",
-    hero_section: "Sección Hero (Inicio)",
-    services_section: "Sección Servicios",
-    contact_section: "Sección Contacto",
-    title: "Título",
-    description: "Descripción",
-    new_quote: "Nuevo Presupuesto",
-    quote_details: "Detalle Presupuesto",
-    bill_to: "Facturar a",
-    from: "De",
-    item: "Concepto",
-    price: "Precio",
-    quantity: "Cant.",
-    add_line: "Añadir Línea",
-    accept_quote: "Aceptar Presupuesto",
-    reject_quote: "Rechazar Presupuesto",
-    download_pdf: "Descargar PDF",
-    view_as_client: "Ver como Cliente",
-    quote_accepted_msg: "¡Presupuesto Aceptado!",
-    quote_rejected_msg: "Presupuesto Rechazado",
-    total_revenue: "Ingresos Totales",
-    active_quotes: "Presupuestos Activos",
-    total_customers: "Clientes Totales",
-    // New technical fields
-    dni: "DNI/NIF",
-    address: "Dirección",
-    population: "Población",
-    maintenance_no: "Nº Mant/Rep",
-    valid_until: "Válido hasta",
-    financing: "Financiación",
-    monthly_fee: "Cuota mensual",
-    add_product: "Añadir Producto",
-    installation_kit: "Kit Instalación",
-    extra_materials: "Materiales Extras",
-  },
-  ca: {
-    loading: "Carregant...",
-    save: "Desar",
-    saved: "Desat",
-    cancel: "Cancel·lar",
-    edit: "Editar",
-    delete: "Eliminar",
-    back: "Tornar",
-    status: "Estat",
-    actions: "Accions",
-    date: "Data",
-    total: "Total",
-    created: "Creat",
-    language: "Idioma",
-    login_title: "Inicia sessió al teu compte",
-    signup_title: "Crea el teu compte",
-    email: "Correu Electrònic",
-    password: "Contrasenya",
-    fullname: "Nom Complet",
-    login_btn: "Entrar",
-    signup_btn: "Registrar-se",
-    no_account: "¿No tens un compte?",
-    have_account: "¿Ya tens compte?",
-    demo_mode: "Entrar en Mode Demo",
-    onboarding_title: "Crea el teu Workspace",
-    onboarding_subtitle: "Per començar, hem de configurar la teva empresa o equip.",
-    company_name: "Nom de l'Empresa",
-    company_slug: "URL de la teva web (Slug)",
-    create_company_btn: "Crear i Començar",
-    slug_hint: "La teva web serà: acmesaas.com/c/",
-    start_cta: "Començar",
-    login_nav: "Iniciar Sessió",
-    pricing_nav: "Preus",
-    home_hero_title_default: "Gestiona el teu negoci sense esforç.",
-    home_hero_subtitle_default: "La plataforma tot en un per a pressupostos i gestió.",
-    dashboard: "Tauler de Control",
-    customers: "Clients",
-    quotes: "Pressupostos",
-    settings: "Configuració",
-    website: "La Meva Web Pública",
-    admin_panel: "Superadmin",
-    logout: "Tancar Sessió",
-    view_admin: "Tauler Admin",
-    view_public: "Veure Web",
-    manage_website: "Gestionar Web Pública",
-    public_link: "Enllaç Públic",
-    hero_section: "Secció Hero (Inici)",
-    services_section: "Secció Serveis",
-    contact_section: "Secció Contacte",
-    title: "Títol",
-    description: "Descripció",
-    new_quote: "Nou Pressupost",
-    quote_details: "Detall Pressupost",
-    bill_to: "Facturar a",
-    from: "De",
-    item: "Concepte",
-    price: "Preu",
-    quantity: "Quant.",
-    add_line: "Afegir Línia",
-    accept_quote: "Acceptar Pressupost",
-    reject_quote: "Rebutjar Pressupost",
-    download_pdf: "Descarregar PDF",
-    view_as_client: "Veure com a Client",
-    quote_accepted_msg: "Pressupost Acceptat!",
-    quote_rejected_msg: "Pressupost Rebutjat",
-    total_revenue: "Ingressos Totals",
-    active_quotes: "Pressupostos Actius",
-    total_customers: "Clients Totals",
-    // New technical fields
-    dni: "DNI/NIF",
-    address: "Adreça",
-    population: "Població",
-    maintenance_no: "Nº Mant/Rep",
-    valid_until: "Vàlid fins",
-    financing: "Finançament",
-    monthly_fee: "Quota mensual",
-    add_product: "Afegir Producte",
-    installation_kit: "Kit Instal·lació",
-    extra_materials: "Materials Extras",
-  }
-};
-
-export const formatCurrency = (amount: number, lang: Language) => {
-  return new Intl.NumberFormat(lang === 'ca' ? 'ca-ES' : 'es-ES', {
-    style: 'currency',
-    currency: 'EUR'
-  }).format(amount);
-};
-
-export const formatDate = (dateString: string, lang: Language) => {
-  if (!dateString) return '';
-  return new Date(dateString).toLocaleDateString(lang === 'ca' ? 'ca-ES' : 'es-ES', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
+i18n
+  .use(LanguageDetector)
+  .use(initReactI18next)
+  .init({
+    resources: {
+      es: { translation: es },
+      en: { translation: en },
+      ca: { translation: ca },
+      fr: { translation: fr }
+    },
+    fallbackLng: 'es',
+    interpolation: {
+      escapeValue: false
+    }
   });
-};
+
+export default i18n;
