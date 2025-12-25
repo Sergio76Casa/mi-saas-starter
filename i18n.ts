@@ -18,8 +18,16 @@ i18n
       fr: { translation: fr }
     },
     fallbackLng: 'es',
+    supportedLngs: ['es', 'en', 'ca', 'fr'],
+    detection: {
+      order: ['querystring', 'cookie', 'localStorage', 'navigator', 'path', 'subdomain'],
+      caches: ['localStorage', 'cookie'],
+    },
     interpolation: {
       escapeValue: false
+    },
+    react: {
+      useSuspense: false // Evita pantallas blancas si las traducciones tardan en cargar
     }
   });
 

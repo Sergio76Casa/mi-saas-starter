@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { api } from './services/api';
 import { Product, ContactData, CompanyInfo } from './types';
@@ -57,8 +56,8 @@ const App: React.FC = () => {
   const [companyInfo, setCompanyInfo] = useState<CompanyInfo>({ address: '', phone: '', email: '' });
 
   useEffect(() => {
-    // Check current session on mount
-    api.getSession().then(setSession);
+    // Check current session on mount safely
+    api.getSession().then(setSession).catch(err => console.error("Session fetch error:", err));
     
     // Listen for auth changes
     const subscription = api.onAuthStateChange((newSession) => {
@@ -72,7 +71,9 @@ const App: React.FC = () => {
     });
 
     return () => {
-        subscription.unsubscribe();
+        if (subscription && typeof subscription.unsubscribe === 'function') {
+            subscription.unsubscribe();
+        }
     };
   }, [view, showAdminLogin]);
 
@@ -84,22 +85,25 @@ const App: React.FC = () => {
 
   // Load company info
   useEffect(() => {
-    api.getCompanyInfo().then(info => setCompanyInfo(info));
+    api.getCompanyInfo().then(info => {
+        if (info) setCompanyInfo(info);
+    }).catch(e => console.error("Company info error:", e));
   }, []);
 
   const loadCatalog = async () => {
     setLoading(true);
     try {
       const data = await api.getCatalog();
-      setProducts(data);
+      setProducts(data || []);
       
       // Calculate max price for the slider
-      if (data.length > 0) {
+      if (data && data.length > 0) {
           const max = Math.max(...data.map(p => 
               p.pricing && p.pricing.length > 0 ? Math.min(...p.pricing.map(x => x.price)) : 0
           ));
-          setMaxPriceAvailable(Math.ceil(max / 100) * 100 + 500); // Round up + buffer
-          setFilterPrice(Math.ceil(max / 100) * 100 + 500);
+          const calculatedMax = Math.ceil(max / 100) * 100 + 500;
+          setMaxPriceAvailable(calculatedMax);
+          setFilterPrice(calculatedMax);
       }
     } catch (e) {
       console.error("Failed to load catalog", e);
@@ -167,7 +171,6 @@ const App: React.FC = () => {
         isValid = false;
     }
 
-    // Robust email regex
     const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
     if (!contactForm.email.trim()) {
         errors.email = t('validation.email_required');
@@ -720,7 +723,7 @@ const App: React.FC = () => {
                 </div>
                 {authError && <p className="text-red-500 text-xs font-bold mt-4 text-center">{authError}</p>}
                 <button 
-                    onClick={handleAdminLogin}
+                    onClick={handleAdminLogin} 
                     disabled={authLoading}
                     className="w-full bg-brand-600 hover:bg-brand-500 text-white font-bold py-3 rounded-xl transition-colors mt-6 flex items-center justify-center gap-2 disabled:opacity-70"
                 >
