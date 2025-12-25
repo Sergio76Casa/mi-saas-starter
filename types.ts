@@ -1,130 +1,96 @@
 
-export type ProductStatus = 'active' | 'inactive' | 'draft';
-export type ProductOrigin = 'global' | 'local';
+export type Language = 'es' | 'ca';
 
-export interface LocalizedText {
-  es: string;
-  en?: string;
-  ca?: string;
-  fr?: string;
-  [key: string]: string | undefined;
+export interface Profile {
+  id: string;
+  email: string;
+  full_name?: string;
+  is_superadmin: boolean;
+}
+
+export interface Tenant {
+  id: string;
+  name: string;
+  slug: string;
+  plan: 'free' | 'pro' | 'enterprise';
+  created_at: string;
+}
+
+export interface Membership {
+  id: string;
+  user_id: string;
+  tenant_id: string;
+  role: 'owner' | 'admin' | 'staff' | 'viewer';
+  tenant?: Tenant; 
 }
 
 export interface Product {
   id: string;
+  tenant_id: string;
   brand: string;
   model: string;
   type: string;
-  category?: string;
-  reference?: string;
-  description?: string | LocalizedText;
-  imageUrl?: string;
-  brandLogoUrl?: string;
-  pdfUrl?: string;
-  status?: ProductStatus;
-  origin?: ProductOrigin;
-  stock?: number;
-  minStockAlert?: number;
-  features: Array<{
-    title: string | LocalizedText;
-    description: string | LocalizedText;
-  }>;
-  pricing: Array<{
-    id: string;
-    name: string | LocalizedText;
-    price: number;
-    cost?: number;
-  }>;
-  installationKits: Array<{
-    id: string;
-    name: string | LocalizedText;
-    price: number;
-  }>;
-  extras: Array<{
-    id: string;
-    name: string | LocalizedText;
-    price: number;
-  }>;
-  financing: Array<{
-    label: string | LocalizedText;
-    months: number;
-    commission?: number;
-    coefficient?: number;
-  }>;
-  technical?: Record<string, string>;
-  rawContext?: string;
-  is_deleted?: boolean;
+  pricing: any; 
+  features?: any;
+  installation_kits?: any;
+  extras?: any;
+  financing?: any;
+  pdf_url?: string;
+  image_url?: string;
+  brand_logo_url?: string;
+  ficha?: any; // Objeto raw de la IA
+  is_deleted: boolean;
+  created_at: string;
 }
 
-export interface ClientData {
-  nombre: string;
-  apellidos: string;
-  email: string;
-  telefono: string;
-  direccion: string;
-  poblacion: string;
-  cp: string;
-  wo?: string;
-}
-
-export interface QuotePayload {
-  brand: string;
-  model: string;
-  price: number;
-  extras: string[];
-  financing: string;
-  client: ClientData;
-  sendEmail: boolean;
-  signature?: string;
-  dniUrl?: string;
-  incomeUrl?: string;
-}
-
-export interface SavedQuote {
+export interface Customer {
   id: string;
-  date: string;
-  clientName: string;
-  clientEmail: string;
-  brand: string;
-  model: string;
-  price: number;
-  financing: string;
-  emailSent: boolean;
-  pdfUrl: string;
-  dniUrl?: string;
-  incomeUrl?: string;
-  wo?: string;
-  is_deleted?: boolean;
-}
-
-export interface ContactData {
-  nombre: string;
+  tenant_id: string;
+  created_by?: string;
+  referred_by?: string;
+  name: string;
   email: string;
-  mensaje: string;
+  phone?: string;
+  address?: string;
+  dni?: string;
+  population?: string;
+  created_at: string;
 }
 
-export interface CompanyAddress {
-  label: string;
-  value: string;
+export interface Quote {
+  id: string;
+  tenant_id: string;
+  customer_id: string;
+  created_by: string;
+  quote_no: string; 
+  customer?: Customer;
+  client_name: string;
+  client_dni: string;
+  client_address: string;
+  client_population: string;
+  client_email: string;
+  client_phone: string;
+  maintenance_no?: string;
+  total_amount: number;
+  status: 'draft' | 'sent' | 'viewed' | 'accepted' | 'rejected' | 'expired';
+  created_at: string;
+  valid_until: string;
+  financing_months?: number;
+  financing_fee?: number;
+  items?: QuoteItem[];
 }
 
-export interface CompanyInfo {
-  id?: string;
-  address: string;
-  phone: string;
-  email: string;
-  brandName?: string;
-  showLogo?: boolean;
-  logoUrl?: string;
-  companyDescription?: string | LocalizedText;
-  partnerLogoUrl?: string;
-  isoLogoUrl?: string;
-  isoLinkUrl?: string;
-  logo2Url?: string;
-  logo2LinkUrl?: string;
-  addresses?: CompanyAddress[];
-  facebookUrl?: string;
-  instagramUrl?: string;
-  twitterUrl?: string;
-  linkedinUrl?: string;
+export interface QuoteItem {
+  id: string;
+  quote_id: string;
+  description: string;
+  quantity: number;
+  unit_price: number;
+  total: number;
+}
+
+export interface PlatformContent {
+  key: string; 
+  es: string;
+  ca: string;
 }
