@@ -1,4 +1,5 @@
 
+
 export type Language = 'es' | 'ca';
 
 export interface Profile {
@@ -32,15 +33,13 @@ export interface Product {
   type: string;
   status: 'draft' | 'active' | 'inactive';
   pricing: Array<{ variant: string; price: number }>; 
-  features?: any;
+  features?: string;
   installation_kits?: Array<{ name: string; price: number }>;
   extras?: Array<{ name: string; price: number }>;
   stock?: number;
-  financing?: any;
   pdf_url?: string;
   image_url?: string;
   brand_logo_url?: string;
-  ficha?: any; 
   is_deleted: boolean;
   created_at: string;
 }
@@ -72,7 +71,6 @@ export interface Quote {
   client_population: string;
   client_email: string;
   client_phone: string;
-  maintenance_no?: string;
   total_amount: number;
   status: 'draft' | 'sent' | 'viewed' | 'accepted' | 'rejected' | 'expired';
   created_at: string;
@@ -80,6 +78,8 @@ export interface Quote {
   financing_months?: number;
   financing_fee?: number;
   items?: QuoteItem[];
+  // Added maintenance_no to support maintenance or repair identification in quotes
+  maintenance_no?: string;
 }
 
 export interface QuoteItem {

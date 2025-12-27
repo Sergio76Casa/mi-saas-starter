@@ -1,7 +1,8 @@
 
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-// Import GoogleGenAI from the official package as per guidelines.
-import { GoogleGenAI } from "@google/genai";
+// Always use import {GoogleGenAI} from "@google/genai";
+import { GoogleGenAI, Type } from "@google/genai";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -46,29 +47,14 @@ serve(async (req) => {
 
     const prompt = `Analiza este documento y extrae una lista de productos para un catálogo de climatización.
     
-    Responde ÚNICAMENTE con un objeto JSON con esta estructura:
-    {
-      "products": [
-        { 
-          "brand": "MARCA (Ej: LG, Daikin)", 
-          "model": "MODELO/SERIE (Ej: Libero Smart, Sensira)", 
-          "variant": "VARIANTE/POTENCIA (Ej: SM 09, TXC35D, 12L)",
-          "description": "Descripción técnica concisa", 
-          "price": 123.45, 
-          "category": "aire_acondicionado | caldera | termo_electrico"
-        }
-      ],
-      "error": "Mensaje si no hay productos o el archivo es ilegible, de lo contrario null"
-    }
-    
     Reglas Estrictas:
     1. SEGMENTACIÓN: Separa marca de modelo y de variante.
     2. NORMALIZACIÓN BRAND: Mayúsculas consistentes (Ej: "MITSUBISHI").
     3. NORMALIZACIÓN MODEL: Nombre de la serie sin la marca delante.
     4. NORMALIZACIÓN VARIANT: El código de potencia o modelo específico que diferencia precios.
-    5. CATEGORY: Usar "${defaultCategory}" si no se detecta otra claramente.
-    6. No respondas con texto descriptivo, solo el JSON puro.`
+    5. CATEGORY: Usar "${defaultCategory}" si no se detecta otra claramente.`
 
+    // Using gemini-3-flash-preview for document extraction tasks
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: {
@@ -83,7 +69,30 @@ serve(async (req) => {
         ]
       },
       config: {
-        responseMimeType: "application/json"
+        responseMimeType: "application/json",
+        // The recommended way is to configure a responseSchema for the expected output
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            products: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  brand: { type: Type.STRING },
+                  model: { type: Type.STRING },
+                  variant: { type: Type.STRING },
+                  description: { type: Type.STRING },
+                  price: { type: Type.NUMBER },
+                  category: { type: Type.STRING }
+                },
+                required: ["brand", "model", "price", "category"]
+              }
+            },
+            error: { type: Type.STRING }
+          },
+          required: ["products"]
+        }
       }
     })
 
