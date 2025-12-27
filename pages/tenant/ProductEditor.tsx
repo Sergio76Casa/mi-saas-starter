@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useOutletContext } from 'react-router-dom';
 import { supabase } from '../../supabaseClient';
@@ -13,32 +14,42 @@ const TYPES = [
   { id: 'termo_electrico', label: 'Termo Eléctrico' }
 ];
 
+const STATUSES = [
+  { id: 'draft', label: 'Borrador', color: 'bg-amber-500' },
+  { id: 'active', label: 'Activo', color: 'bg-green-500' },
+  { id: 'inactive', label: 'Inactivo', color: 'bg-slate-400' }
+];
+
+type TabId = 'general' | 'technical' | 'pricing' | 'stock' | 'multimedia';
+
 export const ProductEditor = () => {
   const { id, slug } = useParams();
   const navigate = useNavigate();
   const { tenant } = useOutletContext<{ tenant: Tenant }>();
   const { language } = useApp();
+  const [activeTab, setActiveTab] = useState<TabId>('general');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [isProcessingIA, setIsProcessingIA] = useState(false);
-  const [iaStatus, setIaStatus] = useState<{ type: 'idle' | 'loading' | 'success' | 'error', message?: string }>({ type: 'idle' });
-  const [iaResult, setIaResult] = useState<any>(null); // Datos temporales para revisión
   
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  // States for images
+  const [productFile, setProductFile] = useState<File | null>(null);
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [pdfFile, setPdfFile] = useState<File | null>(null);
+  const [previews, setPreviews] = useState({ product: '', logo: '' });
 
-  const [productData, setProductData] = useState({
+  const [productData, setProductData] = useState<Partial<Product>>({
     brand: '',
-    type: 'aire_acondicionado',
     model: '',
-    pdfUrl: '',
-    imageUrl: '',
-    brandLogoUrl: '',
+    type: 'aire_acondicionado',
+    status: 'draft',
     pricing: [{ variant: '', price: 0 }],
-    features: [] as any,
-    installationKits: [] as any,
-    extras: [] as any,
-    financing: [] as any,
-    ficha: {} as any
+    installation_kits: [],
+    extras: [],
+    stock: 0,
+    features: '',
+    pdf_url: '',
+    image_url: '',
+    brand_logo_url: ''
   });
 
   useEffect(() => {
@@ -47,328 +58,282 @@ export const ProductEditor = () => {
         setLoading(false);
         return;
       }
-
       const { data, error } = await supabase.from('products').select('*').eq('id', id).single();
       if (data && !error) {
-        const p = data as Product;
-        setProductData({
-          brand: p.brand || '',
-          type: p.type || 'aire_acondicionado',
-          model: p.model || '',
-          pdfUrl: p.pdf_url || '',
-          imageUrl: p.image_url || '',
-          brandLogoUrl: p.brand_logo_url || '',
-          pricing: Array.isArray(p.pricing) ? p.pricing : (p.pricing ? [p.pricing] : [{ variant: '', price: 0 }]),
-          features: p.features || [],
-          installationKits: p.installation_kits || [],
-          extras: p.extras || [],
-          financing: p.financing || [],
-          ficha: p.ficha || {}
-        });
+        setProductData(data);
+        setPreviews({ product: data.image_url || '', logo: data.brand_logo_url || '' });
       }
       setLoading(false);
     };
     fetchProduct();
   }, [id]);
 
-  const handleProcessIA = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-
-    setIaStatus({ type: 'loading', message: 'Analizando documento...' });
-    setIsProcessingIA(true);
-    setIaResult(null);
-
-    try {
-      const file = files[0];
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('defaultCategory', productData.type);
-
-      const { data, error } = await supabase.functions.invoke('extract_products_from_file', {
-        body: formData,
-      });
-
-      if (error) throw error;
-
-      if (data && data.products && data.products.length > 0) {
-        setIaResult(data);
-        setIaStatus({ type: 'success', message: '¡Datos extraídos con éxito!' });
-      } else {
-        setIaStatus({ type: 'error', message: data.error || 'No se detectaron productos en el archivo.' });
-      }
-    } catch (err: any) {
-      console.error("IA Error:", err);
-      setIaStatus({ type: 'error', message: 'Error al procesar IA. Verifica el archivo.' });
-    } finally {
-      setIsProcessingIA(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, type: 'product' | 'logo' | 'pdf') => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (type === 'product') {
+      setProductFile(file);
+      setPreviews(prev => ({ ...prev, product: URL.createObjectURL(file) }));
+    } else if (type === 'logo') {
+      setLogoFile(file);
+      setPreviews(prev => ({ ...prev, logo: URL.createObjectURL(file) }));
+    } else {
+      setPdfFile(file);
     }
   };
 
-  const applyIAResult = () => {
-    if (!iaResult || !iaResult.products?.length) return;
-    const extracted = iaResult.products[0];
-
-    setProductData(prev => ({
-      ...prev,
-      brand: extracted.brand || prev.brand,
-      model: extracted.model || prev.model,
-      type: extracted.category || prev.type,
-      pricing: extracted.price ? [{ variant: extracted.variant || 'Estándar', price: extracted.price }] : prev.pricing,
-      pdfUrl: extracted.pdfUrl || prev.pdfUrl,
-      imageUrl: extracted.imageUrl || prev.imageUrl,
-      brandLogoUrl: extracted.brandLogoUrl || prev.brandLogoUrl,
-      // Guardar el raw en ficha
-      ficha: iaResult
-    }));
-    
-    setIaResult(null); // Limpiar panel tras aplicar
-    setIaStatus({ type: 'idle' });
-  };
-
-  const discardIAResult = () => {
-    setIaResult(null);
-    setIaStatus({ type: 'idle' });
+  const uploadFile = async (file: File, folder: string) => {
+    const fileName = `${Date.now()}_${file.name}`;
+    const path = `${tenant.id}/${fileName}`;
+    const { data, error } = await supabase.storage.from('products').upload(path, file);
+    if (error) throw error;
+    const { data: { publicUrl } } = supabase.storage.from('products').getPublicUrl(path);
+    return publicUrl;
   };
 
   const handleSave = async () => {
+    if (!productData.brand || !productData.model) {
+      alert("Marca y Modelo son obligatorios");
+      setActiveTab('general');
+      return;
+    }
     setSaving(true);
-    const cleanedPricing = productData.pricing.filter(v => v.variant.trim() !== '');
+    try {
+      let finalImageUrl = productData.image_url;
+      let finalLogoUrl = productData.brand_logo_url;
+      let finalPdfUrl = productData.pdf_url;
 
-    const payload: any = {
-      brand: productData.brand.trim(),
-      model: productData.model.trim(),
-      type: productData.type,
-      pricing: cleanedPricing,
-      pdf_url: productData.pdfUrl,
-      image_url: productData.imageUrl,
-      brand_logo_url: productData.brandLogoUrl,
-      features: productData.features,
-      installation_kits: productData.installationKits,
-      extras: productData.extras,
-      financing: productData.financing,
-      ficha: productData.ficha,
-      tenant_id: tenant.id
-    };
+      if (productFile) finalImageUrl = await uploadFile(productFile, 'images');
+      if (logoFile) finalLogoUrl = await uploadFile(logoFile, 'logos');
+      if (pdfFile) finalPdfUrl = await uploadFile(pdfFile, 'docs');
 
-    let error;
-    if (id === 'new') {
-      // CORRECCIÓN: Se asegura que el nuevo producto nazca con is_deleted = false
-      payload.is_deleted = false;
-      const { error: err } = await supabase.from('products').insert([payload]);
-      error = err;
-    } else {
-      const { error: err } = await supabase.from('products').update(payload).eq('id', id);
-      error = err;
-    }
+      const payload = {
+        ...productData,
+        image_url: finalImageUrl,
+        brand_logo_url: finalLogoUrl,
+        pdf_url: finalPdfUrl,
+        tenant_id: tenant.id,
+        is_deleted: false
+      };
 
-    if (!error) {
+      const { error } = id === 'new' 
+        ? await supabase.from('products').insert([payload])
+        : await supabase.from('products').update(payload).eq('id', id);
+
+      if (error) throw error;
       navigate(`/t/${slug}/products`);
-    } else {
-      alert("Error al guardar: " + error.message);
+    } catch (err: any) {
+      alert("Error al guardar: " + err.message);
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
   };
 
-  const addVariant = () => {
-    setProductData({ ...productData, pricing: [...productData.pricing, { variant: '', price: 0 }] });
+  const addRow = (list: 'pricing' | 'installation_kits' | 'extras') => {
+    setProductData(prev => ({
+      ...prev,
+      [list]: [...(prev[list] || []), { name: '', variant: '', price: 0 }]
+    }));
   };
 
-  const removeVariant = (index: number) => {
-    const newPricing = [...productData.pricing];
-    newPricing.splice(index, 1);
-    setProductData({ ...productData, pricing: newPricing });
+  const removeRow = (list: 'pricing' | 'installation_kits' | 'extras', index: number) => {
+    setProductData(prev => {
+      const newList = [...(prev[list] || [])];
+      newList.splice(index, 1);
+      return { ...prev, [list]: newList };
+    });
   };
 
-  const updateVariant = (index: number, field: string, value: any) => {
-    const newPricing = [...productData.pricing];
-    newPricing[index] = { ...newPricing[index], [field]: value };
-    setProductData({ ...productData, pricing: newPricing });
+  const updateRow = (list: 'pricing' | 'installation_kits' | 'extras', index: number, field: string, value: any) => {
+    setProductData(prev => {
+      const newList = [...(prev[list] || [])];
+      newList[index] = { ...newList[index], [field]: value };
+      return { ...prev, [list]: newList };
+    });
   };
 
   if (loading) return <LoadingSpinner />;
 
   return (
     <div className="min-h-screen bg-[#fcfcfc] animate-in fade-in duration-500 pb-20">
-      <header className="sticky top-0 bg-white border-b border-slate-100 px-6 md:px-12 py-5 z-[60] flex items-center justify-between shadow-sm">
+      <header className="sticky top-0 bg-white/90 backdrop-blur-md border-b border-slate-100 px-6 md:px-12 py-5 z-[60] flex items-center justify-between shadow-sm">
         <div className="flex items-center gap-6">
           <button onClick={() => navigate(-1)} className="p-2 text-slate-400 hover:text-slate-900 transition-colors">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7"/></svg>
           </button>
           <div className="flex flex-col">
-            <h1 className="text-xl md:text-2xl font-black text-slate-800 tracking-tighter italic uppercase leading-none">Editar Familia</h1>
+            <h1 className="text-xl md:text-2xl font-black text-slate-800 tracking-tighter italic uppercase leading-none">Editor de Producto</h1>
             <span className="text-[10px] font-mono text-slate-300 uppercase tracking-widest mt-1">ID: {id === 'new' ? 'NUEVO' : id?.slice(0, 8)}</span>
           </div>
         </div>
         <div className="flex items-center gap-4">
-          <button onClick={() => navigate(-1)} className="text-[11px] font-black uppercase text-slate-400 px-4">Cancelar</button>
           <button onClick={handleSave} disabled={saving} className="bg-blue-600 text-white px-8 py-3 rounded-xl font-black text-[11px] uppercase tracking-widest shadow-lg shadow-blue-600/20 hover:bg-blue-700 transition-all flex items-center gap-2">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"/></svg>
-            {saving ? 'Guardando...' : 'Guardar'}
+            {saving ? 'Guardando...' : 'Guardar Producto'}
           </button>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-6 py-10 space-y-8">
-        {/* BLOQUE IMPORTACIÓN AUTOMÁTICA IA */}
-        <section className="bg-gradient-to-br from-blue-600 to-blue-800 rounded-[1.8rem] p-8 md:p-10 shadow-xl shadow-blue-600/20 text-white relative overflow-hidden">
-          <div className="absolute top-0 right-0 p-8 opacity-10">
-            <svg className="w-32 h-32" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L4.5 20.29L5.21 21L12 18L18.79 21L19.5 20.29L12 2Z"/></svg>
-          </div>
-          <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
-            <div className="max-w-md">
-              <h2 className="text-xl md:text-2xl font-black uppercase italic tracking-tighter mb-2">Importación automática (IA)</h2>
-              <p className="text-blue-100 text-sm font-medium italic opacity-80">Sube un catálogo PDF o fotos de la ficha técnica y nosotros rellenamos el formulario por ti.</p>
-            </div>
-            <div className="flex flex-col items-center gap-4 w-full md:w-auto">
-              <input 
-                type="file" 
-                ref={fileInputRef} 
-                onChange={handleProcessIA} 
-                className="hidden" 
-                accept="application/pdf,image/*" 
-              />
-              <button 
-                onClick={() => fileInputRef.current?.click()}
-                disabled={isProcessingIA}
-                className="w-full md:w-auto px-10 py-4 bg-white text-blue-600 rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-2xl hover:scale-105 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
-              >
-                {isProcessingIA ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent animate-spin rounded-full"></div>
-                    Procesando...
-                  </>
-                ) : (
-                  <>
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
-                    Subir PDF o Imágenes
-                  </>
-                )}
-              </button>
-              
-              {iaStatus.type !== 'idle' && (
-                <div className={`text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-full border ${
-                  iaStatus.type === 'success' ? 'bg-green-500/20 border-green-500/50 text-green-200' : 
-                  iaStatus.type === 'error' ? 'bg-red-500/20 border-red-500/50 text-red-200' : 
-                  'bg-white/10 border-white/20 text-blue-100'
-                }`}>
-                  {iaStatus.message}
-                </div>
-              )}
-            </div>
-          </div>
-        </section>
+      <main className="max-w-6xl mx-auto px-6 py-10">
+        {/* TAB NAVIGATION */}
+        <div className="flex border-b border-slate-100 mb-10 overflow-x-auto whitespace-nowrap scrollbar-hide">
+          {(['general', 'technical', 'pricing', 'stock', 'multimedia'] as TabId[]).map(tab => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`px-8 py-4 text-[11px] font-black uppercase tracking-widest transition-all border-b-2 ${
+                activeTab === tab ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-400 hover:text-slate-600'
+              }`}
+            >
+              {tab === 'general' ? 'General' : tab === 'technical' ? 'Datos Técnicos' : tab === 'pricing' ? 'Precios' : tab === 'stock' ? 'Stock' : 'Multimedia'}
+            </button>
+          ))}
+        </div>
 
-        {/* PANEL DE REVISIÓN DE IA */}
-        {iaResult && (
-          <section className="bg-white border-2 border-blue-100 rounded-[1.8rem] p-8 md:p-10 shadow-lg animate-in slide-in-from-top-4 duration-500">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-               <div>
-                  <h3 className="text-xl font-black uppercase italic tracking-tight text-slate-800">Resultado de la IA (Previsualización)</h3>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Revisa los datos antes de aplicarlos al formulario</p>
-               </div>
-               <div className="flex gap-3 w-full md:w-auto">
-                  <button onClick={discardIAResult} className="flex-1 md:flex-none px-6 py-3 bg-slate-50 text-slate-400 rounded-xl font-black text-[10px] uppercase tracking-widest border border-slate-100 hover:bg-slate-100">Descartar</button>
-                  <button onClick={applyIAResult} className="flex-1 md:flex-none px-8 py-3 bg-blue-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg hover:bg-blue-700 transition-all">Aplicar al formulario</button>
-               </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-               <div className="space-y-4">
-                  <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
-                     <span className="text-[9px] font-black text-slate-300 uppercase block mb-1">Marca / Modelo Detectado</span>
-                     <p className="font-black text-slate-800 uppercase italic">{iaResult.products[0].brand} {iaResult.products[0].model}</p>
-                  </div>
-                  <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
-                     <span className="text-[9px] font-black text-slate-300 uppercase block mb-1">Tipo Detectado</span>
-                     <p className="font-bold text-blue-600 uppercase text-xs">{TYPES.find(t => t.id === iaResult.products[0].category)?.label || iaResult.products[0].category}</p>
-                  </div>
-               </div>
-
-               <div className="md:col-span-2 p-6 bg-blue-50/30 rounded-2xl border border-blue-50">
-                  <span className="text-[9px] font-black text-blue-300 uppercase block mb-3">Variantes y Precios Extraídos</span>
-                  <div className="space-y-2">
-                     {iaResult.products.map((p: any, idx: number) => (
-                        <div key={idx} className="flex justify-between items-center bg-white p-3 rounded-xl border border-blue-100 shadow-sm">
-                           <span className="text-xs font-bold text-slate-700">{p.variant || 'Estándar'}</span>
-                           <span className="font-black text-blue-600">{formatCurrency(p.price, language)}</span>
-                        </div>
-                     ))}
-                  </div>
-               </div>
-            </div>
-          </section>
-        )}
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <div className="space-y-8">
-            <div className="bg-white rounded-[1.8rem] p-8 border border-slate-100 shadow-sm">
-              <h2 className="text-[10px] font-black uppercase text-slate-800 tracking-widest mb-8">Datos Principales</h2>
+        <div className="bg-white p-8 md:p-12 rounded-[2.5rem] border border-slate-100 shadow-sm min-h-[500px]">
+          {/* TAB 1: GENERAL */}
+          {activeTab === 'general' && (
+            <div className="animate-in fade-in slide-in-from-bottom-2 duration-500 space-y-8 max-w-2xl">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Input label="Marca (Ej: LG, DAIKIN)" value={productData.brand} onChange={(e: any) => setProductData({ ...productData, brand: e.target.value })} />
+                <Input label="Marca *" value={productData.brand} onChange={(e:any) => setProductData({...productData, brand: e.target.value})} />
+                <Input label="Modelo *" value={productData.model} onChange={(e:any) => setProductData({...productData, model: e.target.value})} />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1.5 ml-1">Tipo de Equipo</label>
-                  <select 
-                    value={productData.type} 
-                    onChange={(e) => setProductData({ ...productData, type: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-100 rounded-xl bg-gray-50/50 text-sm outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    {TYPES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
+                  <select value={productData.type} onChange={(e) => setProductData({...productData, type: e.target.value})} className="w-full px-4 py-3 border border-gray-100 rounded-xl bg-gray-50 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                    {TYPES.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
                   </select>
                 </div>
-                <div className="md:col-span-2">
-                  <Input label="Modelo / Serie (Ej: LIBERO SMART, SENSIRA)" value={productData.model} onChange={(e: any) => setProductData({ ...productData, model: e.target.value })} />
+                <div>
+                  <label className="block text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1.5 ml-1">Estado del Producto</label>
+                  <select value={productData.status} onChange={(e:any) => setProductData({...productData, status: e.target.value})} className="w-full px-4 py-3 border border-gray-100 rounded-xl bg-gray-50 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                    {STATUSES.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
+                  </select>
                 </div>
               </div>
             </div>
+          )}
 
-            <div className="bg-white rounded-[1.8rem] p-8 border border-slate-100 shadow-sm">
-              <h2 className="text-[10px] font-black uppercase text-slate-800 tracking-widest mb-8">Media y Enlaces</h2>
-              <div className="space-y-4">
-                <Input label="URL Imagen Producto" value={productData.imageUrl} onChange={(e: any) => setProductData({ ...productData, imageUrl: e.target.value })} />
-                <Input label="URL Logo Marca" value={productData.brandLogoUrl} onChange={(e: any) => setProductData({ ...productData, brandLogoUrl: e.target.value })} />
-                <Input label="URL Ficha Técnica (PDF)" value={productData.pdfUrl} onChange={(e: any) => setProductData({ ...productData, pdfUrl: e.target.value })} />
-              </div>
+          {/* TAB 2: TECHNICAL */}
+          {activeTab === 'technical' && (
+            <div className="animate-in fade-in slide-in-from-bottom-2 duration-500 space-y-6">
+              <label className="block text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1.5 ml-1">Especificaciones Técnicas</label>
+              <textarea 
+                value={productData.features || ''} 
+                onChange={(e) => setProductData({...productData, features: e.target.value})}
+                placeholder="Escribe aquí las características técnicas principales..."
+                className="w-full h-64 p-6 border border-gray-100 rounded-[2rem] bg-gray-50 text-sm focus:ring-2 focus:ring-blue-500 outline-none resize-none"
+              />
             </div>
-          </div>
+          )}
 
-          <div className="space-y-8">
-            <div className="bg-white rounded-[1.8rem] p-8 border border-slate-100 shadow-sm">
-              <div className="flex justify-between items-center mb-8">
-                <h2 className="text-[10px] font-black uppercase text-slate-800 tracking-widest">Variantes y Precios</h2>
-                <button onClick={addVariant} className="text-[10px] font-black uppercase text-blue-600 hover:underline">+ Añadir Variante</button>
-              </div>
-              <div className="space-y-4">
-                {productData.pricing.map((v, index) => (
-                  <div key={index} className="flex gap-4 items-end bg-slate-50/50 p-4 rounded-xl border border-slate-50">
-                    <div className="flex-1">
-                      <Input 
-                        label="Nombre Variante (Ej: 2.5kW)" 
-                        value={v.variant} 
-                        onChange={(e: any) => updateVariant(index, 'variant', e.target.value)} 
-                      />
+          {/* TAB 3: PRICING (DYNAMIC LISTS) */}
+          {activeTab === 'pricing' && (
+            <div className="animate-in fade-in slide-in-from-bottom-2 duration-500 space-y-12">
+              <section>
+                <div className="flex justify-between items-center mb-6">
+                  <h3 className="text-xs font-black uppercase tracking-widest text-slate-800">Variantes de Producto</h3>
+                  <button onClick={() => addRow('pricing')} className="text-blue-600 font-bold text-[10px] uppercase">+ Añadir Variante</button>
+                </div>
+                <div className="space-y-3">
+                  {productData.pricing?.map((p, i) => (
+                    <div key={i} className="flex gap-4 items-end bg-slate-50/50 p-4 rounded-2xl border border-slate-50">
+                      <div className="flex-1"><Input label="Nombre Variante" value={p.variant} onChange={(e:any) => updateRow('pricing', i, 'variant', e.target.value)} /></div>
+                      <div className="w-32"><Input label="Precio (€)" type="number" value={p.price} onChange={(e:any) => updateRow('pricing', i, 'price', parseFloat(e.target.value))} /></div>
+                      <button onClick={() => removeRow('pricing', i)} className="mb-4 p-2 text-red-400">×</button>
                     </div>
-                    <div className="w-32">
-                      <Input 
-                        label="Precio (€)" 
-                        type="number" 
-                        step="0.01" 
-                        value={v.price} 
-                        onChange={(e: any) => updateVariant(index, 'price', parseFloat(e.target.value))} 
-                      />
+                  ))}
+                </div>
+              </section>
+
+              <section>
+                <div className="flex justify-between items-center mb-6">
+                  <h3 className="text-xs font-black uppercase tracking-widest text-slate-800">Kits de Instalación</h3>
+                  <button onClick={() => addRow('installation_kits')} className="text-blue-600 font-bold text-[10px] uppercase">+ Añadir Kit</button>
+                </div>
+                <div className="space-y-3">
+                  {productData.installation_kits?.map((p, i) => (
+                    <div key={i} className="flex gap-4 items-end bg-slate-50/50 p-4 rounded-2xl border border-slate-50">
+                      <div className="flex-1"><Input label="Nombre Kit" value={p.name} onChange={(e:any) => updateRow('installation_kits', i, 'name', e.target.value)} /></div>
+                      <div className="w-32"><Input label="Precio (€)" type="number" value={p.price} onChange={(e:any) => updateRow('installation_kits', i, 'price', parseFloat(e.target.value))} /></div>
+                      <button onClick={() => removeRow('installation_kits', i)} className="mb-4 p-2 text-red-400">×</button>
                     </div>
-                    <button 
-                      onClick={() => removeVariant(index)}
-                      className="mb-4 p-2 text-red-400 hover:text-red-600 transition-colors"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                    </button>
+                  ))}
+                </div>
+              </section>
+
+              <section>
+                <div className="flex justify-between items-center mb-6">
+                  <h3 className="text-xs font-black uppercase tracking-widest text-slate-800">Extras y Adicionales</h3>
+                  <button onClick={() => addRow('extras')} className="text-blue-600 font-bold text-[10px] uppercase">+ Añadir Extra</button>
+                </div>
+                <div className="space-y-3">
+                  {productData.extras?.map((p, i) => (
+                    <div key={i} className="flex gap-4 items-end bg-slate-50/50 p-4 rounded-2xl border border-slate-50">
+                      <div className="flex-1"><Input label="Descripción Extra" value={p.name} onChange={(e:any) => updateRow('extras', i, 'name', e.target.value)} /></div>
+                      <div className="w-32"><Input label="Precio (€)" type="number" value={p.price} onChange={(e:any) => updateRow('extras', i, 'price', parseFloat(e.target.value))} /></div>
+                      <button onClick={() => removeRow('extras', i)} className="mb-4 p-2 text-red-400">×</button>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            </div>
+          )}
+
+          {/* TAB 4: STOCK */}
+          {activeTab === 'stock' && (
+            <div className="animate-in fade-in slide-in-from-bottom-2 duration-500 max-w-xs">
+              <Input label="Unidades Disponibles" type="number" value={productData.stock || 0} onChange={(e:any) => setProductData({...productData, stock: parseInt(e.target.value)})} />
+            </div>
+          )}
+
+          {/* TAB 5: MULTIMEDIA (UPLOADS) */}
+          {activeTab === 'multimedia' && (
+            <div className="animate-in fade-in slide-in-from-bottom-2 duration-500 space-y-12">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+                <div>
+                  <h4 className="text-[10px] font-black uppercase text-slate-800 tracking-widest mb-4">Imagen del Producto</h4>
+                  <div className="relative group">
+                    <div className="w-full h-64 border-2 border-dashed border-slate-100 rounded-3xl bg-slate-50/50 flex flex-col items-center justify-center overflow-hidden transition-all group-hover:bg-slate-50">
+                      {previews.product ? (
+                        <img src={previews.product} className="w-full h-full object-contain" />
+                      ) : (
+                        <svg className="w-12 h-12 text-slate-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                      )}
+                    </div>
+                    <input type="file" onChange={(e) => handleFileUpload(e, 'product')} className="absolute inset-0 opacity-0 cursor-pointer" accept="image/*" />
                   </div>
-                ))}
+                </div>
+
+                <div>
+                  <h4 className="text-[10px] font-black uppercase text-slate-800 tracking-widest mb-4">Logo de la Marca</h4>
+                  <div className="relative group">
+                    <div className="w-full h-64 border-2 border-dashed border-slate-100 rounded-3xl bg-slate-50/50 flex flex-col items-center justify-center overflow-hidden transition-all group-hover:bg-slate-50">
+                      {previews.logo ? (
+                        <img src={previews.logo} className="w-full h-full object-contain" />
+                      ) : (
+                        <svg className="w-12 h-12 text-slate-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"/></svg>
+                      )}
+                    </div>
+                    <input type="file" onChange={(e) => handleFileUpload(e, 'logo')} className="absolute inset-0 opacity-0 cursor-pointer" accept="image/*" />
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-8 border-t border-slate-50">
+                <h4 className="text-[10px] font-black uppercase text-slate-800 tracking-widest mb-4">Ficha Técnica (PDF)</h4>
+                <div className="flex items-center gap-4 bg-slate-50 p-6 rounded-2xl border border-slate-100">
+                  <svg className="w-8 h-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+                  <div className="flex-1">
+                    <p className="text-xs font-bold text-slate-700">{pdfFile ? pdfFile.name : (productData.pdf_url ? 'Ficha cargada' : 'No hay PDF seleccionado')}</p>
+                    <p className="text-[10px] text-slate-400 font-medium">Sube el documento técnico original para referencia</p>
+                  </div>
+                  <input type="file" id="pdf-upload" onChange={(e) => handleFileUpload(e, 'pdf')} className="hidden" accept="application/pdf" />
+                  <label htmlFor="pdf-upload" className="px-6 py-2 bg-white border border-slate-200 text-slate-600 rounded-lg text-[10px] font-black uppercase cursor-pointer hover:bg-slate-100 transition-colors">Seleccionar Archivo</label>
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
       </main>
     </div>

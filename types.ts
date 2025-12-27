@@ -30,15 +30,17 @@ export interface Product {
   brand: string;
   model: string;
   type: string;
-  pricing: any; 
+  status: 'draft' | 'active' | 'inactive';
+  pricing: Array<{ variant: string; price: number }>; 
   features?: any;
-  installation_kits?: any;
-  extras?: any;
+  installation_kits?: Array<{ name: string; price: number }>;
+  extras?: Array<{ name: string; price: number }>;
+  stock?: number;
   financing?: any;
   pdf_url?: string;
   image_url?: string;
   brand_logo_url?: string;
-  ficha?: any; // Objeto raw de la IA
+  ficha?: any; 
   is_deleted: boolean;
   created_at: string;
 }
