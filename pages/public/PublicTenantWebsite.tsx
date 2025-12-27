@@ -24,7 +24,6 @@ type PublicCatalogResponse = {
   }>; 
 };
 
-// Local translations for the Public Website (ES/CA only)
 const LOCAL_I18N = {
   es: {
     nav_home: 'Inicio',
@@ -367,7 +366,8 @@ export const PublicTenantWebsite = () => {
 
   return (
     <div className="min-h-screen bg-white text-slate-900 selection:bg-blue-600/20 overflow-x-hidden">
-      <nav className="fixed top-0 left-0 right-0 h-16 md:h-20 bg-white/70 backdrop-blur-xl z-[100] border-b border-slate-100/50 shadow-sm transition-all duration-300">
+      {/* HEADER: GLASSMORPHISM EFFECT */}
+      <nav className="fixed top-0 left-0 right-0 h-16 md:h-20 bg-white/80 backdrop-blur-md z-[100] border-b border-gray-100 shadow-sm transition-all duration-300">
         <div className="max-w-7xl mx-auto h-full flex items-center justify-between px-6 md:px-10">
           <button onClick={navigateToHome} className="flex items-center gap-3 group">
             <div className="w-8 h-8 md:w-10 md:h-10 bg-blue-600 text-white shadow-lg shadow-blue-600/20 rounded-xl flex items-center justify-center transition-transform group-hover:scale-110">
@@ -378,20 +378,27 @@ export const PublicTenantWebsite = () => {
           
           <div className="flex items-center gap-4 md:gap-8">
             <div className="hidden lg:flex items-center gap-6">
-              <button onClick={navigateToHome} className={`text-[13px] font-bold tracking-tight transition-colors ${view === 'landing' ? 'text-blue-600' : 'text-slate-500 hover:text-slate-900'}`}>{tt('nav_home')}</button>
-              <button onClick={navigateToCatalog} className="text-[13px] font-bold tracking-tight text-slate-500 hover:text-slate-900 transition-colors">{tt('nav_products')}</button>
-              <button onClick={() => setIsContactModalOpen(true)} className="text-[13px] font-bold tracking-tight text-slate-500 hover:text-slate-900 transition-colors">{tt('nav_contact')}</button>
+              <button onClick={navigateToHome} className={`text-[13px] font-bold tracking-tight transition-colors ${view === 'landing' ? 'text-blue-600' : 'text-slate-400 hover:text-slate-900'}`}>{tt('nav_home')}</button>
+              <button onClick={navigateToCatalog} className="text-[13px] font-bold tracking-tight text-slate-400 hover:text-slate-900 transition-colors">{tt('nav_products')}</button>
+              <button onClick={() => setIsContactModalOpen(true)} className="text-[13px] font-bold tracking-tight text-slate-400 hover:text-slate-900 transition-colors">{tt('nav_contact')}</button>
             </div>
             
-            <div className="flex items-center gap-2">
-              <div className="flex items-center bg-slate-100/50 border border-slate-200/50 rounded-full p-1 shadow-inner">
-                <button onClick={() => setLanguage('es')} className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black uppercase transition-all ${language === 'es' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>
-                  <span>ES</span>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center bg-gray-50 border border-gray-100 rounded-full p-1 shadow-inner">
+                <button onClick={() => setLanguage('es')} className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase transition-all ${language === 'es' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>
+                   <span>ES</span>
                 </button>
-                <button onClick={() => setLanguage('ca')} className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black uppercase transition-all ${language === 'ca' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>
-                  <span>CA</span>
+                <button onClick={() => setLanguage('ca')} className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase transition-all ${language === 'ca' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>
+                   <span>CA</span>
                 </button>
               </div>
+
+              {/* IDIOMA ICONO MUNDO */}
+              <div className="h-8 w-px bg-gray-100 hidden sm:block"></div>
+              
+              <button className="text-slate-400 hover:text-blue-600 transition-colors p-1">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9-9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/></svg>
+              </button>
               
               <button onClick={handleAdminClick} className="w-9 h-9 md:w-10 md:h-10 flex items-center justify-center text-slate-400 hover:text-slate-900 transition-all bg-slate-50 border border-slate-100 rounded-full shadow-sm">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
@@ -401,6 +408,7 @@ export const PublicTenantWebsite = () => {
         </div>
       </nav>
 
+      {/* CONTACT MODAL */}
       {isContactModalOpen && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[200] flex items-center justify-center p-4 animate-in fade-in duration-300">
           <div className="bg-white rounded-[2rem] md:rounded-[3.5rem] p-8 md:p-14 w-full max-w-xl shadow-2xl relative overflow-y-auto max-h-[90vh]">
@@ -422,17 +430,41 @@ export const PublicTenantWebsite = () => {
 
       {view === 'landing' ? (
         <main className="animate-in fade-in duration-1000 pb-20 pt-16 md:pt-20">
+          {/* HERO SECTION: IMPACTFUL DESIGN */}
           <div className="px-4 md:px-12 pt-4 md:pt-6">
-            <section className="relative rounded-[1.5rem] md:rounded-[2.5rem] min-h-[450px] md:h-[650px] overflow-hidden group shadow-2xl flex items-center">
-              <img src="https://images.unsplash.com/photo-1556911220-e15b29be8c8f?q=80&w=2070&auto=format&fit=crop" className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000" alt="Hero" />
-              <div className="absolute inset-0 bg-gradient-to-r from-slate-900/80 via-slate-900/40 to-transparent"></div>
-              <div className="relative px-6 md:px-24 max-w-4xl text-left">
-                <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-600/90 text-white rounded-full text-[8px] md:text-[10px] font-black uppercase tracking-widest mb-6 border border-white/20">{tt('hero_badge')}</div>
-                <h1 className="text-4xl md:text-8xl font-black text-white leading-[1] tracking-tighter mb-8 uppercase italic">{tt('hero_title_1')} <br/><span className="text-blue-400">{tt('hero_title_2')}</span></h1>
-                <p className="text-sm md:text-xl text-white/80 max-w-xl font-medium mb-10 italic">{tt('hero_desc')}</p>
-                <div className="flex flex-col sm:flex-row gap-4">
-                  <button onClick={navigateToCatalog} className="w-full sm:w-auto px-8 py-4 bg-blue-600 text-white rounded-xl font-black uppercase text-[11px] tracking-widest shadow-xl flex items-center justify-center gap-2">{tt('hero_cta_catalog')}</button>
-                  <button onClick={() => { setView('wizard'); setStep(1); }} className="w-full sm:w-auto px-8 py-4 bg-white/10 backdrop-blur-md border border-white/30 text-white rounded-xl font-black uppercase text-[11px] tracking-widest">{tt('hero_cta_wizard')}</button>
+            <section className="relative rounded-[1.5rem] md:rounded-[3.5rem] min-h-[550px] md:h-[700px] overflow-hidden group shadow-2xl flex items-center">
+              {/* HIGH QUALITY BACKGROUND IMAGE */}
+              <img src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?q=80&w=2070&auto=format&fit=crop" className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" alt="Modern Home Living Room" />
+              
+              {/* DARK GRADIENT OVERLAY (LEFT SIDE ONLY) */}
+              <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/40 to-transparent"></div>
+              
+              <div className="relative px-6 md:px-24 max-w-5xl text-left">
+                {/* FLOATING BADGE */}
+                <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-blue-600 border border-blue-400 text-white rounded-full text-[10px] md:text-[12px] font-black uppercase tracking-widest mb-8 shadow-lg">
+                  <span className="w-2 h-2 rounded-full bg-white animate-pulse"></span>
+                  {tt('hero_badge')}
+                </div>
+                
+                {/* GIANT BOLD TITLE */}
+                <h1 className="text-5xl md:text-[7rem] font-black text-white leading-[1] tracking-tighter mb-10 uppercase italic drop-shadow-2xl">
+                  {tt('hero_title_1')} <br/>
+                  <span className="text-blue-500">{tt('hero_title_2')}</span>
+                </h1>
+                
+                <p className="text-base md:text-xl text-white/90 max-w-xl font-medium mb-12 italic leading-relaxed">
+                  {tt('hero_desc')}
+                </p>
+                
+                {/* BUTTONS: BLUE AND TRANSPARENT OUTLINE */}
+                <div className="flex flex-col sm:flex-row gap-5">
+                  <button onClick={navigateToCatalog} className="w-full sm:w-auto px-10 py-5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black uppercase text-[12px] tracking-widest shadow-[0_20px_40px_-10px_rgba(37,99,235,0.4)] transition-all active:scale-95 flex items-center justify-center gap-3">
+                    {tt('hero_cta_catalog')}
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M19 9l-7 7-7-7"/></svg>
+                  </button>
+                  <button onClick={() => { setView('wizard'); setStep(1); }} className="w-full sm:w-auto px-10 py-5 bg-transparent border-2 border-white hover:bg-white/10 text-white rounded-2xl font-black uppercase text-[12px] tracking-widest transition-all active:scale-95">
+                    {tt('hero_cta_wizard')}
+                  </button>
                 </div>
               </div>
             </section>
