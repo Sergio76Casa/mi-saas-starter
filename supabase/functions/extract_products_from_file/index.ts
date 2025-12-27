@@ -1,5 +1,7 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { GoogleGenAI } from "https://esm.sh/@google/genai@1.34.0"
+// Import GoogleGenAI from the official package as per guidelines.
+import { GoogleGenAI } from "@google/genai";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -31,15 +33,8 @@ serve(async (req) => {
       })
     }
 
-    const apiKey = process.env.API_KEY;
-    if (!apiKey) {
-      return new Response(JSON.stringify({ error: "Error de configuración: API_KEY no encontrada." }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      })
-    }
-
-    const ai = new GoogleGenAI({ apiKey });
+    // Always use the API key directly from process.env.API_KEY as per guidelines.
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     
     const arrayBuffer = await file.arrayBuffer()
     const uint8 = new Uint8Array(arrayBuffer)
@@ -92,6 +87,7 @@ serve(async (req) => {
       }
     })
 
+    // Access text output using the .text property directly.
     const responseText = response.text;
     if (!responseText) {
       return new Response(JSON.stringify({ error: "La IA no pudo procesar el contenido del archivo." }), {

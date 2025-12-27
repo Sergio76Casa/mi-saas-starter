@@ -43,8 +43,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   
   const t_func = (key: keyof typeof translations['es']) => (translations[language] as any)[key] || key;
 
-  // Use an internal async function to properly test connectivity and handle errors, 
-  // avoiding PromiseLike type issues where .catch() is not available on the Supabase query response.
+  // Chequeo de salud mejorado: No marca como offline si es solo un error de permisos (usuarios anónimos)
   useEffect(() => {
     if (!isConfigured) { 
       setDbHealthy(false); 
@@ -54,8 +53,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     
     const checkConnectivity = async () => {
       try {
-        const { error } = await supabase.from('profiles').select('count', { count: 'exact', head: true });
-        setDbHealthy(!error);
+        // Consultamos la tabla de tenants que debería ser pública.
+        // Si el error es 401/403/PGRST301, significa que la DB responde pero no hay sesión (lo cual es normal en la web pública).
+        const { error } = await supabase.from('tenants').select('count', { count: 'exact', head: true });
+        
+        if (error) {
+          // PostgrestError does not have a status property in its type definition, but it's often present in Supabase responses.
+          // Casting to any to allow checking for 401/403 HTTP status codes.
+          const isAuthOrPermissionError = (error as any).status === 401 || (error as any).status === 403 || error.code?.startsWith('PGRST');
+          setDbHealthy(isAuthOrPermissionError || !error);
+        } else {
+          setDbHealthy(true);
+        }
       } catch (e) {
         setDbHealthy(false);
       }

@@ -28,7 +28,7 @@ type PublicCatalogResponse = {
 const LOCAL_I18N = {
   es: {
     nav_home: 'Inicio',
-    nav_products: 'Productos',
+    nav_products: 'Catálogo',
     nav_contact: 'Contacto',
     nav_admin: 'Admin',
     nav_admin_btn: 'ADMIN',
@@ -115,7 +115,7 @@ const LOCAL_I18N = {
   },
   ca: {
     nav_home: 'Inici',
-    nav_products: 'Productes',
+    nav_products: 'Catàleg',
     nav_contact: 'Contacte',
     nav_admin: 'Admin',
     nav_admin_btn: 'ADMIN',
@@ -367,29 +367,36 @@ export const PublicTenantWebsite = () => {
 
   return (
     <div className="min-h-screen bg-white text-slate-900 selection:bg-blue-600/20 overflow-x-hidden">
-      <nav className="flex items-center justify-between px-4 md:px-16 py-4 md:py-6 sticky top-0 bg-white/90 backdrop-blur-md z-[60] border-b border-slate-100">
-        <div className="flex items-center gap-2 md:gap-3">
-          <div className="w-8 h-8 md:w-10 md:h-10 bg-white shadow-sm rounded-lg flex items-center justify-center border border-slate-50 overflow-hidden">
-             <svg className="w-6 h-6 md:w-8 md:h-8 text-blue-600" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L4.5 20.29L5.21 21L12 18L18.79 21L19.5 20.29L12 2Z"/></svg>
-          </div>
-          <div className="flex flex-col">
-             <span className="text-base md:text-xl font-black italic tracking-tighter uppercase leading-none truncate max-w-[120px] md:max-w-none">{tenant.name}</span>
-          </div>
-        </div>
-        <div className="flex items-center gap-2 md:gap-10">
-          <div className="hidden lg:flex items-center gap-8">
-            <button onClick={navigateToHome} className={`px-4 py-2 rounded-lg text-[13px] font-bold transition-all ${view === 'landing' ? 'bg-blue-50 text-blue-600' : 'text-slate-500 hover:text-blue-600'}`}>{tt('nav_home')}</button>
-            <button onClick={navigateToCatalog} className="text-[13px] font-bold text-slate-500 hover:text-blue-600 transition-colors">{tt('nav_products')}</button>
-            <button onClick={() => setIsContactModalOpen(true)} className="text-[13px] font-bold text-slate-500 hover:text-blue-600 transition-colors">{tt('nav_contact')}</button>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1 text-[9px] md:text-[11px] font-bold text-slate-600 border border-slate-100 rounded-lg px-2 py-1 bg-slate-50">
-              <button onClick={() => setLanguage('es')} className={`px-1.5 rounded transition-all ${language === 'es' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400'}`}>ES</button>
-              <button onClick={() => setLanguage('ca')} className={`px-1.5 rounded transition-all ${language === 'ca' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400'}`}>CA</button>
+      <nav className="fixed top-0 left-0 right-0 h-16 md:h-20 bg-white/70 backdrop-blur-xl z-[100] border-b border-slate-100/50 shadow-sm transition-all duration-300">
+        <div className="max-w-7xl mx-auto h-full flex items-center justify-between px-6 md:px-10">
+          <button onClick={navigateToHome} className="flex items-center gap-3 group">
+            <div className="w-8 h-8 md:w-10 md:h-10 bg-blue-600 text-white shadow-lg shadow-blue-600/20 rounded-xl flex items-center justify-center transition-transform group-hover:scale-110">
+               <svg className="w-5 h-5 md:w-6 md:h-6" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L4.5 20.29L5.21 21L12 18L18.79 21L19.5 20.29L12 2Z"/></svg>
             </div>
-            <button onClick={handleAdminClick} className="p-2 text-slate-400 hover:text-slate-900 transition-all bg-slate-50 rounded-lg border border-slate-100">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
-            </button>
+            <span className="text-lg md:text-xl font-black italic tracking-tighter uppercase text-slate-900">{tenant.name}</span>
+          </button>
+          
+          <div className="flex items-center gap-4 md:gap-8">
+            <div className="hidden lg:flex items-center gap-6">
+              <button onClick={navigateToHome} className={`text-[13px] font-bold tracking-tight transition-colors ${view === 'landing' ? 'text-blue-600' : 'text-slate-500 hover:text-slate-900'}`}>{tt('nav_home')}</button>
+              <button onClick={navigateToCatalog} className="text-[13px] font-bold tracking-tight text-slate-500 hover:text-slate-900 transition-colors">{tt('nav_products')}</button>
+              <button onClick={() => setIsContactModalOpen(true)} className="text-[13px] font-bold tracking-tight text-slate-500 hover:text-slate-900 transition-colors">{tt('nav_contact')}</button>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <div className="flex items-center bg-slate-100/50 border border-slate-200/50 rounded-full p-1 shadow-inner">
+                <button onClick={() => setLanguage('es')} className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black uppercase transition-all ${language === 'es' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>
+                  <span>ES</span>
+                </button>
+                <button onClick={() => setLanguage('ca')} className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black uppercase transition-all ${language === 'ca' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>
+                  <span>CA</span>
+                </button>
+              </div>
+              
+              <button onClick={handleAdminClick} className="w-9 h-9 md:w-10 md:h-10 flex items-center justify-center text-slate-400 hover:text-slate-900 transition-all bg-slate-50 border border-slate-100 rounded-full shadow-sm">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+              </button>
+            </div>
           </div>
         </div>
       </nav>
@@ -414,7 +421,7 @@ export const PublicTenantWebsite = () => {
       )}
 
       {view === 'landing' ? (
-        <main className="animate-in fade-in duration-1000 pb-20">
+        <main className="animate-in fade-in duration-1000 pb-20 pt-16 md:pt-20">
           <div className="px-4 md:px-12 pt-4 md:pt-6">
             <section className="relative rounded-[1.5rem] md:rounded-[2.5rem] min-h-[450px] md:h-[650px] overflow-hidden group shadow-2xl flex items-center">
               <img src="https://images.unsplash.com/photo-1556911220-e15b29be8c8f?q=80&w=2070&auto=format&fit=crop" className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000" alt="Hero" />
@@ -471,7 +478,7 @@ export const PublicTenantWebsite = () => {
           </section>
         </main>
       ) : (
-        <div className="max-w-5xl mx-auto py-10 md:py-24 px-4 md:px-8 animate-in slide-in-from-bottom-12 duration-700">
+        <div className="max-w-5xl mx-auto py-10 md:py-24 px-4 md:px-8 animate-in slide-in-from-bottom-12 duration-700 mt-16 md:mt-20">
            <div className="mb-10 md:mb-20 flex justify-start items-center bg-white p-4 md:p-6 rounded-2xl md:rounded-[2.5rem] border border-slate-100 shadow-sm relative overflow-x-auto whitespace-nowrap gap-4 scrollbar-hide">
               {[1, 2, 3, 4, 5].map(num => (
                 <div key={num} className="flex items-center gap-2 md:gap-4 shrink-0">
