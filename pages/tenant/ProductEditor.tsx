@@ -89,7 +89,13 @@ export const ProductEditor = () => {
     const path = `${tenant.id}/${folder}/${fileName}`;
     
     const { error } = await supabase.storage.from('products').upload(path, file);
-    if (error) throw error;
+    
+    if (error) {
+      if (error.message.includes("Bucket not found")) {
+        throw new Error("El bucket 'products' no existe en Supabase Storage. Debes crearlo (como público) en tu panel de control.");
+      }
+      throw error;
+    }
     
     const { data: { publicUrl } } = supabase.storage.from('products').getPublicUrl(path);
     return publicUrl;
@@ -165,7 +171,7 @@ export const ProductEditor = () => {
       if (error) throw error;
       navigate(`/t/${slug}/products`);
     } catch (err: any) {
-      alert("Error al guardar: " + err.message);
+      alert("Atención: " + err.message);
     } finally {
       setSaving(false);
     }
@@ -214,7 +220,6 @@ export const ProductEditor = () => {
       </header>
 
       <main className="max-w-6xl mx-auto px-6 py-10">
-        {/* PESTAÑAS EXACTAS (CA-PES-1) */}
         <div className="flex border-b border-slate-100 mb-10 overflow-x-auto whitespace-nowrap scrollbar-hide">
           {(['general', 'technical', 'pricing', 'stock', 'multimedia'] as TabId[]).map(tab => (
             <button
@@ -230,7 +235,6 @@ export const ProductEditor = () => {
         </div>
 
         <div className="bg-white p-8 md:p-14 rounded-[2.5rem] border border-slate-100 shadow-sm min-h-[500px]">
-          {/* TAB 1: GENERAL (CA-VALID, CA-STATUS) */}
           {activeTab === 'general' && (
             <div className="animate-in fade-in slide-in-from-bottom-2 duration-500 space-y-10 max-w-3xl">
               <div className="flex justify-between items-start">
@@ -265,7 +269,6 @@ export const ProductEditor = () => {
             </div>
           )}
 
-          {/* TAB 2: TECHNICAL */}
           {activeTab === 'technical' && (
             <div className="animate-in fade-in slide-in-from-bottom-2 duration-500 space-y-6">
               <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 italic mb-6">Especificaciones y Características</h3>
@@ -278,7 +281,6 @@ export const ProductEditor = () => {
             </div>
           )}
 
-          {/* TAB 3: PRICING (CA-PRECIOS) */}
           {activeTab === 'pricing' && (
             <div className="animate-in fade-in slide-in-from-bottom-2 duration-500 space-y-16">
               <section>
@@ -359,7 +361,7 @@ export const ProductEditor = () => {
                 </div>
 
                 <div>
-                  <h4 className="text-[10px] font-black uppercase text-slate-800 tracking-widest mb-4">Logo de la Marca</h4>
+                  <h4 className="text-[10px] font-black uppercase text-slate-800 tracking-widest mb-4">Logotipo de la Marca</h4>
                   <div className="relative group overflow-hidden rounded-[2rem] border-2 border-dashed border-slate-100 bg-slate-50/50 hover:bg-slate-50 transition-all aspect-video flex flex-col items-center justify-center">
                     {previews.logo ? (
                       <img src={previews.logo} className="w-full h-full object-contain p-8" alt="Logo preview" />
