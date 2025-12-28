@@ -1,5 +1,4 @@
 
-
 export type Language = 'es' | 'ca';
 
 export interface Profile {
@@ -14,6 +13,8 @@ export interface Tenant {
   name: string;
   slug: string;
   plan: 'free' | 'pro' | 'enterprise';
+  logo_url?: string;
+  use_logo_on_web?: boolean;
   created_at: string;
 }
 
