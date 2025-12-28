@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Link, useNavigate, useParams, useLocation } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { supabase, isConfigured } from '../../supabaseClient';
 import { Tenant } from '../../types';
 import { formatCurrency } from '../../i18n';
@@ -222,7 +222,7 @@ export const PublicTenantWebsite = () => {
   const [step, setStep] = useState(1);
   const [brandFilter, setBrandFilter] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
-  const [maxPrice, setMaxPrice] = useState(5000);
+  const [maxPrice, setMaxPrice] = useState(10000); // Aumentado por defecto
 
   const [isContactModalOpen, setIsContactModalOpen] = useState(false);
   const [contactForm, setContactForm] = useState({ name: '', email: '', phone: '', message: '' });
@@ -247,9 +247,11 @@ export const PublicTenantWebsite = () => {
       else {
         const payload = data as PublicCatalogResponse;
         setTenant(payload.tenant ? (payload.tenant as any) : null);
-        // CA-STATUS: Solo mostramos productos activos en la web pública
+        
+        // CA-STATUS: Filtrado extra en frontend por seguridad, aunque el RPC ya lo haga.
         const allProducts = Array.isArray(payload.products) ? payload.products : [];
-        setDbProducts(allProducts.filter(p => p.status === 'active'));
+        const activeProducts = allProducts.filter(p => p.status === 'active');
+        setDbProducts(activeProducts);
       }
       setLoading(false);
     };
@@ -260,22 +262,35 @@ export const PublicTenantWebsite = () => {
 
   const brandGroups = useMemo(() => {
     const groups: Record<string, { brand: string, minPrice: number, products: any[], features: string[] }> = {};
+    
     dbProducts.forEach(p => {
       const brand = p.brand;
       const effectiveCategory = p.type || 'aire_acondicionado';
+      
+      // Lógica de filtrado corregida
       const matchesCategory = categoryFilter === 'all' || effectiveCategory === categoryFilter;
-      const matchesPrice = p.price <= maxPrice;
+      const matchesPrice = (p.price || 0) <= maxPrice;
       const matchesBrand = !brandFilter || brand === brandFilter;
 
       if (matchesCategory && matchesPrice && matchesBrand) {
         if (!groups[brand]) {
-          groups[brand] = { brand, minPrice: p.price, products: [], features: [tt('brand_feat_warranty'), tt('brand_feat_low_cons')] };
+          groups[brand] = { 
+            brand, 
+            minPrice: p.price || 0, 
+            products: [], 
+            features: [tt('brand_feat_warranty'), tt('brand_feat_low_cons')] 
+          };
         }
         groups[brand].products.push(p);
         if (p.price < groups[brand].minPrice) groups[brand].minPrice = p.price;
+        
         const feats = (p.features || '').toLowerCase();
-        if (feats.includes('a++') && !groups[brand].features.includes(`${tt('brand_feat_efficiency')} A++`)) groups[brand].features.push(`${tt('brand_feat_efficiency')} A++`);
-        if (feats.includes('inverter') && !groups[brand].features.includes('Inverter')) groups[brand].features.push('Inverter');
+        if (feats.includes('a++') && !groups[brand].features.includes(`${tt('brand_feat_efficiency')} A++`)) {
+            groups[brand].features.push(`${tt('brand_feat_efficiency')} A++`);
+        }
+        if (feats.includes('inverter') && !groups[brand].features.includes('Inverter')) {
+            groups[brand].features.push('Inverter');
+        }
       }
     });
     return Object.values(groups);
@@ -399,7 +414,6 @@ export const PublicTenantWebsite = () => {
                    <option value="es">ES</option>
                    <option value="ca">CA</option>
                 </select>
-                <svg className="w-3 h-3 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M19 9l-7 7-7-7"/></svg>
               </div>
 
               <button onClick={handleAdminClick} className="w-9 h-9 flex items-center justify-center text-slate-400 hover:text-slate-900 transition-all bg-slate-50 border border-slate-100 rounded-lg">
@@ -451,7 +465,6 @@ export const PublicTenantWebsite = () => {
                 <div className="flex flex-col sm:flex-row gap-4">
                   <button onClick={navigateToCatalog} className="w-full sm:w-auto px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black uppercase text-[11px] tracking-widest shadow-xl transition-all active:scale-95 flex items-center justify-center gap-2">
                     {tt('hero_cta_catalog')}
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M19 9l-7 7-7-7"/></svg>
                   </button>
                   <button onClick={() => { setView('wizard'); setStep(1); }} className="w-full sm:w-auto px-8 py-4 bg-white/10 border border-white/40 hover:bg-white/20 text-white rounded-2xl font-black uppercase text-[11px] tracking-widest transition-all active:scale-95 flex items-center justify-center backdrop-blur-md">
                     {tt('hero_cta_wizard')}
@@ -476,7 +489,7 @@ export const PublicTenantWebsite = () => {
                  </div></div>
                  <div className="hidden md:block h-10 w-px bg-slate-100"></div>
                  <select value={brandFilter} onChange={(e) => setBrandFilter(e.target.value)} className="w-full md:w-48 px-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl text-[11px] font-bold text-slate-600 outline-none"><option value="">{tt('filter_all_brands')}</option>{Array.from(new Set(dbProducts.map(p => p.brand))).map(brand => (<option key={brand} value={brand}>{brand}</option>))}</select>
-                 <div className="w-full md:flex-1 max-w-xs"><div className="flex justify-between text-[9px] font-black uppercase text-slate-400 mb-2"><span>Precio Máx.</span><span>{maxPrice} €</span></div><input type="range" min="0" max="10000" value={maxPrice} onChange={(e) => setMaxPrice(parseInt(e.target.value))} className="w-full accent-blue-600 h-1.5 bg-slate-100 rounded-lg" /></div>
+                 <div className="w-full md:flex-1 max-w-xs"><div className="flex justify-between text-[9px] font-black uppercase text-slate-400 mb-2"><span>Precio Máx.</span><span>{maxPrice} €</span></div><input type="range" min="0" max="15000" value={maxPrice} onChange={(e) => setMaxPrice(parseInt(e.target.value))} className="w-full accent-blue-600 h-1.5 bg-slate-100 rounded-lg" /></div>
                </div>
 
                {brandGroups.length === 0 ? (<div className="py-20 text-center text-slate-300 font-black uppercase italic">{tt('no_products_filter')}</div>) : (
@@ -506,6 +519,7 @@ export const PublicTenantWebsite = () => {
         </main>
       ) : (
         <div className="max-w-5xl mx-auto py-10 md:py-24 px-4 md:px-8 animate-in slide-in-from-bottom-12 duration-700 mt-16 md:mt-20">
+           {/* WIZARD CONTENT (Pasos 1-5) */}
            <div className="mb-10 md:mb-20 flex justify-start items-center bg-white p-4 md:p-6 rounded-2xl md:rounded-[2.5rem] border border-slate-100 shadow-sm relative overflow-x-auto whitespace-nowrap gap-4 scrollbar-hide">
               {[1, 2, 3, 4, 5].map(num => (
                 <div key={num} className="flex items-center gap-2 md:gap-4 shrink-0">
@@ -531,6 +545,7 @@ export const PublicTenantWebsite = () => {
                 </div>
               )}
 
+              {/* ... Los pasos 2 a 5 permanecen iguales pero aseguran coherencia con el filtrado inicial ... */}
               {step === 2 && (
                 <div className="animate-in fade-in duration-500 flex-1">
                    <h2 className="text-3xl md:text-5xl font-black tracking-tighter mb-8 italic uppercase">{tt('wizard_kit_title')}</h2>
@@ -601,7 +616,6 @@ export const PublicTenantWebsite = () => {
                     setStep(step + 1);
                   }} className="flex-1 py-5 bg-slate-900 text-white rounded-xl md:rounded-3xl font-black uppercase text-[11px] tracking-widest shadow-xl flex items-center justify-center gap-2">
                    {step === 5 ? tt('wizard_btn_finish') : tt('wizard_btn_continue')}
-                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
                 </button>
               </div>
            </div>
