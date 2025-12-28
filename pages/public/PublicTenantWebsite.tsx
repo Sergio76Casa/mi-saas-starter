@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Link, useNavigate, useParams, useLocation } from 'react-router-dom';
 import { supabase, isConfigured } from '../../supabaseClient';
@@ -16,11 +17,17 @@ type PublicCatalogResponse = {
   }; 
   products: Array<{ 
     id: string; 
-    name: string; 
+    brand: string;
+    model: string;
     description?: string; 
+    features?: string;
     price: number; 
-    category?: string;
-    is_active?: boolean 
+    type?: string;
+    status?: string;
+    image_url?: string;
+    brand_logo_url?: string;
+    pdf_url?: string;
+    pricing?: Array<{ variant: string; price: number }>;
   }>; 
 };
 
@@ -203,7 +210,6 @@ const LOCAL_I18N = {
 
 export const PublicTenantWebsite = () => {
   const { slug } = useParams();
-  const location = useLocation();
   const { dbHealthy, language, setLanguage, session, memberships, profile } = useApp();
   const [tenant, setTenant] = useState<Tenant | null>(null);
   const [dbProducts, setDbProducts] = useState<PublicCatalogResponse['products']>([]);
@@ -241,7 +247,9 @@ export const PublicTenantWebsite = () => {
       else {
         const payload = data as PublicCatalogResponse;
         setTenant(payload.tenant ? (payload.tenant as any) : null);
-        setDbProducts(Array.isArray(payload.products) ? payload.products : []);
+        // CA-STATUS: Solo mostramos productos activos en la web pública
+        const allProducts = Array.isArray(payload.products) ? payload.products : [];
+        setDbProducts(allProducts.filter(p => p.status === 'active'));
       }
       setLoading(false);
     };
@@ -253,8 +261,8 @@ export const PublicTenantWebsite = () => {
   const brandGroups = useMemo(() => {
     const groups: Record<string, { brand: string, minPrice: number, products: any[], features: string[] }> = {};
     dbProducts.forEach(p => {
-      const effectiveCategory = p.category || 'aire_acondicionado';
-      const brand = p.name.split(' ')[0];
+      const brand = p.brand;
+      const effectiveCategory = p.type || 'aire_acondicionado';
       const matchesCategory = categoryFilter === 'all' || effectiveCategory === categoryFilter;
       const matchesPrice = p.price <= maxPrice;
       const matchesBrand = !brandFilter || brand === brandFilter;
@@ -265,10 +273,9 @@ export const PublicTenantWebsite = () => {
         }
         groups[brand].products.push(p);
         if (p.price < groups[brand].minPrice) groups[brand].minPrice = p.price;
-        const description = (p.description || '').toLowerCase();
-        if (description.includes('a++') && !groups[brand].features.includes(`${tt('brand_feat_efficiency')} A++`)) groups[brand].features.push(`${tt('brand_feat_efficiency')} A++`);
-        if (description.includes('a+++') && !groups[brand].features.includes(`${tt('brand_feat_efficiency')} A+++`)) groups[brand].features.push(`${tt('brand_feat_efficiency')} A+++`);
-        if (description.includes('inverter') && !groups[brand].features.includes('Inverter')) groups[brand].features.push('Inverter');
+        const feats = (p.features || '').toLowerCase();
+        if (feats.includes('a++') && !groups[brand].features.includes(`${tt('brand_feat_efficiency')} A++`)) groups[brand].features.push(`${tt('brand_feat_efficiency')} A++`);
+        if (feats.includes('inverter') && !groups[brand].features.includes('Inverter')) groups[brand].features.push('Inverter');
       }
     });
     return Object.values(groups);
@@ -425,33 +432,22 @@ export const PublicTenantWebsite = () => {
 
       {view === 'landing' ? (
         <main className="animate-in fade-in duration-1000 pb-20 pt-16 md:pt-20">
-          {/* HERO SECTION: SMALLER PROPORTIONS BASED ON IMAGE */}
           <div className="px-4 md:px-8 pt-4 md:pt-8">
             <section className="max-w-7xl mx-auto relative rounded-[2rem] md:rounded-[3.5rem] h-[400px] md:h-[550px] overflow-hidden group shadow-2xl flex items-center">
-              {/* HIGH QUALITY BACKGROUND IMAGE */}
               <img src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?q=80&w=2070&auto=format&fit=crop" className="absolute inset-0 w-full h-full object-cover" alt="Modern Home" />
-              
-              {/* DARK SIDE GRADIENT: Only covers the text area effectively */}
               <div className="absolute inset-0 bg-gradient-to-r from-slate-900/90 via-slate-900/40 to-transparent w-[100%] md:w-[60%]"></div>
-              
               <div className="relative px-8 md:px-20 max-w-4xl text-left">
-                {/* FLOATING INSIGNIA / BADGE: Blue with border */}
                 <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-blue-600/30 border border-blue-500/50 text-white rounded-full text-[9px] md:text-[11px] font-black uppercase tracking-widest mb-6 backdrop-blur-sm">
                   <span className="w-1.5 h-1.5 rounded-full bg-blue-400"></span>
                   {tt('hero_badge')}
                 </div>
-                
-                {/* REFINED TITLE: Large and Bold */}
                 <h1 className="text-4xl md:text-7xl font-black text-white leading-[1.1] tracking-tighter mb-6 uppercase italic drop-shadow-lg">
                   {tt('hero_title_1')} <br/>
                   <span className="text-blue-500">{tt('hero_title_2')}</span>
                 </h1>
-                
                 <p className="text-sm md:text-lg text-white/80 max-w-xl font-medium mb-10 italic leading-relaxed">
                   {tt('hero_desc')}
                 </p>
-                
-                {/* ACTION BUTTONS: Match image exactly */}
                 <div className="flex flex-col sm:flex-row gap-4">
                   <button onClick={navigateToCatalog} className="w-full sm:w-auto px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black uppercase text-[11px] tracking-widest shadow-xl transition-all active:scale-95 flex items-center justify-center gap-2">
                     {tt('hero_cta_catalog')}
@@ -479,7 +475,7 @@ export const PublicTenantWebsite = () => {
                    ))}
                  </div></div>
                  <div className="hidden md:block h-10 w-px bg-slate-100"></div>
-                 <select value={brandFilter} onChange={(e) => setBrandFilter(e.target.value)} className="w-full md:w-48 px-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl text-[11px] font-bold text-slate-600 outline-none">{tt('filter_all_brands')}{Array.from(new Set(dbProducts.map(p => p.name.split(' ')[0]))).map(brand => (<option key={brand} value={brand}>{brand}</option>))}</select>
+                 <select value={brandFilter} onChange={(e) => setBrandFilter(e.target.value)} className="w-full md:w-48 px-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl text-[11px] font-bold text-slate-600 outline-none"><option value="">{tt('filter_all_brands')}</option>{Array.from(new Set(dbProducts.map(p => p.brand))).map(brand => (<option key={brand} value={brand}>{brand}</option>))}</select>
                  <div className="w-full md:flex-1 max-w-xs"><div className="flex justify-between text-[9px] font-black uppercase text-slate-400 mb-2"><span>Precio Máx.</span><span>{maxPrice} €</span></div><input type="range" min="0" max="10000" value={maxPrice} onChange={(e) => setMaxPrice(parseInt(e.target.value))} className="w-full accent-blue-600 h-1.5 bg-slate-100 rounded-lg" /></div>
                </div>
 
@@ -488,13 +484,17 @@ export const PublicTenantWebsite = () => {
                     {brandGroups.map(group => (
                       <div key={group.brand} className="bg-white rounded-[2rem] md:rounded-[3rem] p-6 md:p-8 border border-slate-100 shadow-sm hover:shadow-xl transition-all flex flex-col text-left">
                          <div className="h-48 md:h-64 bg-slate-50 rounded-[1.5rem] md:rounded-[2.5rem] mb-6 md:mb-8 flex items-center justify-center relative shadow-inner overflow-hidden">
-                            <svg className="w-16 h-16 md:w-24 md:h-24 text-blue-100" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-                            <div className="absolute top-4 right-4 px-3 py-1 bg-white text-blue-600 rounded-full text-[8px] font-black uppercase tracking-widest shadow-sm">{group.brand}</div>
+                            {group.products[0]?.image_url ? (
+                              <img src={group.products[0].image_url} className="w-full h-full object-contain p-4" alt={group.brand} />
+                            ) : (
+                              <svg className="w-16 h-16 md:w-24 md:h-24 text-blue-100" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                            )}
+                            <div className="absolute top-4 right-4 px-3 py-1 bg-white text-blue-600 rounded-full text-[8px] font-black uppercase tracking-widest shadow-sm border border-slate-50">{group.brand}</div>
                          </div>
                          <h3 className="text-3xl font-black mb-1 uppercase italic tracking-tighter">{group.brand}</h3>
                          <div className="flex flex-wrap gap-2 mb-8">{group.features.slice(0, 3).map(feat => (<span key={feat} className="px-2 py-1 bg-slate-50 text-slate-600 rounded-full text-[8px] font-black uppercase border border-slate-100">{feat}</span>))}</div>
                          <div className="flex items-center justify-between border-t border-slate-50 pt-6 mt-auto">
-                            <div><p className="text-2xl md:text-3xl font-black text-slate-900 tracking-tighter leading-none"><span className="text-[10px] text-slate-300 mr-1 uppercase italic">Des de</span>{formatCurrency(group.minPrice, language)}</p></div>
+                            <div><p className="text-2xl md:text-3xl font-black text-slate-900 tracking-tighter leading-none"><span className="text-[10px] text-slate-300 mr-1 uppercase italic">Desde</span>{formatCurrency(group.minPrice, language)}</p></div>
                             <button onClick={() => { setSelectedProduct(group.products[0]); setView('wizard'); setStep(1); }} className="w-12 h-12 bg-blue-600 text-white rounded-xl flex items-center justify-center active:scale-95 shadow-lg"><svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 4v16m8-8H4"/></svg></button>
                          </div>
                       </div>
@@ -520,10 +520,10 @@ export const PublicTenantWebsite = () => {
                 <div className="animate-in fade-in duration-500 flex-1">
                    <h2 className="text-3xl md:text-4xl font-black tracking-tighter mb-8 italic uppercase">{tt('wizard_models_available')}</h2>
                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-                      {dbProducts.filter((p: any) => !selectedProduct || p.name.split(' ')[0] === selectedProduct.name.split(' ')[0]).map((p: any) => (
+                      {dbProducts.filter((p: any) => !selectedProduct || p.brand === selectedProduct.brand).map((p: any) => (
                         <button key={p.id} onClick={() => setSelectedProduct(p)} className={`p-6 md:p-10 rounded-2xl md:rounded-[3rem] border-2 text-left transition-all relative flex flex-col h-full ${selectedProduct?.id === p.id ? 'border-blue-600 bg-blue-50' : 'border-slate-100 bg-white'}`}>
-                           <h3 className="font-black text-xl md:text-2xl text-slate-900 uppercase italic mb-2 leading-none">{p.name}</h3>
-                           <p className="text-slate-400 text-xs italic mb-6 line-clamp-2 flex-1">{p.description || p.desc}</p>
+                           <h3 className="font-black text-xl md:text-2xl text-slate-900 uppercase italic mb-2 leading-none">{p.brand} {p.model}</h3>
+                           <p className="text-slate-400 text-xs italic mb-6 line-clamp-2 flex-1">{p.features || p.description}</p>
                            <p className="text-2xl md:text-3xl font-black text-blue-600 tracking-tighter">{formatCurrency(p.price, language)}</p>
                         </button>
                       ))}

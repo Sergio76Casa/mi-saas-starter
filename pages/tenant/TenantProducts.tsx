@@ -77,7 +77,7 @@ export const TenantProducts = () => {
   return (
     <div className="space-y-6 animate-in fade-in duration-500 pb-20">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 px-1">
-        <h3 className="text-xl font-bold text-slate-800 tracking-tight uppercase italic">Inventario</h3>
+        <h3 className="text-xl font-bold text-slate-800 tracking-tight uppercase italic">Administración · Inventario</h3>
         <button 
           onClick={() => navigate(`/t/${slug}/products/new/edit`)}
           className="w-full md:w-auto flex items-center justify-center gap-2 px-6 py-2.5 bg-blue-600 text-white text-[11px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-blue-600/20 hover:scale-105 transition-all"
@@ -91,7 +91,7 @@ export const TenantProducts = () => {
           <div className="relative w-full md:w-64">
              <input 
                type="text"
-               placeholder="Buscar..."
+               placeholder="Buscar marca o modelo..."
                value={searchTerm}
                onChange={(e) => setSearchTerm(e.target.value)}
                className="w-full pl-4 pr-10 py-2 text-xs border border-slate-100 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 bg-white font-medium"
@@ -111,12 +111,12 @@ export const TenantProducts = () => {
           <table className="w-full text-left min-w-[1000px]">
             <thead className="bg-white text-slate-400 text-[9px] font-black uppercase tracking-widest border-b border-slate-50">
               <tr>
-                <th className="px-8 py-6">MARCA / MODELO</th>
-                <th className="px-6 py-6">TIPO</th>
-                <th className="px-6 py-6">PRECIOS</th>
-                <th className="px-6 py-6 text-center">IMÁGENES</th>
-                <th className="px-6 py-6 text-center">FICHA</th>
-                <th className="px-8 py-6 text-right">ACCIONES</th>
+                <th className="px-8 py-6">Marca / Modelo</th>
+                <th className="px-6 py-6">Tipo</th>
+                <th className="px-6 py-6">Precios</th>
+                <th className="px-6 py-6 text-center">Imágenes</th>
+                <th className="px-6 py-6 text-center">Ficha</th>
+                <th className="px-8 py-6 text-right">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
@@ -152,19 +152,19 @@ export const TenantProducts = () => {
                           {v.variant}: <span className="font-black text-blue-600 ml-1">{formatCurrency(v.price, language)}</span>
                         </div>
                       ))}
-                      {p.pricing?.length > 2 && <div className="text-[9px] font-black text-slate-300 uppercase">+{p.pricing.length - 2} variantes</div>}
+                      {p.pricing?.length > 2 && <div className="text-[9px] font-black text-slate-300 uppercase">+{p.pricing.length - 2} más</div>}
                     </div>
                   </td>
                   <td className="px-6 py-8">
                     <div className="flex justify-center items-center gap-2">
-                      <div className={`w-2.5 h-2.5 rounded-full ${p.image_url ? 'bg-green-500' : 'bg-slate-200'}`} title="Producto"></div>
-                      <div className={`w-2.5 h-2.5 rounded-full ${p.brand_logo_url ? 'bg-blue-500' : 'bg-slate-200'}`} title="Marca"></div>
+                      <div className={`w-2.5 h-2.5 rounded-full ${p.image_url ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]' : 'bg-slate-200'}`} title="Imagen Producto"></div>
+                      <div className={`w-2.5 h-2.5 rounded-full ${p.brand_logo_url ? 'bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]' : 'bg-slate-200'}`} title="Logo Marca"></div>
                     </div>
                   </td>
                   <td className="px-6 py-8 text-center">
                     <div className="flex justify-center">
                       {p.pdf_url ? (
-                        <a href={p.pdf_url} target="_blank" rel="noreferrer" className="text-blue-500 p-2 hover:bg-blue-50 rounded-lg transition-colors">
+                        <a href={p.pdf_url} target="_blank" rel="noreferrer" className="text-blue-500 p-2 hover:bg-blue-50 rounded-lg transition-colors" title="Ver Ficha Técnica">
                           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                         </a>
                       ) : (
@@ -177,12 +177,14 @@ export const TenantProducts = () => {
                       <button 
                         onClick={() => navigate(`/t/${slug}/products/${p.id}/edit`)}
                         className="p-2 text-slate-300 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                        title="Editar"
                       >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
                       </button>
                       <button 
                         onClick={() => handleDelete(p.id)}
                         className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                        title="Borrar"
                       >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                       </button>
@@ -192,7 +194,7 @@ export const TenantProducts = () => {
               ))}
               {!loading && filteredProducts.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="py-24 text-center text-slate-300 font-black uppercase tracking-widest text-sm italic">Inventario vacío</td>
+                  <td colSpan={6} className="py-24 text-center text-slate-300 font-black uppercase tracking-widest text-sm italic">No hay productos en el inventario</td>
                 </tr>
               )}
             </tbody>
