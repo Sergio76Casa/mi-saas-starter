@@ -75,7 +75,7 @@ const LOCAL_I18N = {
     wizard_step_extras: 'Extras',
     wizard_step_client: 'Cliente',
     wizard_step_sign: 'Firma',
-    wizard_models_available: 'Modelos disponibles',
+    wizard_models_available: 'Models disponibles',
     wizard_high_efficiency: 'Máxima Eficiencia',
     wizard_install_included: 'Instalación Incluida',
     wizard_status: 'ESTADO',
@@ -119,7 +119,7 @@ const LOCAL_I18N = {
     cat_all: 'Todas',
     cat_ac: 'Aire Acondicionado',
     cat_boiler: 'Calderas',
-    cat_thermo: 'Termos eléctricos'
+    cat_thermo: 'Termos elèctrics'
   },
   ca: {
     nav_home: 'Inici',
@@ -143,7 +143,7 @@ const LOCAL_I18N = {
     step3_title: '3. Firma',
     step3_desc: 'Valida el teu pressupost amb signatura digital i descarrega’l a l’instant.',
     catalog_title: 'Catàleg Destacat',
-    catalog_subtitle: 'Solucions integrals de climatització professional.',
+    catalog_subtitle: 'Solucions integrals de climatització profesional.',
     filter_search: 'Cerca',
     filter_brand: 'Filtrar per Marca',
     filter_all_brands: 'Totes les marques',
@@ -215,7 +215,8 @@ export const PublicTenantWebsite = () => {
   const { dbHealthy, language, setLanguage, session, memberships, profile } = useApp();
   const [tenant, setTenant] = useState<Tenant | null>(null);
   const [dbProducts, setDbProducts] = useState<PublicCatalogResponse['products']>([]);
-  const [loading, setLoading] = useState(true);
+  const [isDataReady, setIsDataReady] = useState(false);
+  const [isError, setIsError] = useState(false);
   const navigate = useNavigate();
 
   const tt = (key: keyof typeof LOCAL_I18N['es']) => LOCAL_I18N[language]?.[key] ?? LOCAL_I18N.es[key];
@@ -242,33 +243,42 @@ export const PublicTenantWebsite = () => {
   const [isDrawing, setIsDrawing] = useState(false);
 
   useEffect(() => {
+    // Reset states on slug change to force loading screen
+    setIsDataReady(false);
+    setIsError(false);
+    setTenant(null);
+
     const fetchCatalog = async () => {
-      // 1. Si no hay configuración o la salud de la DB se está verificando, mantenemos el loading.
-      if (!isConfigured || dbHealthy === null) {
-        return;
-      }
+      if (!isConfigured || dbHealthy === null) return;
       
-      // 2. Si la DB está offline definitivamente, mostramos el error (se podría mejorar con un mensaje de "mantenimiento").
       if (dbHealthy === false) {
-        setLoading(false);
+        setIsError(true);
+        setIsDataReady(true);
         return;
       }
 
-      setLoading(true); // Aseguramos estado de carga al iniciar fetch
-      const { data, error } = await supabase.rpc('get_public_catalog', { p_slug: slug });
-      
-      if (error || !data) { 
-        setTenant(null); 
-        setDbProducts([]); 
-      } else {
-        const payload = data as PublicCatalogResponse;
-        // Solo actualizamos el estado si realmente hay datos para evitar parpadeos de nulidad
-        setTenant(payload.tenant ? (payload.tenant as any) : null);
-        const allProducts = Array.isArray(payload.products) ? payload.products : [];
-        const activeProducts = allProducts.filter(p => p.status === 'active');
-        setDbProducts(activeProducts);
+      try {
+        const { data, error } = await supabase.rpc('get_public_catalog', { p_slug: slug });
+        
+        if (error || !data) { 
+          setIsError(true);
+          setTenant(null);
+        } else {
+          const payload = data as PublicCatalogResponse;
+          if (payload.tenant) {
+            setTenant(payload.tenant as any);
+            const allProducts = Array.isArray(payload.products) ? payload.products : [];
+            setDbProducts(allProducts.filter(p => p.status === 'active'));
+            setIsError(false);
+          } else {
+            setIsError(true);
+          }
+        }
+      } catch (err) {
+        setIsError(true);
+      } finally {
+        setIsDataReady(true);
       }
-      setLoading(false);
     };
     
     fetchCatalog();
@@ -388,15 +398,15 @@ export const PublicTenantWebsite = () => {
     return Object.keys(errors).length === 0;
   };
 
-  // PRIORIDAD 1: Si estamos cargando o esperando salud de DB, mostramos spinner.
-  if (loading || dbHealthy === null) return (
+  // UI GATES: PRIORITY LOADING
+  if (!isDataReady || dbHealthy === null) return (
     <div className="animate-in fade-in duration-300">
       <LoadingSpinner />
     </div>
   );
   
-  // PRIORIDAD 2: Si terminó de cargar y no hay tenant, mostramos 404 definitivo.
-  if (!tenant) return (
+  // UI GATES: DEFINITIVE ERROR (404)
+  if (isError || !tenant) return (
     <div className="min-h-screen flex items-center justify-center bg-white p-6 text-center animate-in fade-in zoom-in duration-500">
        <div>
          <h1 className="text-7xl md:text-9xl font-black text-slate-100 mb-4 tracking-tighter uppercase italic">404</h1>
