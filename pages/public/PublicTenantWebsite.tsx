@@ -13,7 +13,9 @@ type PublicCatalogResponse = {
   tenant: { 
     id?: string; 
     name: string; 
-    slug: string 
+    slug: string;
+    logo_url?: string;
+    use_logo_on_web?: boolean;
   }; 
   products: Array<{ 
     id: string; 
@@ -43,7 +45,7 @@ const LOCAL_I18N = {
     hero_badge: 'TECNOLOGÍA INVERTER 2024',
     hero_title_1: 'Clima perfecto,',
     hero_title_2: 'Ahorro real.',
-    hero_desc: 'Transforma tu hogar con nuestras soluciones de climatización de alta eficiencia. Instalación profesional, financiación a medida y las mejores marcas del mercado.',
+    hero_desc: 'Transforma tu hogar con nuestras soluciones de climatización de alta eficiencia. Instalación profesional, financiación a medida y las mejores marcas del mercardo.',
     hero_cta_catalog: 'Ver Catálogo',
     hero_cta_wizard: 'Pedir Presupuesto',
     how_it_works: '¿Cómo funciona?',
@@ -222,7 +224,7 @@ export const PublicTenantWebsite = () => {
   const [step, setStep] = useState(1);
   const [brandFilter, setBrandFilter] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
-  const [maxPrice, setMaxPrice] = useState(10000); // Aumentado por defecto
+  const [maxPrice, setMaxPrice] = useState(10000); 
 
   const [isContactModalOpen, setIsContactModalOpen] = useState(false);
   const [contactForm, setContactForm] = useState({ name: '', email: '', phone: '', message: '' });
@@ -248,7 +250,6 @@ export const PublicTenantWebsite = () => {
         const payload = data as PublicCatalogResponse;
         setTenant(payload.tenant ? (payload.tenant as any) : null);
         
-        // CA-STATUS: Filtrado extra en frontend por seguridad, aunque el RPC ya lo haga.
         const allProducts = Array.isArray(payload.products) ? payload.products : [];
         const activeProducts = allProducts.filter(p => p.status === 'active');
         setDbProducts(activeProducts);
@@ -267,7 +268,6 @@ export const PublicTenantWebsite = () => {
       const brand = p.brand;
       const effectiveCategory = p.type || 'aire_acondicionado';
       
-      // Lógica de filtrado corregida
       const matchesCategory = categoryFilter === 'all' || effectiveCategory === categoryFilter;
       const matchesPrice = (p.price || 0) <= maxPrice;
       const matchesBrand = !brandFilter || brand === brandFilter;
@@ -392,10 +392,16 @@ export const PublicTenantWebsite = () => {
       <nav className="fixed top-0 left-0 right-0 h-16 md:h-20 bg-white/80 backdrop-blur-md z-[100] border-b border-gray-100 shadow-sm transition-all duration-300">
         <div className="max-w-7xl mx-auto h-full flex items-center justify-between px-6 md:px-10">
           <button onClick={navigateToHome} className="flex items-center gap-3 group">
-            <div className="w-8 h-8 md:w-10 md:h-10 bg-blue-600 text-white shadow-lg shadow-blue-600/20 rounded-xl flex items-center justify-center transition-transform group-hover:scale-110">
-               <svg className="w-5 h-5 md:w-6 md:h-6" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L4.5 20.29L5.21 21L12 18L18.79 21L19.5 20.29L12 2Z"/></svg>
-            </div>
-            <span className="text-lg md:text-xl font-black italic tracking-tighter uppercase text-slate-900">eco-efficient</span>
+            {tenant.use_logo_on_web && tenant.logo_url ? (
+              <img src={tenant.logo_url} className="h-8 md:h-10 w-auto object-contain transition-transform group-hover:scale-105" alt={tenant.name} />
+            ) : (
+              <>
+                <div className="w-8 h-8 md:w-10 md:h-10 bg-blue-600 text-white shadow-lg shadow-blue-600/20 rounded-xl flex items-center justify-center transition-transform group-hover:scale-110">
+                   <svg className="w-5 h-5 md:w-6 md:h-6" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L4.5 20.29L5.21 21L12 18L18.79 21L19.5 20.29L12 2Z"/></svg>
+                </div>
+                <span className="text-lg md:text-xl font-black italic tracking-tighter uppercase text-slate-900">{tenant.name}</span>
+              </>
+            )}
           </button>
           
           <div className="flex items-center gap-4 md:gap-8">
@@ -545,7 +551,6 @@ export const PublicTenantWebsite = () => {
                 </div>
               )}
 
-              {/* ... Los pasos 2 a 5 permanecen iguales pero aseguran coherencia con el filtrado inicial ... */}
               {step === 2 && (
                 <div className="animate-in fade-in duration-500 flex-1">
                    <h2 className="text-3xl md:text-5xl font-black tracking-tighter mb-8 italic uppercase">{tt('wizard_kit_title')}</h2>
