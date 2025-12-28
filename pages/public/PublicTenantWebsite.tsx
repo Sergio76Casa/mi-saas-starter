@@ -45,7 +45,7 @@ const LOCAL_I18N = {
     hero_badge: 'TECNOLOGÍA INVERTER 2024',
     hero_title_1: 'Clima perfecto,',
     hero_title_2: 'Ahorro real.',
-    hero_desc: 'Transforma tu hogar con nuestras soluciones de climatización de alta eficiencia. Instalación profesional, financiación a medida y las mejores marcas del mercardo.',
+    hero_desc: 'Transforma tu hogar con nuestras soluciones de climatización de alta eficiencia. Instalación profesional, financiación a medida y las mejores marcas del mercado.',
     hero_cta_catalog: 'Ver Catálogo',
     hero_cta_wizard: 'Pedir Presupuesto',
     how_it_works: '¿Cómo funciona?',
@@ -243,19 +243,34 @@ export const PublicTenantWebsite = () => {
 
   useEffect(() => {
     const fetchCatalog = async () => {
-      if (!isConfigured || !dbHealthy) { setLoading(false); return; }
+      // 1. Si no hay configuración o la salud de la DB se está verificando, mantenemos el loading.
+      if (!isConfigured || dbHealthy === null) {
+        return;
+      }
+      
+      // 2. Si la DB está offline definitivamente, mostramos el error (se podría mejorar con un mensaje de "mantenimiento").
+      if (dbHealthy === false) {
+        setLoading(false);
+        return;
+      }
+
+      setLoading(true); // Aseguramos estado de carga al iniciar fetch
       const { data, error } = await supabase.rpc('get_public_catalog', { p_slug: slug });
-      if (error || !data) { setTenant(null); setDbProducts([]); } 
-      else {
+      
+      if (error || !data) { 
+        setTenant(null); 
+        setDbProducts([]); 
+      } else {
         const payload = data as PublicCatalogResponse;
+        // Solo actualizamos el estado si realmente hay datos para evitar parpadeos de nulidad
         setTenant(payload.tenant ? (payload.tenant as any) : null);
-        
         const allProducts = Array.isArray(payload.products) ? payload.products : [];
         const activeProducts = allProducts.filter(p => p.status === 'active');
         setDbProducts(activeProducts);
       }
       setLoading(false);
     };
+    
     fetchCatalog();
   }, [slug, dbHealthy]);
 
@@ -373,10 +388,17 @@ export const PublicTenantWebsite = () => {
     return Object.keys(errors).length === 0;
   };
 
-  if (loading) return <LoadingSpinner />;
+  // PRIORIDAD 1: Si estamos cargando o esperando salud de DB, mostramos spinner.
+  if (loading || dbHealthy === null) return (
+    <div className="animate-in fade-in duration-300">
+      <LoadingSpinner />
+    </div>
+  );
+  
+  // PRIORIDAD 2: Si terminó de cargar y no hay tenant, mostramos 404 definitivo.
   if (!tenant) return (
-    <div className="min-h-screen flex items-center justify-center bg-white p-6 text-center">
-       <div className="animate-in fade-in zoom-in duration-500">
+    <div className="min-h-screen flex items-center justify-center bg-white p-6 text-center animate-in fade-in zoom-in duration-500">
+       <div>
          <h1 className="text-7xl md:text-9xl font-black text-slate-100 mb-4 tracking-tighter uppercase italic">404</h1>
          <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">{tt('error_404_msg')}</p>
          <Link to="/" className="mt-10 inline-block px-8 py-3 bg-blue-600 text-white rounded-full font-black uppercase text-[10px]">{tt('error_404_btn')}</Link>
@@ -387,7 +409,7 @@ export const PublicTenantWebsite = () => {
   const subtotal = (selectedProduct?.price || 0) + (selectedKit?.price || 0) + selectedExtras.reduce((acc, n) => acc + (PDF_EXTRAS.find(e => n === e.name)?.price || 0), 0);
 
   return (
-    <div className="min-h-screen bg-white text-slate-900 selection:bg-blue-600/20 overflow-x-hidden">
+    <div className="min-h-screen bg-white text-slate-900 selection:bg-blue-600/20 overflow-x-hidden animate-in fade-in duration-700">
       {/* HEADER: FIXED GLASSMORPHISM NAVIGATION */}
       <nav className="fixed top-0 left-0 right-0 h-16 md:h-20 bg-white/80 backdrop-blur-md z-[100] border-b border-gray-100 shadow-sm transition-all duration-300">
         <div className="max-w-7xl mx-auto h-full flex items-center justify-between px-6 md:px-10">
