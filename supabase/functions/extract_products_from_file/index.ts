@@ -14,33 +14,17 @@ serve(async (req) => {
   }
 
   try {
-    if (req.method !== 'POST') {
-      return new Response(JSON.stringify({ error: "Method not allowed" }), {
-        status: 405,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      })
-    }
-
     const formData = await req.formData()
     const file = formData.get('file') as File
-
-    if (!file) {
-      return new Response(JSON.stringify({ error: "No file provided" }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      })
-    }
+    if (!file) throw new Error("No file provided");
 
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const arrayBuffer = await file.arrayBuffer()
     const base64Data = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)))
 
-    const prompt = `Analiza este documento de climatización y extrae los datos técnicos.
-    DEVUELVE ÚNICAMENTE UN JSON PLANO SIN TRADUCCIONES.
-    REGLAS:
-    1. 'brand' y 'model' deben ser STRINGS simples.
-    2. 'type' debe ser: aire_acondicionado, caldera, termo_electrico o aerotermia.
-    3. Si no encuentras un campo, deja el string vacío o el array vacío.`
+    const prompt = `Analiza este documento técnico y extrae la información del producto.
+    IMPORTANTE: DEVUELVE UN ÚNICO OBJETO JSON PLANO. NO DEVOLVER ARRAYS DE PRODUCTOS.
+    Campos requeridos: brand (marca), model (modelo), type (aire_acondicionado, caldera, termo_electrico, aerotermia).`
 
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
@@ -65,8 +49,7 @@ serve(async (req) => {
                 properties: {
                   label: { type: Type.STRING },
                   value: { type: Type.STRING }
-                },
-                required: ["label", "value"]
+                }
               }
             },
             pricing: {
@@ -76,28 +59,21 @@ serve(async (req) => {
                 properties: {
                   variant: { type: Type.STRING },
                   price: { type: Type.NUMBER }
-                },
-                required: ["variant", "price"]
+                }
               }
             },
             installation_kits: {
               type: Type.ARRAY,
               items: {
                 type: Type.OBJECT,
-                properties: {
-                  name: { type: Type.STRING },
-                  price: { type: Type.NUMBER }
-                }
+                properties: { name: { type: Type.STRING }, price: { type: Type.NUMBER } }
               }
             },
             extras: {
               type: Type.ARRAY,
               items: {
                 type: Type.OBJECT,
-                properties: {
-                  name: { type: Type.STRING },
-                  price: { type: Type.NUMBER }
-                }
+                properties: { name: { type: Type.STRING }, price: { type: Type.NUMBER } }
               }
             },
             financing: {
@@ -111,8 +87,7 @@ serve(async (req) => {
                 }
               }
             }
-          },
-          required: ["brand", "model", "type", "pricing"]
+          }
         }
       }
     })
@@ -121,7 +96,6 @@ serve(async (req) => {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
-
   } catch (err: any) {
     return new Response(JSON.stringify({ error: err.message }), {
       status: 400,
