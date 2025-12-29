@@ -98,21 +98,32 @@ export const ProductEditor = () => {
       if (error) throw error;
       
       if (data) {
-        // CORRECCIÓN: Detectar si la IA devolvió una lista o un objeto directo
+        // Detectar si la IA devolvió una lista o un objeto directo
         const extracted = data.products ? data.products[0] : data;
-        console.log("Mapeando producto:", extracted);
+        console.log("Datos extraídos para mapear:", extracted);
 
-        // Actualización forzada del estado para que los inputs se rellenen
+        // 1. Mapeo de Precios (Si viene un precio único, creamos una variante)
+        let pricing = extracted.pricing || [];
+        if (pricing.length === 0 && extracted.price) {
+          pricing = [{ variant: 'Precio Base', price: extracted.price }];
+        }
+
+        // 2. Mapeo de Kits e Instalación
+        const kits = extracted.installation_kits || [];
+        const extras = extracted.extras || [];
+
+        // 3. Actualizar estado principal (General, Precios, Kits, Extras)
         setProductData(prev => ({
           ...prev,
           brand: extracted.brand || prev.brand,
           model: extracted.model || prev.model,
           type: extracted.type || prev.type,
-          pricing: extracted.pricing || prev.pricing || [],
-          installation_kits: extracted.installation_kits || prev.installation_kits || [],
-          extras: extracted.extras || prev.extras || []
+          pricing: pricing,
+          installation_kits: kits,
+          extras: extras
         }));
 
+        // 4. Mapeo de Datos Técnicos
         if (extracted.technical_data || extracted.features) {
           const specs = extracted.technical_data 
             ? extracted.technical_data.map((s: any) => ({ title: s.label, description: s.value }))
@@ -120,7 +131,8 @@ export const ProductEditor = () => {
           setTechSpecs(specs);
         }
 
-        if (extracted.financing) {
+        // 5. Mapeo de Financiación
+        if (extracted.financing && Array.isArray(extracted.financing)) {
           setFinancing(extracted.financing.map((f: any) => ({
             label: f.label || `${f.months} meses`,
             months: f.months || 12,
@@ -128,7 +140,8 @@ export const ProductEditor = () => {
             coefficient: f.coefficient || 0
           })));
         }
-        alert("✨ Datos extraídos correctamente.");
+
+        alert("✨ Datos distribuidos en todas las pestañas.");
       }
     } catch (err: any) {
       alert("Error en extracción: " + err.message);
@@ -144,9 +157,7 @@ export const ProductEditor = () => {
     }
     setSaving(true);
     try {
-      // LIMPIEZA TOTAL PARA EVITAR ERRORES DE RLS
       const isNew = id === 'new';
-      
       const payload = {
         tenant_id: tenant.id,
         brand: productData.brand,
@@ -161,8 +172,6 @@ export const ProductEditor = () => {
         is_deleted: false
       };
 
-      console.log("Enviando payload:", payload);
-
       const { error } = isNew 
         ? await supabase.from('products').insert([payload])
         : await supabase.from('products').update(payload).eq('id', id);
@@ -170,8 +179,7 @@ export const ProductEditor = () => {
       if (error) throw error;
       navigate(`/t/${slug}/products`);
     } catch (err: any) {
-      console.error("Error al guardar:", err);
-      alert("Error de Supabase (RLS): " + err.message);
+      alert("Error al guardar: " + err.message);
     } finally {
       setSaving(false);
     }
@@ -243,16 +251,8 @@ export const ProductEditor = () => {
                  </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <Input 
-                  label="Marca" 
-                  value={productData.brand || ''} 
-                  onChange={(e:any) => setProductData({...productData, brand: e.target.value})} 
-                />
-                <Input 
-                  label="Modelo" 
-                  value={productData.model || ''} 
-                  onChange={(e:any) => setProductData({...productData, model: e.target.value})} 
-                />
+                <Input label="Marca" value={productData.brand || ''} onChange={(e:any) => setProductData({...productData, brand: e.target.value})} />
+                <Input label="Modelo" value={productData.model || ''} onChange={(e:any) => setProductData({...productData, model: e.target.value})} />
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div>
@@ -290,8 +290,90 @@ export const ProductEditor = () => {
                     }} />
                   </div>
                 ))}
-                <button onClick={() => setTechSpecs([...techSpecs, { title: '', description: '' }])} className="p-10 border-2 border-dashed border-slate-100 rounded-3xl text-[10px] font-black uppercase text-slate-400 hover:text-blue-600 hover:border-blue-300 transition-all">+ Añadir Fila</button>
+                <button onClick={() => setTechSpecs([...techSpecs, { title: '', description: '' }])} className="p-10 border-2 border-dashed border-slate-100 rounded-3xl text-[10px] font-black uppercase text-slate-400 hover:text-blue-600 transition-all">+ Añadir Fila</button>
               </div>
+            </div>
+          )}
+
+          {activeTab === 'kits' && (
+            <div className="animate-in fade-in space-y-8 text-left">
+              <h3 className="text-xl font-black text-slate-800 tracking-tight italic uppercase">Kits de Instalación</h3>
+              <div className="bg-slate-50 rounded-3xl border border-slate-100 overflow-hidden">
+                <table className="w-full">
+                  <thead className="bg-slate-100 text-[10px] font-black uppercase text-slate-500">
+                    <tr><th className="px-8 py-5 text-left">Nombre</th><th className="px-8 py-5 text-right">Precio (€)</th><th className="w-16"></th></tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200">
+                    {productData.installation_kits?.map((kit, i) => (
+                      <tr key={i}>
+                        <td className="px-8 py-5"><input className="w-full bg-transparent font-bold outline-none" value={kit.name} onChange={(e) => updateList('installation_kits', i, 'name', e.target.value)} /></td>
+                        <td className="px-8 py-5 text-right"><input type="number" className="w-24 bg-transparent text-right font-black text-blue-600 outline-none" value={kit.price} onChange={(e) => updateList('installation_kits', i, 'price', parseFloat(e.target.value))} /></td>
+                        <td className="px-4 py-5 text-center"><button onClick={() => setProductData(p => ({...p, installation_kits: p.installation_kits?.filter((_,idx) => idx !== i)}))} className="text-red-300 hover:text-red-500">×</button></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <button onClick={() => setProductData(p => ({...p, installation_kits: [...(p.installation_kits || []), { name: '', price: 0 }]}))} className="px-8 py-3 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest">+ Añadir Kit</button>
+            </div>
+          )}
+
+          {activeTab === 'extras_tab' && (
+            <div className="animate-in fade-in space-y-8 text-left">
+              <h3 className="text-xl font-black text-slate-800 tracking-tight italic uppercase">Extras y Accesorios</h3>
+              <div className="bg-slate-50 rounded-3xl border border-slate-100 overflow-hidden">
+                <table className="w-full">
+                  <thead className="bg-slate-100 text-[10px] font-black uppercase text-slate-500">
+                    <tr><th className="px-8 py-5 text-left">Concepto</th><th className="px-8 py-5 text-right">Precio (€)</th><th className="w-16"></th></tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200">
+                    {productData.extras?.map((ex, i) => (
+                      <tr key={i}>
+                        <td className="px-8 py-5"><input className="w-full bg-transparent font-bold outline-none" value={ex.name} onChange={(e) => updateList('extras', i, 'name', e.target.value)} /></td>
+                        <td className="px-8 py-5 text-right"><input type="number" className="w-24 bg-transparent text-right font-black text-blue-600 outline-none" value={ex.price} onChange={(e) => updateList('extras', i, 'price', parseFloat(e.target.value))} /></td>
+                        <td className="px-4 py-5 text-center"><button onClick={() => setProductData(p => ({...p, extras: p.extras?.filter((_,idx) => idx !== i)}))} className="text-red-300 hover:text-red-500">×</button></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <button onClick={() => setProductData(p => ({...p, extras: [...(p.extras || []), { name: '', price: 0 }]}))} className="px-8 py-3 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest">+ Añadir Extra</button>
+            </div>
+          )}
+
+          {activeTab === 'financing' && (
+            <div className="animate-in fade-in space-y-8 text-left">
+              <h3 className="text-xl font-black text-slate-800 tracking-tight italic uppercase">Financiación</h3>
+              <div className="bg-slate-50 rounded-3xl border border-slate-100 overflow-hidden">
+                <table className="w-full">
+                  <thead className="bg-slate-100 text-[10px] font-black uppercase text-slate-500">
+                    <tr><th className="px-8 py-5 text-left">Etiqueta</th><th className="px-8 py-5 text-center">Meses</th><th className="px-8 py-5 text-right">Coeficiente</th><th className="w-16"></th></tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200">
+                    {financing.map((f, i) => (
+                      <tr key={i}>
+                        <td className="px-8 py-5"><input className="w-full bg-transparent font-bold outline-none" value={f.label} onChange={(e) => {
+                          const copy = [...financing];
+                          copy[i].label = e.target.value;
+                          setFinancing(copy);
+                        }} /></td>
+                        <td className="px-8 py-5 text-center"><input type="number" className="w-16 bg-transparent text-center outline-none" value={f.months} onChange={(e) => {
+                          const copy = [...financing];
+                          copy[i].months = parseInt(e.target.value);
+                          setFinancing(copy);
+                        }} /></td>
+                        <td className="px-8 py-5 text-right"><input type="number" step="0.0001" className="w-32 bg-transparent text-right font-black text-blue-600 outline-none" value={f.coefficient} onChange={(e) => {
+                          const copy = [...financing];
+                          copy[i].coefficient = parseFloat(e.target.value);
+                          setFinancing(copy);
+                        }} /></td>
+                        <td className="px-4 py-5 text-center"><button onClick={() => setFinancing(financing.filter((_,idx) => idx !== i))} className="text-red-300 hover:text-red-500">×</button></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <button onClick={() => setFinancing([...financing, { label: '', months: 12, commission: 0, coefficient: 0 }])} className="px-8 py-3 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest">+ Añadir Tramo</button>
             </div>
           )}
 
@@ -301,7 +383,7 @@ export const ProductEditor = () => {
               <div className="grid grid-cols-1 gap-4">
                 {productData.pricing?.map((p, i) => (
                   <div key={i} className="flex gap-4 items-end bg-slate-50 p-6 rounded-2xl border border-slate-100">
-                    <div className="flex-1"><Input label="Nombre de Variante" value={p.variant} onChange={(e:any) => updateList('pricing', i, 'variant', e.target.value)} /></div>
+                    <div className="flex-1"><Input label="Variante (ej: Estándar)" value={p.variant} onChange={(e:any) => updateList('pricing', i, 'variant', e.target.value)} /></div>
                     <div className="w-48"><Input label="PVP (€)" type="number" value={p.price} onChange={(e:any) => updateList('pricing', i, 'price', parseFloat(e.target.value))} /></div>
                     <button onClick={() => setProductData(prev => ({...prev, pricing: prev.pricing?.filter((_,idx) => idx !== i)}))} className="mb-4 p-2 text-red-400 hover:bg-red-50 rounded-lg">×</button>
                   </div>
@@ -310,7 +392,40 @@ export const ProductEditor = () => {
               </div>
             </div>
           )}
-          {/* ... Resto de pestañas similares con mapeo directo ... */}
+
+          {activeTab === 'stock' && (
+            <div className="animate-in fade-in max-w-sm text-left">
+              <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 italic mb-8">Gestión de Stock</h3>
+              <Input label="Unidades Disponibles" type="number" value={productData.stock || 0} onChange={(e:any) => setProductData({...productData, stock: parseInt(e.target.value)})} />
+            </div>
+          )}
+
+          {activeTab === 'multimedia' && (
+            <div className="animate-in fade-in space-y-12 text-left">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+                <div>
+                  <h4 className="text-[10px] font-black uppercase text-slate-800 mb-4">Imagen del Producto</h4>
+                  <div className="aspect-video bg-slate-50 border-2 border-dashed border-slate-200 rounded-3xl flex items-center justify-center overflow-hidden relative group">
+                    {previews.product ? <img src={previews.product} className="w-full h-full object-contain p-4" /> : <span className="text-slate-300 font-black text-[10px] uppercase">Sin Imagen</span>}
+                    <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if(f) { setPreviews(p => ({...p, product: URL.createObjectURL(f)})); }
+                    }} />
+                  </div>
+                </div>
+                <div>
+                  <h4 className="text-[10px] font-black uppercase text-slate-800 mb-4">Logo Marca</h4>
+                  <div className="aspect-video bg-slate-50 border-2 border-dashed border-slate-200 rounded-3xl flex items-center justify-center overflow-hidden relative group">
+                    {previews.logo ? <img src={previews.logo} className="w-full h-full object-contain p-8" /> : <span className="text-slate-300 font-black text-[10px] uppercase">Sin Logo</span>}
+                    <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if(f) { setPreviews(p => ({...p, logo: URL.createObjectURL(f)})); }
+                    }} />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </main>
     </div>
