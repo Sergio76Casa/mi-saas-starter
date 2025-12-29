@@ -5,8 +5,13 @@ import { supabase } from '../../supabaseClient';
 import { Tenant } from '../../types';
 import { useApp } from '../../AppProvider';
 
+// Extendemos el tipo localmente para incluir el conteo de productos
+interface TenantWithStats extends Tenant {
+  products: { count: number }[];
+}
+
 export const AdminTenants = () => {
-  const [tenants, setTenants] = useState<Tenant[]>([]);
+  const [tenants, setTenants] = useState<TenantWithStats[]>([]);
   const [activeTab, setActiveTab] = useState<'directory' | 'trash'>('directory');
   const [isCreating, setIsCreating] = useState(false);
   const [newTenant, setNewTenant] = useState({ name: '', slug: '', plan: 'free' });
@@ -15,9 +20,10 @@ export const AdminTenants = () => {
   const fetchTenants = async () => {
     if (!dbHealthy) return;
     try {
+      // Usamos la sintaxis de Supabase para contar registros relacionados (products)
       const { data, error } = await supabase
         .from('tenants')
-        .select('*')
+        .select('*, products:products(count)')
         .order('created_at', { ascending: false });
       
       if (error) throw error;
@@ -41,7 +47,7 @@ export const AdminTenants = () => {
       setNewTenant({ name: '', slug: '', plan: 'free' }); 
       fetchTenants(); 
     } else {
-      alert("Error al crear: " + error.message + "\n\n¿Has ejecutado el SQL para añadir las columnas 'status' e 'is_deleted'?");
+      alert("Error al crear: " + error.message);
     }
   };
 
@@ -52,48 +58,24 @@ export const AdminTenants = () => {
       .update({ status: newStatus })
       .eq('id', tenantId);
     
-    if (error) {
-      alert("Error al cambiar estado: " + error.message + "\n\nTip: Asegúrate de que la columna 'status' existe en la tabla 'tenants'.");
-    } else {
-      fetchTenants();
-    }
+    if (!error) fetchTenants();
   };
 
   const handleSoftDelete = async (tenantId: string, name: string) => {
-    if (!window.confirm(`¿Mover "${name}" a la papelera? No aparecerá en la web pública ni en los listados activos.`)) return;
-    
-    const { error } = await supabase
-      .from('tenants')
-      .update({ is_deleted: true })
-      .eq('id', tenantId);
-    
-    if (error) {
-      alert("Error al borrar: " + error.message + "\n\nTip: Asegúrate de que la columna 'is_deleted' existe en la tabla 'tenants'.");
-    } else {
-      fetchTenants();
-    }
+    if (!window.confirm(`¿Mover "${name}" a la papelera?`)) return;
+    const { error } = await supabase.from('tenants').update({ is_deleted: true }).eq('id', tenantId);
+    if (!error) fetchTenants();
   };
 
   const handleRestore = async (tenantId: string) => {
-    const { error } = await supabase
-      .from('tenants')
-      .update({ is_deleted: false })
-      .eq('id', tenantId);
-    
-    if (error) alert("Error al restaurar: " + error.message);
-    else fetchTenants();
+    const { error } = await supabase.from('tenants').update({ is_deleted: false }).eq('id', tenantId);
+    if (!error) fetchTenants();
   };
 
   const handlePermanentDelete = async (tenantId: string, name: string) => {
-    if (!window.confirm(`¿ELIMINAR DEFINITIVAMENTE "${name}"? Esta acción es irreversible y borrará todos los datos asociados.`)) return;
-    
-    const { error } = await supabase
-      .from('tenants')
-      .delete()
-      .eq('id', tenantId);
-    
-    if (error) alert("Error en el borrado físico: " + error.message);
-    else fetchTenants();
+    if (!window.confirm(`¿ELIMINAR DEFINITIVAMENTE "${name}"?`)) return;
+    const { error } = await supabase.from('tenants').delete().eq('id', tenantId);
+    if (!error) fetchTenants();
   };
 
   return (
@@ -107,35 +89,23 @@ export const AdminTenants = () => {
       </div>
 
       <div className="flex border-b border-white/5">
-        <button 
-          onClick={() => setActiveTab('directory')}
-          className={`px-8 py-4 text-[10px] font-black uppercase tracking-widest transition-all relative ${activeTab === 'directory' ? 'text-brand-500' : 'text-slate-500 hover:text-slate-300'}`}
-        >
+        <button onClick={() => setActiveTab('directory')} className={`px-8 py-4 text-[10px] font-black uppercase tracking-widest transition-all relative ${activeTab === 'directory' ? 'text-brand-500' : 'text-slate-500 hover:text-slate-300'}`}>
           Directorio ({tenants.filter(t => !t.is_deleted).length})
-          {activeTab === 'directory' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-brand-500 animate-in fade-in duration-300"></div>}
+          {activeTab === 'directory' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-brand-500"></div>}
         </button>
-        <button 
-          onClick={() => setActiveTab('trash')}
-          className={`px-8 py-4 text-[10px] font-black uppercase tracking-widest transition-all relative ${activeTab === 'trash' ? 'text-red-500' : 'text-slate-500 hover:text-slate-300'}`}
-        >
+        <button onClick={() => setActiveTab('trash')} className={`px-8 py-4 text-[10px] font-black uppercase tracking-widest transition-all relative ${activeTab === 'trash' ? 'text-red-500' : 'text-slate-500 hover:text-slate-300'}`}>
           Papelera ({tenants.filter(t => t.is_deleted).length})
-          {activeTab === 'trash' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-red-500 animate-in fade-in duration-300"></div>}
+          {activeTab === 'trash' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-red-500"></div>}
         </button>
       </div>
 
       {isCreating && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-xl z-[100] flex items-center justify-center p-6 animate-in fade-in duration-300">
-           <div className="bg-slate-900 border border-white/10 p-8 md:p-10 rounded-[2rem] md:rounded-[3rem] w-full max-w-md shadow-2xl">
+           <div className="bg-slate-900 border border-white/10 p-8 md:p-10 rounded-[2rem] w-full max-w-md shadow-2xl">
               <h4 className="text-xl font-black text-white mb-6 uppercase italic">Nuevo Registro</h4>
               <div className="space-y-4">
-                 <div className="space-y-1">
-                   <label className="text-[10px] font-black uppercase text-slate-500 ml-1">Nombre Comercial</label>
-                   <input placeholder="Nombre de Empresa" className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white text-sm outline-none focus:ring-2 focus:ring-brand-500" value={newTenant.name} onChange={e => setNewTenant({...newTenant, name: e.target.value})} />
-                 </div>
-                 <div className="space-y-1">
-                   <label className="text-[10px] font-black uppercase text-slate-500 ml-1">Slug URL</label>
-                   <input placeholder="url-personalizada" className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white text-sm outline-none focus:ring-2 focus:ring-brand-500" value={newTenant.slug} onChange={e => setNewTenant({...newTenant, slug: e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, '-')})} />
-                 </div>
+                 <input placeholder="Nombre de Empresa" className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white text-sm outline-none focus:ring-2 focus:ring-brand-500" value={newTenant.name} onChange={e => setNewTenant({...newTenant, name: e.target.value})} />
+                 <input placeholder="url-personalizada" className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white text-sm outline-none focus:ring-2 focus:ring-brand-500" value={newTenant.slug} onChange={e => setNewTenant({...newTenant, slug: e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, '-')})} />
               </div>
               <div className="flex gap-4 mt-10">
                 <button onClick={handleCreateTenant} className="flex-1 py-4 bg-brand-500 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-brand-600 transition-all">Crear Registro</button>
@@ -146,10 +116,11 @@ export const AdminTenants = () => {
       )}
 
       <div className="bg-white/5 border border-white/5 rounded-[1.5rem] md:rounded-[2.5rem] overflow-hidden overflow-x-auto shadow-2xl">
-        <table className="w-full text-left min-w-[900px]">
+        <table className="w-full text-left min-w-[950px]">
           <thead className="bg-white/5 text-slate-500 text-[10px] font-black uppercase tracking-widest">
             <tr>
               <th className="px-10 py-6">Empresa</th>
+              <th className="px-6 py-6 text-center">Catálogo</th>
               <th className="px-6 py-6 text-center">Web Pública</th>
               <th className="px-6 py-6">Licencia</th>
               <th className="px-6 py-6">Estado</th>
@@ -159,6 +130,9 @@ export const AdminTenants = () => {
           <tbody className="divide-y divide-white/5">
             {filteredTenants.map(t => {
               const status = t.status || 'active';
+              // Obtenemos el conteo desde la respuesta rpc-like de Supabase
+              const productCount = t.products?.[0]?.count || 0;
+              
               return (
                 <tr key={t.id} className="hover:bg-white/[0.02] transition-colors group">
                   <td className="px-10 py-6">
@@ -166,23 +140,22 @@ export const AdminTenants = () => {
                     <div className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">ID: {t.id.slice(0, 8)}</div>
                   </td>
                   <td className="px-6 py-6 text-center">
+                    <div className="flex flex-col items-center">
+                      <span className={`px-3 py-1 rounded-full text-[11px] font-black tabular-nums transition-all ${productCount > 0 ? 'bg-brand-500/20 text-brand-400' : 'bg-slate-800 text-slate-500'}`}>
+                        {productCount}
+                      </span>
+                      <span className="text-[8px] font-black uppercase text-slate-600 mt-1 tracking-tighter">SKUs</span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-6 text-center">
                     {!t.is_deleted ? (
-                      <a 
-                        href={`#/c/${t.slug}`} 
-                        target="_blank" 
-                        rel="noreferrer" 
-                        className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-brand-500/10 text-brand-400 text-[9px] font-black uppercase tracking-widest rounded-lg border border-white/5 transition-all"
-                      >
-                        Ver Web ↗
-                      </a>
+                      <a href={`#/c/${t.slug}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-brand-500/10 text-brand-400 text-[9px] font-black uppercase tracking-widest rounded-lg border border-white/5 transition-all">Ver Web ↗</a>
                     ) : (
-                      <span className="text-[9px] font-black uppercase text-slate-600">Desactivada</span>
+                      <span className="text-[9px] font-black uppercase text-slate-600">Off</span>
                     )}
                   </td>
                   <td className="px-6 py-6">
-                    <span className="px-4 py-1.5 text-[9px] font-black uppercase rounded-full bg-slate-800 text-slate-300 border border-white/5">
-                      {t.plan}
-                    </span>
+                    <span className="px-4 py-1.5 text-[9px] font-black uppercase rounded-full bg-slate-800 text-slate-300 border border-white/5">{t.plan}</span>
                   </td>
                   <td className="px-6 py-6">
                     <div className="flex items-center gap-2">
@@ -196,43 +169,16 @@ export const AdminTenants = () => {
                     <div className="flex gap-2 justify-end">
                       {activeTab === 'directory' ? (
                         <>
-                          <Link 
-                            to={`/t/${t.slug}/dashboard`} 
-                            className="px-4 py-2 bg-white/5 hover:bg-white/10 text-white text-[9px] font-black uppercase tracking-widest rounded-lg border border-white/5 transition-all"
-                          >
-                            Panel
-                          </Link>
-                          <button 
-                            onClick={() => handleToggleStatus(t.id, status)}
-                            className={`px-4 py-2 text-[9px] font-black uppercase tracking-widest rounded-lg border transition-all ${
-                              status === 'inactive' 
-                                ? 'bg-green-500/10 border-green-500/20 text-green-400 hover:bg-green-500/20' 
-                                : 'bg-amber-500/10 border-amber-500/20 text-amber-400 hover:bg-amber-500/20'
-                            }`}
-                          >
+                          <Link to={`/t/${t.slug}/dashboard`} className="px-4 py-2 bg-white/5 hover:bg-white/10 text-white text-[9px] font-black uppercase tracking-widest rounded-lg border border-white/5 transition-all">Panel</Link>
+                          <button onClick={() => handleToggleStatus(t.id, status)} className={`px-4 py-2 text-[9px] font-black uppercase tracking-widest rounded-lg border transition-all ${status === 'inactive' ? 'bg-green-500/10 border-green-500/20 text-green-400' : 'bg-amber-500/10 border-amber-500/20 text-amber-400'}`}>
                             {status === 'inactive' ? 'Activar' : 'Dar Baja'}
                           </button>
-                          <button 
-                            onClick={() => handleSoftDelete(t.id, t.name)}
-                            className="px-4 py-2 bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 text-[9px] font-black uppercase tracking-widest rounded-lg transition-all"
-                          >
-                            Borrar
-                          </button>
+                          <button onClick={() => handleSoftDelete(t.id, t.name)} className="px-4 py-2 bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 text-[9px] font-black uppercase tracking-widest rounded-lg transition-all">Borrar</button>
                         </>
                       ) : (
                         <>
-                          <button 
-                            onClick={() => handleRestore(t.id)}
-                            className="px-4 py-2 bg-green-500/10 border border-green-500/20 text-green-400 hover:bg-green-500/20 text-[9px] font-black uppercase tracking-widest rounded-lg transition-all"
-                          >
-                            Restaurar
-                          </button>
-                          <button 
-                            onClick={() => handlePermanentDelete(t.id, t.name)}
-                            className="px-4 py-2 bg-red-600 text-white text-[9px] font-black uppercase tracking-widest rounded-lg transition-all"
-                          >
-                            Eliminar Físico
-                          </button>
+                          <button onClick={() => handleRestore(t.id)} className="px-4 py-2 bg-green-500/10 border border-green-500/20 text-green-400 hover:bg-green-500/20 text-[9px] font-black uppercase tracking-widest rounded-lg transition-all">Restaurar</button>
+                          <button onClick={() => handlePermanentDelete(t.id, t.name)} className="px-4 py-2 bg-red-600 text-white text-[9px] font-black uppercase tracking-widest rounded-lg transition-all">Eliminar Físico</button>
                         </>
                       )}
                     </div>
@@ -240,13 +186,6 @@ export const AdminTenants = () => {
                 </tr>
               );
             })}
-            {filteredTenants.length === 0 && (
-              <tr>
-                <td colSpan={5} className="px-10 py-20 text-center text-slate-600 font-black uppercase tracking-widest italic text-xs">
-                  {activeTab === 'directory' ? 'No hay empresas activas.' : 'La papelera está vacía.'}
-                </td>
-              </tr>
-            )}
           </tbody>
         </table>
       </div>
