@@ -44,12 +44,9 @@ export const ProductEditor = () => {
   const [saving, setSaving] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
   
-  // Storage Previews
   const [previews, setPreviews] = useState({ product: '', logo: '' });
-  const [productFile, setProductFile] = useState<File | null>(null);
-  const [logoFile, setLogoFile] = useState<File | null>(null);
 
-  // States
+  // Main Product State
   const [productData, setProductData] = useState<Partial<Product>>({
     brand: '',
     model: '',
@@ -85,16 +82,18 @@ export const ProductEditor = () => {
             if (parsed.financing) setFinancing(parsed.financing);
           }
         } catch (e) {
-          console.error("Error parsing features");
+          console.error("No technical features found for this product.");
         }
       }
       setLoading(false);
     };
     fetchProduct();
-  }, [id, tenant.id]);
+  }, [id]);
 
   const handleAiExtract = async (file: File) => {
     setAiLoading(true);
+    console.log("🚀 Iniciando extracción con IA...");
+    
     try {
       const formData = new FormData();
       formData.append('file', file);
@@ -106,22 +105,28 @@ export const ProductEditor = () => {
       if (error) throw error;
       
       if (data) {
-        // Log para depuración
-        console.log("IA Data Extracted:", data);
+        // --- DEPURACIÓN: VISIBLE EN LA CONSOLA ---
+        console.group("✨ IA: Datos Extraídos (Ver en Network tab para el JSON crudo)");
+        console.log("Marca/Modelo:", data.brand, data.model);
+        console.log("Kits:", data.installation_kits?.length || 0);
+        console.log("Extras:", data.extras?.length || 0);
+        console.table(data.technical_data);
+        console.groupEnd();
 
-        const getT = (obj: any) => obj?.[language] || obj?.es || "";
+        // Helper para obtener texto traducido (es, ca, etc)
+        const getT = (field: any) => field?.[language] || field?.es || "";
 
-        // 1. ASIGNAR DATOS GENERALES Y TABLAS DEL PRODUCTO
+        // 1. ACTUALIZAR PRODUCT DATA (GENERAL, PRECIOS, KITS, EXTRAS)
         setProductData(prev => ({
           ...prev,
           brand: data.brand || prev.brand,
           model: data.model || prev.model,
-          type: data.product_type || prev.type,
-          pricing: data.prices ? data.prices.map((v: any) => ({
-            variant: getT(v.name),
-            price: v.price
+          type: data.type || prev.type,
+          pricing: data.pricing ? data.pricing.map((p: any) => ({
+            variant: getT(p.variant_name),
+            price: p.price
           })) : prev.pricing,
-          installation_kits: data.kits ? data.kits.map((k: any) => ({
+          installation_kits: data.installation_kits ? data.installation_kits.map((k: any) => ({
             name: getT(k.name),
             price: k.price
           })) : prev.installation_kits,
@@ -131,31 +136,33 @@ export const ProductEditor = () => {
           })) : prev.extras
         }));
 
-        // 2. ASIGNAR DATOS TÉCNICOS (TECH SPECS STATE)
+        // 2. ACTUALIZAR ESPECIFICACIONES TÉCNICAS
         if (data.technical_data) {
-          const newTech = data.technical_data.map((s: any) => ({
+          const mappedSpecs = data.technical_data.map((s: any) => ({
             title: getT(s.label),
             description: s.value
           }));
-          setTechSpecs(newTech);
+          setTechSpecs(mappedSpecs);
         }
 
-        // 3. ASIGNAR FINANCIACIÓN
+        // 3. ACTUALIZAR FINANCIACIÓN
         if (data.financing) {
-          const newFin = data.financing.map((f: any) => ({
+          const mappedFin = data.financing.map((f: any) => ({
             label: getT(f.label),
             months: f.months,
-            commission: f.commission || 0,
+            commission: 0,
             coefficient: f.coefficient || 0
           }));
-          setFinancing(newFin);
+          setFinancing(mappedFin);
         }
 
-        // Feedback visual: saltar a la pestaña de datos técnicos
+        // Cambiar a pestaña técnica para confirmar visualmente
         setActiveTab('technical');
+        alert("¡Datos extraídos con éxito! Revisa las pestañas.");
       }
     } catch (err: any) {
-      alert("Error en extracción IA: " + err.message);
+      console.error("❌ Error en extracción:", err);
+      alert("Error al leer el archivo: " + err.message);
     } finally {
       setAiLoading(false);
     }
@@ -184,7 +191,8 @@ export const ProductEditor = () => {
     }
   };
 
-  const updateListRow = (key: 'pricing' | 'installation_kits' | 'extras', index: number, field: string, value: any) => {
+  // Helper para editar filas de arrays en productData
+  const updateListField = (key: 'pricing' | 'installation_kits' | 'extras', index: number, field: string, value: any) => {
     setProductData(prev => {
       const list = [...(prev[key] || [])];
       list[index] = { ...list[index], [field]: value };
@@ -238,11 +246,11 @@ export const ProductEditor = () => {
           {activeTab === 'general' && (
             <div className="animate-in fade-in space-y-10 max-w-3xl text-left">
               <div className="flex justify-between items-start">
-                 <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 italic">Datos de Catálogo</h3>
+                 <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 italic">Información Principal</h3>
                  <div className="flex items-center gap-3">
                     <input type="file" id="ai-extract" className="hidden" accept=".pdf,image/*" onChange={(e) => e.target.files && handleAiExtract(e.target.files[0])} />
-                    <label htmlFor="ai-extract" className={`flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-lg text-[10px] font-black uppercase tracking-widest cursor-pointer hover:bg-blue-100 transition-colors ${aiLoading ? 'opacity-50 pointer-events-none' : ''}`}>
-                       {aiLoading ? 'Analizando...' : '✨ Extraer con IA'}
+                    <label htmlFor="ai-extract" className={`flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-lg text-[10px] font-black uppercase tracking-widest cursor-pointer hover:bg-blue-100 transition-colors ${aiLoading ? 'opacity-50 pointer-events-none animate-pulse' : ''}`}>
+                       {aiLoading ? 'Procesando...' : '✨ Extraer con IA'}
                     </label>
                  </div>
               </div>
@@ -286,7 +294,7 @@ export const ProductEditor = () => {
                     }} />
                   </div>
                 ))}
-                <button onClick={() => setTechSpecs([...techSpecs, { title: '', description: '' }])} className="p-8 border-2 border-dashed border-slate-100 rounded-2xl text-[10px] font-black uppercase text-slate-400 hover:text-blue-600 hover:border-blue-300 transition-all">+ Añadir Parámetro</button>
+                <button onClick={() => setTechSpecs([...techSpecs, { title: '', description: '' }])} className="p-8 border-2 border-dashed border-slate-100 rounded-2xl text-[10px] font-black uppercase text-slate-400 hover:text-blue-600 hover:border-blue-300 transition-all">+ Añadir Fila</button>
               </div>
             </div>
           )}
@@ -297,43 +305,43 @@ export const ProductEditor = () => {
               <div className="bg-slate-50 rounded-3xl border border-slate-100 overflow-hidden">
                 <table className="w-full">
                   <thead className="bg-slate-100 text-[10px] font-black uppercase text-slate-500">
-                    <tr><th className="px-8 py-4 text-left">Nombre del Kit</th><th className="px-8 py-4 text-right">Precio (€)</th><th className="w-16"></th></tr>
+                    <tr><th className="px-8 py-4 text-left">Kit</th><th className="px-8 py-4 text-right">Precio (€)</th><th className="w-16"></th></tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200">
                     {productData.installation_kits?.map((kit, i) => (
                       <tr key={i}>
-                        <td className="px-8 py-4"><input className="w-full bg-transparent font-bold outline-none" value={kit.name} onChange={(e) => updateListRow('installation_kits', i, 'name', e.target.value)} /></td>
-                        <td className="px-8 py-4 text-right"><input type="number" className="w-24 bg-transparent text-right font-black text-blue-600 outline-none" value={kit.price} onChange={(e) => updateListRow('installation_kits', i, 'price', parseFloat(e.target.value))} /></td>
+                        <td className="px-8 py-4"><input className="w-full bg-transparent font-bold outline-none" value={kit.name} onChange={(e) => updateListField('installation_kits', i, 'name', e.target.value)} /></td>
+                        <td className="px-8 py-4 text-right"><input type="number" className="w-24 bg-transparent text-right font-black text-blue-600 outline-none" value={kit.price} onChange={(e) => updateListField('installation_kits', i, 'price', parseFloat(e.target.value))} /></td>
                         <td className="px-4 py-4 text-center"><button onClick={() => setProductData(p => ({...p, installation_kits: p.installation_kits?.filter((_,idx) => idx !== i)}))} className="text-red-300 hover:text-red-500">×</button></td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
-              <button onClick={() => setProductData(p => ({...p, installation_kits: [...(p.installation_kits || []), { name: '', price: 0 }]}))} className="px-6 py-3 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase">+ Añadir Kit</button>
+              <button onClick={() => setProductData(p => ({...p, installation_kits: [...(p.installation_kits || []), { name: '', price: 0 }]}))} className="px-6 py-3 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase">+ Nuevo Kit</button>
             </div>
           )}
 
           {activeTab === 'extras_tab' && (
             <div className="animate-in fade-in space-y-8 text-left">
-              <h3 className="text-xl font-black text-slate-800 tracking-tight italic uppercase">Extras y Accesorios</h3>
+              <h3 className="text-xl font-black text-slate-800 tracking-tight italic uppercase">Extras</h3>
               <div className="bg-slate-50 rounded-3xl border border-slate-100 overflow-hidden">
                 <table className="w-full">
                   <thead className="bg-slate-100 text-[10px] font-black uppercase text-slate-500">
-                    <tr><th className="px-8 py-4 text-left">Concepto</th><th className="px-8 py-4 text-right">Precio (€)</th><th className="w-16"></th></tr>
+                    <tr><th className="px-8 py-4 text-left">Material</th><th className="px-8 py-4 text-right">Precio (€)</th><th className="w-16"></th></tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200">
                     {productData.extras?.map((ex, i) => (
                       <tr key={i}>
-                        <td className="px-8 py-4"><input className="w-full bg-transparent font-bold outline-none" value={ex.name} onChange={(e) => updateListRow('extras', i, 'name', e.target.value)} /></td>
-                        <td className="px-8 py-4 text-right"><input type="number" className="w-24 bg-transparent text-right font-black text-blue-600 outline-none" value={ex.price} onChange={(e) => updateListRow('extras', i, 'price', parseFloat(e.target.value))} /></td>
+                        <td className="px-8 py-4"><input className="w-full bg-transparent font-bold outline-none" value={ex.name} onChange={(e) => updateListField('extras', i, 'name', e.target.value)} /></td>
+                        <td className="px-8 py-4 text-right"><input type="number" className="w-24 bg-transparent text-right font-black text-blue-600 outline-none" value={ex.price} onChange={(e) => updateListField('extras', i, 'price', parseFloat(e.target.value))} /></td>
                         <td className="px-4 py-4 text-center"><button onClick={() => setProductData(p => ({...p, extras: p.extras?.filter((_,idx) => idx !== i)}))} className="text-red-300 hover:text-red-500">×</button></td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
-              <button onClick={() => setProductData(p => ({...p, extras: [...(p.extras || []), { name: '', price: 0 }]}))} className="px-6 py-3 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase">+ Añadir Extra</button>
+              <button onClick={() => setProductData(p => ({...p, extras: [...(p.extras || []), { name: '', price: 0 }]}))} className="px-6 py-3 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase">+ Nuevo Extra</button>
             </div>
           )}
 
@@ -343,21 +351,12 @@ export const ProductEditor = () => {
               <div className="bg-slate-50 rounded-3xl border border-slate-100 overflow-hidden">
                 <table className="w-full">
                   <thead className="bg-slate-100 text-[10px] font-black uppercase text-slate-500">
-                    <tr><th className="px-8 py-4 text-left">Etiqueta</th><th className="px-8 py-4 text-center">Meses</th><th className="px-8 py-4 text-right">Coeficiente</th><th className="w-16"></th></tr>
+                    <tr><th className="px-8 py-4 text-left">Meses</th><th className="px-8 py-4 text-right">Coeficiente</th><th className="w-16"></th></tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200">
                     {financing.map((f, i) => (
                       <tr key={i}>
-                        <td className="px-8 py-4"><input className="w-full bg-transparent font-bold outline-none" value={f.label} onChange={(e) => {
-                          const copy = [...financing];
-                          copy[i].label = e.target.value;
-                          setFinancing(copy);
-                        }} /></td>
-                        <td className="px-8 py-4 text-center"><input type="number" className="w-16 bg-transparent text-center outline-none" value={f.months} onChange={(e) => {
-                          const copy = [...financing];
-                          copy[i].months = parseInt(e.target.value);
-                          setFinancing(copy);
-                        }} /></td>
+                        <td className="px-8 py-4 font-bold">{f.label || `${f.months} Meses`}</td>
                         <td className="px-8 py-4 text-right"><input type="number" step="0.000001" className="w-32 bg-transparent text-right font-black text-blue-600 outline-none" value={f.coefficient} onChange={(e) => {
                           const copy = [...financing];
                           copy[i].coefficient = parseFloat(e.target.value);
@@ -375,12 +374,12 @@ export const ProductEditor = () => {
 
           {activeTab === 'pricing' && (
             <div className="animate-in fade-in space-y-8 text-left">
-              <h3 className="text-xl font-black text-slate-800 tracking-tight italic uppercase">Precios y Variantes</h3>
+              <h3 className="text-xl font-black text-slate-800 tracking-tight italic uppercase">Precios por Variante</h3>
               <div className="grid grid-cols-1 gap-4">
                 {productData.pricing?.map((p, i) => (
                   <div key={i} className="flex gap-4 items-end bg-slate-50 p-6 rounded-2xl border border-slate-100">
-                    <div className="flex-1"><Input label="Nombre de Variante" value={p.variant} onChange={(e:any) => updateListRow('pricing', i, 'variant', e.target.value)} /></div>
-                    <div className="w-48"><Input label="Precio Venta (€)" type="number" value={p.price} onChange={(e:any) => updateListRow('pricing', i, 'price', parseFloat(e.target.value))} /></div>
+                    <div className="flex-1"><Input label="Nombre Variante" value={p.variant} onChange={(e:any) => updateListField('pricing', i, 'variant', e.target.value)} /></div>
+                    <div className="w-48"><Input label="PVP (€)" type="number" value={p.price} onChange={(e:any) => updateListField('pricing', i, 'price', parseFloat(e.target.value))} /></div>
                     <button onClick={() => setProductData(prev => ({...prev, pricing: prev.pricing?.filter((_,idx) => idx !== i)}))} className="mb-4 p-2 text-red-400 hover:bg-red-50 rounded-lg">×</button>
                   </div>
                 ))}
@@ -391,7 +390,7 @@ export const ProductEditor = () => {
 
           {activeTab === 'stock' && (
             <div className="animate-in fade-in max-w-sm text-left">
-              <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 italic mb-8">Gestión de Stock</h3>
+              <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 italic mb-8">Stock</h3>
               <Input label="Unidades Disponibles" type="number" value={productData.stock || 0} onChange={(e:any) => setProductData({...productData, stock: parseInt(e.target.value)})} />
             </div>
           )}
@@ -400,7 +399,7 @@ export const ProductEditor = () => {
             <div className="animate-in fade-in space-y-12 text-left">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
                 <div>
-                  <h4 className="text-[10px] font-black uppercase text-slate-800 mb-4">Imagen del Producto</h4>
+                  <h4 className="text-[10px] font-black uppercase text-slate-800 mb-4">Imagen Producto</h4>
                   <div className="aspect-video bg-slate-50 border-2 border-dashed border-slate-200 rounded-3xl flex items-center justify-center overflow-hidden relative group">
                     {previews.product ? <img src={previews.product} className="w-full h-full object-contain p-4" /> : <span className="text-slate-300 font-black text-[10px] uppercase">Sin Imagen</span>}
                     <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" onChange={(e) => {
