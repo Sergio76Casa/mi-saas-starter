@@ -141,9 +141,9 @@ const LOCAL_I18N = {
     contact_sending: 'Enviant...',
     val_name_req: 'Nom requerit',
     val_email_inv: 'Email invàlid',
-    val_phone_min: 'Mínim 9 dígits',
-    val_cp_len: 'CP: 5 dígits',
-    val_wo_len: 'WO: 8 dígits',
+    val_phone_min: 'Mínimo 9 dígitos',
+    val_cp_len: 'CP: 5 dígitos',
+    val_wo_len: 'WO: 8 dígitos',
     val_addr_req: 'Adreça requerida',
     alert_sign_req: 'Firma obligatòria',
     alert_unit_req: 'Selecciona unitat',
@@ -341,35 +341,65 @@ export const PublicTenantWebsite = () => {
 
   return (
     <div className="min-h-screen bg-white text-slate-900 selection:bg-blue-600/20 overflow-x-hidden animate-in fade-in duration-700">
-      {/* HEADER: FIXED GLASSMORPHISM NAVIGATION */}
-      <nav className="fixed top-0 left-0 right-0 h-16 md:h-20 bg-white/80 backdrop-blur-md z-[100] border-b border-gray-100 shadow-sm transition-all duration-300">
+      {/* HEADER: FIXED GLASSMORPHISM NAVIGATION MATCHING THE SCREENSHOT */}
+      <nav className="fixed top-0 left-0 right-0 h-16 md:h-20 bg-white/80 backdrop-blur-md z-[100] border-b border-gray-100 transition-all duration-300">
         <div className="max-w-7xl mx-auto h-full flex items-center justify-between px-6 md:px-10">
-          <button onClick={navigateToHome} className="flex items-center gap-3 group">
+          <button onClick={navigateToHome} className="flex items-center gap-3 group shrink-0">
             {tenant.use_logo_on_web && tenant.logo_url ? (
               <img src={tenant.logo_url} className="h-8 md:h-10 w-auto object-contain transition-transform group-hover:scale-105" alt={tenant.name} />
             ) : (
-              <>
-                <div className="w-8 h-8 md:w-10 md:h-10 bg-blue-600 text-white shadow-lg shadow-blue-600/20 rounded-xl flex items-center justify-center transition-transform group-hover:scale-110">
-                   <svg className="w-5 h-5 md:w-6 md:h-6" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L4.5 20.29L5.21 21L12 18L18.79 21L19.5 20.29L12 2Z"/></svg>
-                </div>
-                <span className="text-lg md:text-xl font-black italic tracking-tighter uppercase text-slate-900">{tenant.name}</span>
-              </>
+              <div className="flex flex-col items-start">
+                <span className="text-lg md:text-xl font-black italic tracking-tighter uppercase text-slate-900 leading-none">{tenant.name}</span>
+                <span className="text-[7px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Instal·lacions integrals</span>
+              </div>
             )}
           </button>
           
-          {/* NAVIGATION BUTTONS (MIDDLE) */}
-          <div className="hidden lg:flex items-center gap-1">
-            <button onClick={navigateToHome} className={`px-4 py-2 rounded-lg text-[13px] font-bold tracking-tight transition-all ${view === 'landing' ? 'bg-blue-50 text-blue-600' : 'text-slate-500 hover:text-slate-900'}`}>{tt('nav_home')}</button>
-            <button onClick={navigateToCatalog} className="px-4 py-2 rounded-lg text-[13px] font-bold tracking-tight text-slate-500 hover:text-slate-900 transition-all">{tt('nav_products')}</button>
-            <button onClick={() => setIsContactModalOpen(true)} className="px-4 py-2 rounded-lg text-[13px] font-bold tracking-tight text-slate-500 hover:text-slate-900 transition-all">{tt('nav_contact')}</button>
+          {/* NAVIGATION BUTTONS (MIDDLE) - MATCHING SCREENSHOT */}
+          <div className="hidden lg:flex items-center gap-2">
+            <button 
+              onClick={navigateToHome} 
+              className={`px-5 py-2.5 rounded-xl text-[13px] font-bold tracking-tight transition-all ${view === 'landing' ? 'bg-[#f0f5ff] text-[#2563eb]' : 'text-slate-500 hover:text-slate-900'}`}
+            >
+              {tt('nav_home')}
+            </button>
+            <button 
+              onClick={navigateToCatalog} 
+              className="px-5 py-2.5 rounded-xl text-[13px] font-bold tracking-tight text-slate-500 hover:text-slate-900 transition-all"
+            >
+              {tt('nav_products')}
+            </button>
+            <button 
+              onClick={() => setIsContactModalOpen(true)} 
+              className="px-5 py-2.5 rounded-xl text-[13px] font-bold tracking-tight text-slate-500 hover:text-slate-900 transition-all"
+            >
+              {tt('nav_contact')}
+            </button>
           </div>
 
           <div className="flex items-center gap-4">
-              <select value={language} onChange={(e) => setLanguage(e.target.value as any)} className="bg-transparent text-[11px] font-black uppercase text-slate-600 outline-none cursor-pointer">
-                 <option value="es">ES</option>
-                 <option value="ca">CA</option>
-              </select>
-              <button onClick={handleAdminClick} className="w-9 h-9 flex items-center justify-center text-slate-400 hover:text-slate-900 transition-all bg-slate-50 border border-slate-100 rounded-lg">
+              {/* VERTICAL SEPARATOR AS IN SCREENSHOT */}
+              <div className="hidden lg:block w-px h-6 bg-slate-200"></div>
+
+              {/* LANGUAGE SWITCHER WITH GLOBE ICON */}
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-slate-50 cursor-pointer group transition-colors">
+                <svg className="w-4 h-4 text-slate-400 group-hover:text-blue-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/></svg>
+                <select 
+                  value={language} 
+                  onChange={(e) => setLanguage(e.target.value as any)} 
+                  className="bg-transparent text-[11px] font-black uppercase text-slate-600 outline-none cursor-pointer appearance-none"
+                >
+                   <option value="es">ES</option>
+                   <option value="ca">CA</option>
+                </select>
+                <svg className="w-2.5 h-2.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7"/></svg>
+              </div>
+
+              {/* SETTINGS GEAR ICON AS IN SCREENSHOT */}
+              <button 
+                onClick={handleAdminClick} 
+                className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-slate-900 transition-all bg-white hover:bg-slate-50 rounded-xl"
+              >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
               </button>
           </div>
@@ -399,10 +429,10 @@ export const PublicTenantWebsite = () => {
       {view === 'landing' ? (
         <main className="animate-in fade-in duration-1000 pb-20 pt-16 md:pt-20">
           <div className="px-4 md:px-8 pt-4 md:pt-8">
-            <section className="max-w-7xl mx-auto relative rounded-[2rem] md:rounded-[3.5rem] h-[400px] md:h-[550px] overflow-hidden group shadow-2xl flex items-center">
+            <section className="max-w-7xl mx-auto relative rounded-[2rem] md:rounded-[3.5rem] h-[400px] md:h-[550px] overflow-hidden group shadow-2xl flex items-center text-left">
               <img src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?q=80&w=2070&auto=format&fit=crop" className="absolute inset-0 w-full h-full object-cover" alt="Modern Home" />
               <div className="absolute inset-0 bg-gradient-to-r from-slate-900/90 via-slate-900/40 to-transparent w-[100%] md:w-[60%]"></div>
-              <div className="relative px-8 md:px-20 max-w-4xl text-left">
+              <div className="relative px-8 md:px-20 max-w-4xl">
                 <h1 className="text-4xl md:text-7xl font-black text-white leading-[1.1] tracking-tighter mb-6 uppercase italic">
                   {tt('hero_title_1')} <br/>
                   <span className="text-blue-500">{tt('hero_title_2')}</span>
@@ -443,8 +473,8 @@ export const PublicTenantWebsite = () => {
           </section>
         </main>
       ) : (
-        <div className="max-w-5xl mx-auto py-10 md:py-24 px-4 md:px-8 animate-in slide-in-from-bottom-12 duration-700 mt-16">
-           <div className="bg-white p-6 md:p-20 rounded-[2rem] md:rounded-[4.5rem] border border-slate-100 shadow-2xl relative text-left">
+        <div className="max-w-5xl mx-auto py-10 md:py-24 px-4 md:px-8 animate-in slide-in-from-bottom-12 duration-700 mt-16 text-left">
+           <div className="bg-white p-6 md:p-20 rounded-[2rem] md:rounded-[4.5rem] border border-slate-100 shadow-2xl relative">
               {step === 1 && (
                 <div className="animate-in fade-in flex-1">
                    <h2 className="text-3xl font-black tracking-tighter mb-8 italic uppercase">{tt('wizard_models_available')}</h2>
@@ -458,7 +488,6 @@ export const PublicTenantWebsite = () => {
                    </div>
                 </div>
               )}
-              {/* Rest of wizard logic remains similar but simplified for brevity in this response */}
               <div className="flex flex-col md:flex-row gap-3 mt-12 pt-8 border-t border-slate-50">
                 {step > 1 && <button onClick={() => setStep(step - 1)} className="px-10 py-5 border-2 border-slate-100 rounded-xl font-black uppercase text-[10px] text-slate-400">{tt('wizard_btn_back')}</button>}
                 <button onClick={() => { setStep(step + 1); if(step === 5) setView('landing'); }} className="flex-1 py-5 bg-slate-900 text-white rounded-xl font-black uppercase text-[11px] tracking-widest shadow-xl">

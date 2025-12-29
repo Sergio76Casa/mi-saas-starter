@@ -75,7 +75,7 @@ export const TenantProducts = () => {
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500 pb-20">
+    <div className="space-y-6 animate-in fade-in duration-500 pb-20 text-left">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 px-1">
         <h3 className="text-xl font-bold text-slate-800 tracking-tight uppercase italic">Administración · Inventario</h3>
         <button 
@@ -100,7 +100,7 @@ export const TenantProducts = () => {
           <select 
             value={filterType}
             onChange={(e) => setFilterType(e.target.value)}
-            className="w-full md:w-48 px-4 py-2 text-xs border border-slate-100 rounded-xl outline-none bg-white font-black uppercase tracking-widest"
+            className="w-full md:w-48 px-4 py-2 text-xs border border-slate-100 rounded-xl outline-none bg-white font-black uppercase tracking-widest cursor-pointer"
           >
             <option value="all">Todos los tipos</option>
             {TYPES.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
@@ -113,8 +113,8 @@ export const TenantProducts = () => {
               <tr>
                 <th className="px-8 py-6">Marca / Modelo</th>
                 <th className="px-6 py-6">Tipo</th>
-                <th className="px-6 py-6">Precios</th>
-                <th className="px-6 py-6 text-center">Imágenes</th>
+                <th className="px-6 py-6">Variantes y Precios</th>
+                <th className="px-6 py-6 text-center">Multimedia</th>
                 <th className="px-6 py-6 text-center">Ficha</th>
                 <th className="px-8 py-6 text-right">Acciones</th>
               </tr>
@@ -124,51 +124,60 @@ export const TenantProducts = () => {
                 <tr key={p.id} className="hover:bg-slate-50/50 transition-colors group">
                   <td className="px-8 py-8">
                     <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-white border border-slate-100 rounded-xl shadow-sm flex items-center justify-center p-1.5 shrink-0 overflow-hidden">
+                      <div className="w-14 h-14 bg-white border border-slate-100 rounded-2xl shadow-sm flex items-center justify-center p-2 shrink-0 overflow-hidden">
                         {p.image_url ? (
                           <img src={p.image_url} className="w-full h-full object-contain" alt={p.model} />
                         ) : (
-                          <svg className="w-6 h-6 text-slate-200" fill="currentColor" viewBox="0 0 24 24"><path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                          <svg className="w-7 h-7 text-slate-200" fill="currentColor" viewBox="0 0 24 24"><path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
                         )}
                       </div>
                       <div className="flex flex-col">
                         <div className="flex items-center gap-2">
-                          <span className="text-[13px] font-black text-slate-900 leading-tight">{p.brand}</span>
+                          <span className="text-[14px] font-black text-slate-900 leading-tight tracking-tight uppercase italic">{p.brand}</span>
                           <span className={`w-2 h-2 rounded-full ${STATUS_MAP[p.status || 'draft'].color}`} title={STATUS_MAP[p.status || 'draft'].label}></span>
                         </div>
-                        <span className="text-[11px] font-bold text-slate-400 uppercase tracking-tighter">{p.model}</span>
+                        <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">{p.model}</span>
                       </div>
                     </div>
                   </td>
                   <td className="px-6 py-8">
-                    <span className="inline-flex px-3 py-1 bg-slate-100 text-slate-500 text-[10px] font-bold uppercase rounded-lg">
+                    <span className="inline-flex px-3 py-1 bg-slate-100 text-slate-500 text-[9px] font-black uppercase rounded-lg border border-slate-200/50">
                       {TYPES.find(t => t.id === p.type)?.label || p.type}
                     </span>
                   </td>
                   <td className="px-6 py-8">
-                    <div className="flex flex-col gap-1.5">
-                      {p.pricing?.slice(0, 2).map((v, idx) => (
-                        <div key={idx} className="text-[11px] font-medium text-slate-500">
-                          {v.variant}: <span className="font-black text-blue-600 ml-1">{formatCurrency(v.price, language)}</span>
+                    <div className="space-y-2 max-w-[240px]">
+                      {p.pricing?.map((v, idx) => (
+                        <div key={idx} className="flex justify-between items-center bg-white/50 border border-slate-100 px-3 py-2 rounded-xl text-[10px] font-medium">
+                          <span className="text-slate-500 font-bold truncate max-w-[120px]">{v.variant || p.model}</span>
+                          <span className="font-black text-blue-600 shrink-0">{formatCurrency(v.price, language)}</span>
                         </div>
                       ))}
-                      {p.pricing?.length > 2 && <div className="text-[9px] font-black text-slate-300 uppercase">+{p.pricing.length - 2} más</div>}
+                      {(!p.pricing || p.pricing.length === 0) && (
+                        <span className="text-slate-300 italic text-[10px]">Sin variantes</span>
+                      )}
                     </div>
                   </td>
                   <td className="px-6 py-8">
-                    <div className="flex justify-center items-center gap-2">
-                      <div className={`w-2.5 h-2.5 rounded-full ${p.image_url ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]' : 'bg-slate-200'}`} title="Imagen Producto"></div>
-                      <div className={`w-2.5 h-2.5 rounded-full ${p.brand_logo_url ? 'bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]' : 'bg-slate-200'}`} title="Logo Marca"></div>
+                    <div className="flex justify-center items-center gap-3">
+                      <div className="flex flex-col items-center gap-1">
+                        <div className={`w-2.5 h-2.5 rounded-full ${p.image_url ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]' : 'bg-slate-200'}`}></div>
+                        <span className="text-[8px] font-black text-slate-300 uppercase">IMG</span>
+                      </div>
+                      <div className="flex flex-col items-center gap-1">
+                        <div className={`w-2.5 h-2.5 rounded-full ${p.brand_logo_url ? 'bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]' : 'bg-slate-200'}`}></div>
+                        <span className="text-[8px] font-black text-slate-300 uppercase">LOG</span>
+                      </div>
                     </div>
                   </td>
                   <td className="px-6 py-8 text-center">
                     <div className="flex justify-center">
                       {p.pdf_url ? (
-                        <a href={p.pdf_url} target="_blank" rel="noreferrer" className="text-blue-500 p-2 hover:bg-blue-50 rounded-lg transition-colors" title="Ver Ficha Técnica">
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                        <a href={p.pdf_url} target="_blank" rel="noreferrer" className="w-10 h-10 flex items-center justify-center text-blue-500 bg-blue-50 hover:bg-blue-100 rounded-xl transition-all" title="Ver Ficha Técnica">
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                         </a>
                       ) : (
-                        <span className="text-slate-200 font-black">-</span>
+                        <span className="text-slate-200 font-black text-xs">-</span>
                       )}
                     </div>
                   </td>
@@ -176,17 +185,17 @@ export const TenantProducts = () => {
                     <div className="flex justify-end items-center gap-2">
                       <button 
                         onClick={() => navigate(`/t/${slug}/products/${p.id}/edit`)}
-                        className="p-2 text-slate-300 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                        className="p-2.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all border border-transparent hover:border-blue-100"
                         title="Editar"
                       >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
                       </button>
                       <button 
                         onClick={() => handleDelete(p.id)}
-                        className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                        className="p-2.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all border border-transparent hover:border-red-100"
                         title="Borrar"
                       >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                       </button>
                     </div>
                   </td>
@@ -194,7 +203,7 @@ export const TenantProducts = () => {
               ))}
               {!loading && filteredProducts.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="py-24 text-center text-slate-300 font-black uppercase tracking-widest text-sm italic">No hay productos en el inventario</td>
+                  <td colSpan={6} className="py-24 text-center text-slate-300 font-black uppercase tracking-[0.2em] text-xs italic">No hay productos en el inventario</td>
                 </tr>
               )}
             </tbody>
