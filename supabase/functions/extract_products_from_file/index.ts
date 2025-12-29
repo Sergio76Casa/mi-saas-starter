@@ -25,7 +25,7 @@ serve(async (req) => {
     const file = formData.get('file') as File
 
     if (!file || file.size === 0) {
-      return new Response(JSON.stringify({ error: "Falta el archivo o está vacío." }), {
+      return new Response(JSON.stringify({ error: "Documento no detectado." }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
@@ -41,26 +41,28 @@ serve(async (req) => {
     }
     const base64Data = btoa(binary)
 
-    const prompt = `Analiza este documento técnico de climatización. Extrae la información y organízala estrictamente en este formato JSON.
+    const prompt = `Analiza este documento técnico de climatización y devuelve un JSON con esta estructura exacta. 
+    Traduce todos los campos de texto (labels, names) a los idiomas: es, ca, en, fr.
     
-    INSTRUCCIONES DE EXTRACCIÓN:
-    1. "technical_data": Lista de especificaciones (ej: Potencia frigorífica, Gas refrigerante, Dimensiones).
-    2. "pricing": Lista de variantes del modelo (ej: 2.5kW, 3.5kW) con sus precios.
-    3. "installation_kits": Kits de montaje sugeridos en el PDF.
-    4. "extras": Materiales adicionales (tuberías, soportes, etc).
-    5. "financing": Tabla de cuotas (Meses y Coeficientes).
-
-    IMPORTANTE: Para cada campo de texto (nombre, etiqueta, descripción), genera un objeto con las traducciones: { "es": "...", "en": "...", "ca": "...", "fr": "..." }.`
+    ESTRUCTURA REQUERIDA:
+    - brand: Nombre de la marca.
+    - model: Nombre del modelo.
+    - type: "aire_acondicionado", "caldera", "termo_electrico" o "aerotermia".
+    - pricing_list: [{ "name": { "es": "...", "ca": "..." }, "price": 0 }]
+    - technical_data: [{ "label": { "es": "...", "ca": "..." }, "value": "..." }]
+    - kits: [{ "name": { "es": "...", "ca": "..." }, "price": 0 }]
+    - extras: [{ "name": { "es": "...", "ca": "..." }, "price": 0 }]
+    - financing: [{ "label": { "es": "...", "ca": "..." }, "months": 12, "coefficient": 0 }]`
 
     const translationSchema = {
       type: Type.OBJECT,
       properties: {
         es: { type: Type.STRING },
-        en: { type: Type.STRING },
         ca: { type: Type.STRING },
+        en: { type: Type.STRING },
         fr: { type: Type.STRING }
       },
-      required: ["es", "en", "ca", "fr"]
+      required: ["es", "ca"]
     };
 
     const response = await ai.models.generateContent({
@@ -83,7 +85,7 @@ serve(async (req) => {
           properties: {
             brand: { type: Type.STRING },
             model: { type: Type.STRING },
-            type: { type: Type.STRING, description: "Valores: aire_acondicionado, caldera, termo_electrico, aerotermia" },
+            type: { type: Type.STRING },
             technical_data: {
               type: Type.ARRAY,
               items: {
@@ -95,18 +97,18 @@ serve(async (req) => {
                 required: ["label", "value"]
               }
             },
-            pricing: {
+            pricing_list: {
               type: Type.ARRAY,
               items: {
                 type: Type.OBJECT,
                 properties: {
-                  variant_name: translationSchema,
+                  name: translationSchema,
                   price: { type: Type.NUMBER }
                 },
-                required: ["variant_name", "price"]
+                required: ["name", "price"]
               }
             },
-            installation_kits: {
+            kits: {
               type: Type.ARRAY,
               items: {
                 type: Type.OBJECT,
@@ -141,7 +143,7 @@ serve(async (req) => {
               }
             }
           },
-          required: ["brand", "model", "type", "technical_data", "pricing"]
+          required: ["brand", "model", "type", "technical_data", "pricing_list"]
         }
       }
     })
