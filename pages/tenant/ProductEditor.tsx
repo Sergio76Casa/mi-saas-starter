@@ -71,7 +71,6 @@ export const ProductEditor = () => {
         setProductData(data);
         setPreviews({ product: data.image_url || '', logo: data.brand_logo_url || '' });
         
-        // Try to parse features as JSON if it's structured data
         try {
           if (data.features) {
             const parsed = JSON.parse(data.features);
@@ -82,7 +81,6 @@ export const ProductEditor = () => {
             }
           }
         } catch (e) {
-          // If not JSON, it's legacy string
           if (data.features) {
             setTechSpecs([{ title: 'Descripción General', description: data.features }]);
           }
@@ -135,23 +133,74 @@ export const ProductEditor = () => {
 
       if (error) throw error;
       
-      if (data?.products && data.products.length > 0) {
-        const first = data.products[0];
+      if (data) {
+        // Multi-language helper
+        const getT = (obj: any) => obj?.[language] || obj?.es || "";
+
+        // Map type
+        const typeMap: Record<string, string> = {
+          "Aire Acondicionado": "aire_acondicionado",
+          "Caldera": "caldera",
+          "Termo Eléctrico": "termo_electrico",
+          "Aerotermia": "aire_acondicionado"
+        };
+
+        // Update product basic data
         setProductData(prev => ({
           ...prev,
-          brand: first.brand || prev.brand,
-          model: first.model || prev.model,
-          features: first.description || prev.features,
-          pricing: data.products.map((p: any) => ({
-            variant: p.variant || p.model,
-            price: p.price || 0
-          }))
+          brand: data.brand || prev.brand,
+          model: data.model || prev.model,
+          type: typeMap[data.type] || prev.type,
+          pricing: data.pricing ? data.pricing.map((v: any) => ({
+            variant: getT(v.name),
+            price: v.price
+          })) : prev.pricing,
+          installation_kits: data.installationKits ? data.installationKits.map((k: any) => ({
+            name: getT(k.name),
+            price: k.price
+          })) : prev.installation_kits,
+          extras: data.extras ? data.extras.map((e: any) => ({
+            name: getT(e.name),
+            price: e.price
+          })) : prev.extras
         }));
         
-        // If IA provides a description, set it as the first spec
-        if (first.description) {
-          setTechSpecs([{ title: 'Características Principales', description: first.description }]);
+        // Generate tech specs from technical object and features array
+        const combinedSpecs: TechSpec[] = [];
+        
+        // From technical key-value
+        if (data.technical) {
+          const techLabels: Record<string, string> = {
+            powerCooling: "Potencia Frío",
+            powerHeating: "Potencia Calor",
+            efficiency: "Eficiencia",
+            gasType: "Refrigerante",
+            voltage: "Voltaje",
+            warranty: "Garantía"
+          };
+
+          Object.entries(data.technical).forEach(([key, val]) => {
+            if (val) {
+              combinedSpecs.push({
+                title: techLabels[key] || key,
+                description: val as string
+              });
+            }
+          });
         }
+
+        // From features array
+        if (data.features && Array.isArray(data.features)) {
+          data.features.forEach((f: any) => {
+            combinedSpecs.push({
+              title: getT(f.title),
+              description: getT(f.description)
+            });
+          });
+        }
+
+        setTechSpecs(combinedSpecs);
+        setActiveTab('technical');
       }
     } catch (err: any) {
       console.error("Error IA:", err.message);
@@ -177,7 +226,6 @@ export const ProductEditor = () => {
       if (logoFile) finalLogoUrl = await uploadToStorage(logoFile, 'logos');
       if (pdfFile) finalPdfUrl = await uploadToStorage(pdfFile, 'docs');
 
-      // Sync techSpecs into features as JSON string
       const payload = {
         ...productData,
         features: JSON.stringify(techSpecs),
@@ -224,7 +272,6 @@ export const ProductEditor = () => {
     });
   };
 
-  // Structured specs handlers
   const addTechSpec = () => {
     setTechSpecs([...techSpecs, { title: '', description: '' }]);
   };

@@ -1,7 +1,5 @@
 
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-// Always use import {GoogleGenAI} from "@google/genai";
 import { GoogleGenAI, Type } from "@google/genai";
 
 const corsHeaders = {
@@ -34,7 +32,6 @@ serve(async (req) => {
       })
     }
 
-    // Always use the API key directly from process.env.API_KEY as per guidelines.
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     
     const arrayBuffer = await file.arrayBuffer()
@@ -45,16 +42,28 @@ serve(async (req) => {
     }
     const base64Data = btoa(binary)
 
-    const prompt = `Analiza este documento y extrae una lista de productos para un catálogo de climatización.
-    
-    Reglas Estrictas:
-    1. SEGMENTACIÓN: Separa marca de modelo y de variante.
-    2. NORMALIZACIÓN BRAND: Mayúsculas consistentes (Ej: "MITSUBISHI").
-    3. NORMALIZACIÓN MODEL: Nombre de la serie sin la marca delante.
-    4. NORMALIZACIÓN VARIANT: El código de potencia o modelo específico que diferencia precios.
-    5. CATEGORY: Usar "${defaultCategory}" si no se detecta otra claramente.`
+    const prompt = `Eres un experto en climatización y traducción técnica. Analiza el PDF adjunto y extrae los datos técnicos y comerciales en formato JSON estrictamente válido para una tienda online.
+        
+    IMPORTANTE: Para todos los campos de texto visibles al usuario (nombre, título, descripción, etiquetas), DEBES generar un objeto con traducciones en 4 idiomas: Español (es), Inglés (en), Catalán (ca) y Francés (fr).
 
-    // Using gemini-3-flash-preview for document extraction tasks
+    REGLAS:
+    1. Precios (price, cost, commission, coefficient) deben ser NUMBER.
+    2. "technical": Extrae datos técnicos clave como potencia, gas, eficiencia. Si no están, déjalos vacíos.
+    3. Si el PDF tiene tablas de financiación con coeficientes (ej: 0.087), úsalos.
+    4. "type": Infiere si es Aire Acondicionado, Aerotermia, Caldera o Termo Eléctrico.
+    5. Devuelve SOLO el JSON válido, sin markdown.`
+
+    const translationSchema = {
+      type: Type.OBJECT,
+      properties: {
+        es: { type: Type.STRING },
+        en: { type: Type.STRING },
+        ca: { type: Type.STRING },
+        fr: { type: Type.STRING }
+      },
+      required: ["es", "en", "ca", "fr"]
+    };
+
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: {
@@ -70,36 +79,96 @@ serve(async (req) => {
       },
       config: {
         responseMimeType: "application/json",
-        // The recommended way is to configure a responseSchema for the expected output
         responseSchema: {
           type: Type.OBJECT,
           properties: {
-            products: {
+            brand: { type: Type.STRING },
+            model: { type: Type.STRING },
+            reference: { type: Type.STRING },
+            type: { type: Type.STRING },
+            description: translationSchema,
+            technical: {
+              type: Type.OBJECT,
+              properties: {
+                powerCooling: { type: Type.STRING },
+                powerHeating: { type: Type.STRING },
+                efficiency: { type: Type.STRING },
+                gasType: { type: Type.STRING },
+                voltage: { type: Type.STRING },
+                warranty: { type: Type.STRING }
+              }
+            },
+            features: {
               type: Type.ARRAY,
               items: {
                 type: Type.OBJECT,
                 properties: {
-                  brand: { type: Type.STRING },
-                  model: { type: Type.STRING },
-                  variant: { type: Type.STRING },
-                  description: { type: Type.STRING },
-                  price: { type: Type.NUMBER },
-                  category: { type: Type.STRING }
+                  title: translationSchema,
+                  description: translationSchema,
+                  icon: { type: Type.STRING }
                 },
-                required: ["brand", "model", "price", "category"]
+                required: ["title", "description", "icon"]
               }
             },
-            error: { type: Type.STRING }
+            pricing: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  id: { type: Type.STRING },
+                  name: translationSchema,
+                  price: { type: Type.NUMBER },
+                  cost: { type: Type.NUMBER }
+                },
+                required: ["id", "name", "price"]
+              }
+            },
+            installationKits: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  id: { type: Type.STRING },
+                  name: translationSchema,
+                  price: { type: Type.NUMBER }
+                },
+                required: ["id", "name", "price"]
+              }
+            },
+            extras: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  id: { type: Type.STRING },
+                  name: translationSchema,
+                  price: { type: Type.NUMBER }
+                },
+                required: ["id", "name", "price"]
+              }
+            },
+            financing: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  label: translationSchema,
+                  months: { type: Type.NUMBER },
+                  commission: { type: Type.NUMBER },
+                  coefficient: { type: Type.NUMBER }
+                },
+                required: ["label", "months", "coefficient"]
+              }
+            }
           },
-          required: ["products"]
+          required: ["brand", "model", "type", "description", "technical", "features", "pricing"]
         }
       }
     })
 
-    // Access text output using the .text property directly.
     const responseText = response.text;
     if (!responseText) {
-      return new Response(JSON.stringify({ error: "La IA no pudo procesar el contenido del archivo." }), {
+      return new Response(JSON.stringify({ error: "La IA no pudo procesar el contenido." }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
