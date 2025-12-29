@@ -108,51 +108,64 @@ export const ProductEditor = () => {
       if (error) throw error;
       
       if (data) {
+        // Helper to extract translation based on current app language
         const getT = (obj: any) => obj?.[language] || obj?.es || "";
 
-        // Basic Data
-        setProductData(prev => ({
-          ...prev,
-          brand: data.brand || prev.brand,
-          model: data.model || prev.model,
+        // 1. Map basic data
+        const typeMap: Record<string, string> = {
+          "Aire Acondicionado": "aire_acondicionado",
+          "Caldera": "caldera",
+          "Termo Eléctrico": "termo_electrico",
+          "Aerotermia": "aerotermia"
+        };
+
+        const updatedProduct = {
+          ...productData,
+          brand: data.brand || productData.brand,
+          model: data.model || productData.model,
+          type: typeMap[data.type] || productData.type,
           pricing: data.pricing ? data.pricing.map((v: any) => ({
             variant: getT(v.name),
             price: v.price
-          })) : prev.pricing,
+          })) : productData.pricing,
           installation_kits: data.installationKits ? data.installationKits.map((k: any) => ({
             name: getT(k.name),
             price: k.price
-          })) : prev.installation_kits,
+          })) : productData.installation_kits,
           extras: data.extras ? data.extras.map((e: any) => ({
             name: getT(e.name),
             price: e.price
-          })) : prev.extras
-        }));
+          })) : productData.extras
+        };
+
+        setProductData(updatedProduct);
         
-        // Tech Specs (Tab Datos Técnicos)
+        // 2. Map Technical Data (into techSpecs state)
         const specs: TechSpec[] = [];
+        const techLabels: Record<string, string> = {
+          powerCooling: "Potencia Frío",
+          powerHeating: "Potencia Calor",
+          efficiency: "Eficiencia",
+          gasType: "Refrigerante",
+          voltage: "Voltaje",
+          warranty: "Garantía"
+        };
+
         if (data.technical) {
-          const techLabels: Record<string, string> = {
-            powerCooling: "Potencia Frío",
-            powerHeating: "Potencia Calor",
-            efficiency: "Eficiencia",
-            gasType: "Refrigerante",
-            voltage: "Voltaje",
-            warranty: "Garantía"
-          };
           Object.entries(data.technical).forEach(([key, val]) => {
             if (val) specs.push({ title: techLabels[key] || key, description: val as string });
           });
         }
-        if (data.features) {
+
+        if (data.features && Array.isArray(data.features)) {
           data.features.forEach((f: any) => {
             specs.push({ title: getT(f.title), description: getT(f.description) });
           });
         }
         setTechSpecs(specs);
 
-        // Financing (Tab Financiación)
-        if (data.financing) {
+        // 3. Map Financing
+        if (data.financing && Array.isArray(data.financing)) {
           setFinancing(data.financing.map((f: any) => ({
             label: getT(f.label),
             months: f.months,
@@ -161,10 +174,11 @@ export const ProductEditor = () => {
           })));
         }
 
+        // Jump to Technical tab to show results
         setActiveTab('technical');
       }
     } catch (err: any) {
-      alert("Error IA: " + err.message);
+      alert("Error al extraer datos: " + err.message);
     } finally {
       setAiLoading(false);
     }
@@ -187,7 +201,7 @@ export const ProductEditor = () => {
       if (error) throw error;
       navigate(`/t/${slug}/products`);
     } catch (err: any) {
-      alert("Error: " + err.message);
+      alert("Error al guardar: " + err.message);
     } finally {
       setSaving(false);
     }
@@ -222,7 +236,7 @@ export const ProductEditor = () => {
           </div>
         </div>
         <button onClick={handleSave} disabled={saving} className="bg-blue-600 text-white px-8 py-3.5 rounded-xl font-black text-[11px] uppercase tracking-widest shadow-xl hover:bg-blue-700 active:scale-95 transition-all">
-          {saving ? 'GUARDANDO...' : 'GUARDAR PRODUCTO'}
+          {saving ? 'GUARDANDO...' : 'GUARDAR CAMBIOS'}
         </button>
       </header>
 
@@ -258,7 +272,7 @@ export const ProductEditor = () => {
                  <div className="flex items-center gap-3">
                     <input type="file" id="ai-extract" className="hidden" accept=".pdf,image/*" onChange={(e) => e.target.files && handleAiExtract(e.target.files[0])} />
                     <label htmlFor="ai-extract" className={`flex items-center gap-2 px-4 py-2 bg-brand-50 text-brand-600 rounded-lg text-[10px] font-black uppercase tracking-widest cursor-pointer hover:bg-brand-100 transition-colors ${aiLoading ? 'opacity-50 pointer-events-none' : ''}`}>
-                       {aiLoading ? 'Analizando Documento...' : '✨ Extraer Datos con IA'}
+                       {aiLoading ? 'Procesando Documento...' : '✨ Extraer con IA'}
                     </label>
                  </div>
               </div>
@@ -285,23 +299,24 @@ export const ProductEditor = () => {
 
           {activeTab === 'technical' && (
             <div className="animate-in fade-in space-y-8 text-left">
-              <h3 className="text-xl font-black text-slate-800 tracking-tight italic uppercase">Datos Técnicos</h3>
+              <h3 className="text-xl font-black text-slate-800 tracking-tight italic uppercase">Especificaciones del Catálogo</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {techSpecs.map((spec, index) => (
-                  <div key={index} className="p-6 bg-slate-50/50 border border-slate-100 rounded-2xl flex flex-col gap-2">
+                  <div key={index} className="p-6 bg-slate-50/50 border border-slate-100 rounded-2xl flex flex-col gap-2 group relative">
+                    <button onClick={() => setTechSpecs(techSpecs.filter((_, i) => i !== index))} className="absolute top-4 right-4 text-red-300 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity">×</button>
                     <Input label="Etiqueta" value={spec.title} onChange={(e:any) => {
                       const newSpecs = [...techSpecs];
                       newSpecs[index].title = e.target.value;
                       setTechSpecs(newSpecs);
                     }} />
-                    <Input label="Valor" value={spec.description} onChange={(e:any) => {
+                    <Input label="Valor / Descripción" value={spec.description} onChange={(e:any) => {
                       const newSpecs = [...techSpecs];
                       newSpecs[index].description = e.target.value;
                       setTechSpecs(newSpecs);
                     }} />
                   </div>
                 ))}
-                <button onClick={() => setTechSpecs([...techSpecs, { title: '', description: '' }])} className="p-8 border-2 border-dashed border-slate-100 rounded-2xl text-slate-400 font-black uppercase text-[10px] tracking-widest hover:border-blue-300 hover:text-blue-600 transition-all">+ Añadir Fila</button>
+                <button onClick={() => setTechSpecs([...techSpecs, { title: '', description: '' }])} className="p-8 border-2 border-dashed border-slate-100 rounded-2xl text-slate-400 font-black uppercase text-[10px] tracking-widest hover:border-blue-300 hover:text-blue-600 transition-all">+ Añadir Característica</button>
               </div>
             </div>
           )}
@@ -313,8 +328,8 @@ export const ProductEditor = () => {
                 <table className="w-full text-left">
                   <thead className="bg-slate-100 text-[10px] font-black uppercase tracking-widest text-slate-500">
                     <tr>
-                      <th className="px-8 py-4">Nombre del Kit</th>
-                      <th className="px-8 py-4 text-right">Precio (€)</th>
+                      <th className="px-8 py-4">Descripción del Kit</th>
+                      <th className="px-8 py-4 text-right">Precio de Venta (€)</th>
                       <th className="px-8 py-4 w-20"></th>
                     </tr>
                   </thead>
@@ -335,13 +350,13 @@ export const ProductEditor = () => {
 
           {activeTab === 'extras_tab' && (
             <div className="animate-in fade-in space-y-8 text-left">
-              <h3 className="text-xl font-black text-slate-800 tracking-tight italic uppercase">Materiales Extras</h3>
+              <h3 className="text-xl font-black text-slate-800 tracking-tight italic uppercase">Materiales y Extras</h3>
               <div className="bg-slate-50/30 rounded-3xl border border-slate-100 overflow-hidden">
                 <table className="w-full text-left">
                   <thead className="bg-slate-100 text-[10px] font-black uppercase tracking-widest text-slate-500">
                     <tr>
                       <th className="px-8 py-4">Material / Concepto</th>
-                      <th className="px-8 py-4 text-right">Precio (€)</th>
+                      <th className="px-8 py-4 text-right">Precio Unitario (€)</th>
                       <th className="px-8 py-4 w-20"></th>
                     </tr>
                   </thead>
@@ -362,15 +377,15 @@ export const ProductEditor = () => {
 
           {activeTab === 'financing' && (
             <div className="animate-in fade-in space-y-8 text-left">
-              <h3 className="text-xl font-black text-slate-800 tracking-tight italic uppercase">Financiación</h3>
+              <h3 className="text-xl font-black text-slate-800 tracking-tight italic uppercase">Tabla de Financiación</h3>
               <div className="bg-slate-50/30 rounded-3xl border border-slate-100 overflow-hidden">
                 <table className="w-full text-left">
                   <thead className="bg-slate-100 text-[10px] font-black uppercase tracking-widest text-slate-500">
                     <tr>
-                      <th className="px-8 py-4">Etiqueta</th>
-                      <th className="px-8 py-4 text-center">Meses</th>
+                      <th className="px-8 py-4">Etiqueta (Meses)</th>
+                      <th className="px-8 py-4 text-center">Cuotas</th>
                       <th className="px-8 py-4 text-center">Comisión (%)</th>
-                      <th className="px-8 py-4 text-right">Coeficiente</th>
+                      <th className="px-8 py-4 text-right">Coeficiente Calc.</th>
                       <th className="px-8 py-4 w-20"></th>
                     </tr>
                   </thead>
@@ -392,7 +407,7 @@ export const ProductEditor = () => {
                           newF[i].commission = parseFloat(e.target.value);
                           setFinancing(newF);
                         }} /></td>
-                        <td className="px-8 py-4 text-right font-black text-blue-600"><input type="number" step="0.0001" className="w-24 bg-transparent text-right outline-none" value={f.coefficient} onChange={(e) => {
+                        <td className="px-8 py-4 text-right font-black text-blue-600"><input type="number" step="0.000001" className="w-32 bg-transparent text-right outline-none" value={f.coefficient} onChange={(e) => {
                           const newF = [...financing];
                           newF[i].coefficient = parseFloat(e.target.value);
                           setFinancing(newF);
@@ -409,12 +424,12 @@ export const ProductEditor = () => {
 
           {activeTab === 'pricing' && (
             <div className="animate-in fade-in space-y-8 text-left">
-              <h3 className="text-xl font-black text-slate-800 tracking-tight italic uppercase">Variantes y Precios de Venta</h3>
+              <h3 className="text-xl font-black text-slate-800 tracking-tight italic uppercase">Variantes del Modelo</h3>
               <div className="grid grid-cols-1 gap-4">
                 {productData.pricing?.map((p, i) => (
                   <div key={i} className="flex gap-4 items-end bg-slate-50/30 p-6 rounded-2xl border border-slate-100">
-                    <div className="flex-1"><Input label="Nombre Variante" value={p.variant} onChange={(e:any) => updateRow('pricing', i, 'variant', e.target.value)} /></div>
-                    <div className="w-48"><Input label="Precio Venta (€)" type="number" value={p.price} onChange={(e:any) => updateRow('pricing', i, 'price', parseFloat(e.target.value))} /></div>
+                    <div className="flex-1"><Input label="Nombre Variante / Capacidad" value={p.variant} onChange={(e:any) => updateRow('pricing', i, 'variant', e.target.value)} /></div>
+                    <div className="w-48"><Input label="PVP (€)" type="number" value={p.price} onChange={(e:any) => updateRow('pricing', i, 'price', parseFloat(e.target.value))} /></div>
                     <button onClick={() => removeRow('pricing', i)} className="mb-4 p-2 text-red-400 hover:bg-red-50 rounded-lg">×</button>
                   </div>
                 ))}
@@ -425,8 +440,8 @@ export const ProductEditor = () => {
 
           {activeTab === 'stock' && (
             <div className="animate-in fade-in max-w-sm text-left">
-              <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 italic mb-8">Existencias</h3>
-              <Input label="Unidades en Almacén" type="number" value={productData.stock || 0} onChange={(e:any) => setProductData({...productData, stock: parseInt(e.target.value)})} />
+              <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 italic mb-8">Gestión de Stock</h3>
+              <Input label="Unidades Disponibles" type="number" value={productData.stock || 0} onChange={(e:any) => setProductData({...productData, stock: parseInt(e.target.value)})} />
             </div>
           )}
 
@@ -436,7 +451,7 @@ export const ProductEditor = () => {
                 <div>
                   <h4 className="text-[10px] font-black uppercase text-slate-800 tracking-widest mb-4">Imagen del Producto</h4>
                   <div className="aspect-video bg-slate-50 border-2 border-dashed border-slate-200 rounded-[2rem] flex items-center justify-center relative overflow-hidden group">
-                    {previews.product ? <img src={previews.product} className="w-full h-full object-contain" /> : <span className="text-slate-300 font-black uppercase text-[10px]">Sin Imagen</span>}
+                    {previews.product ? <img src={previews.product} className="w-full h-full object-contain p-4" alt="Producto" /> : <span className="text-slate-300 font-black uppercase text-[10px]">Sin Imagen</span>}
                     <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" onChange={(e) => {
                       const file = e.target.files?.[0];
                       if(file) { setProductFile(file); setPreviews(p => ({...p, product: URL.createObjectURL(file)})); }
@@ -444,9 +459,9 @@ export const ProductEditor = () => {
                   </div>
                 </div>
                 <div>
-                  <h4 className="text-[10px] font-black uppercase text-slate-800 tracking-widest mb-4">Logotipo Marca</h4>
+                  <h4 className="text-[10px] font-black uppercase text-slate-800 tracking-widest mb-4">Logo Fabricante</h4>
                   <div className="aspect-video bg-slate-50 border-2 border-dashed border-slate-200 rounded-[2rem] flex items-center justify-center relative overflow-hidden group">
-                    {previews.logo ? <img src={previews.logo} className="w-full h-full object-contain p-8" /> : <span className="text-slate-300 font-black uppercase text-[10px]">Sin Logo</span>}
+                    {previews.logo ? <img src={previews.logo} className="w-full h-full object-contain p-8" alt="Logo" /> : <span className="text-slate-300 font-black uppercase text-[10px]">Sin Logo</span>}
                     <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" onChange={(e) => {
                       const file = e.target.files?.[0];
                       if(file) { setLogoFile(file); setPreviews(p => ({...p, logo: URL.createObjectURL(file)})); }

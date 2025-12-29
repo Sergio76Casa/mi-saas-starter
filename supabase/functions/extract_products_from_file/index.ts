@@ -23,7 +23,6 @@ serve(async (req) => {
 
     const formData = await req.formData()
     const file = formData.get('file') as File
-    const defaultCategory = formData.get('defaultCategory') as string || 'aire_acondicionado'
 
     if (!file || file.size === 0) {
       return new Response(JSON.stringify({ error: "Falta el archivo o el documento está vacío." }), {
@@ -166,24 +165,13 @@ serve(async (req) => {
       }
     })
 
-    const responseText = response.text;
-    if (!responseText) {
-      return new Response(JSON.stringify({ error: "La IA no pudo procesar el contenido." }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      })
-    }
-
-    return new Response(responseText, {
+    return new Response(response.text, {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
 
   } catch (err: any) {
-    console.error("Error en Edge Function:", err.message)
-    return new Response(JSON.stringify({ 
-      error: "Error interno al procesar el documento." 
-    }), {
+    return new Response(JSON.stringify({ error: err.message }), {
       status: 400,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     })
