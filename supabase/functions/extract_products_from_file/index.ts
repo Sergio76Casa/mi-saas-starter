@@ -41,16 +41,18 @@ serve(async (req) => {
     }
     const base64Data = btoa(binary)
 
-    const prompt = `Eres un experto en climatización y traducción técnica. Analiza el PDF adjunto y extrae los datos técnicos y comerciales en formato JSON estrictamente válido para una tienda online.
-        
-    IMPORTANTE: Para todos los campos de texto visibles al usuario (nombre, título, descripción, etiquetas), DEBES generar un objeto con traducciones en 4 idiomas: Español (es), Inglés (en), Catalán (ca) y Francés (fr).
+    const prompt = `Analiza este documento técnico de climatización y extrae TODA la información siguiendo este esquema JSON. 
+    Es vital que para cada texto (nombres, títulos, descripciones) generes traducciones en ES, EN, CA, FR.
+    
+    Extrae específicamente:
+    1. Datos de marca y modelo.
+    2. Especificaciones técnicas (potencia, eficiencia, gas, etc.).
+    3. Variantes de precio del modelo principal.
+    4. Kits de instalación opcionales.
+    5. Materiales extras y sus precios.
+    6. Tabla de financiación (meses y coeficientes).
 
-    REGLAS:
-    1. Precios (price, cost, commission, coefficient) deben ser NUMBER.
-    2. "technical": Extrae datos técnicos clave como potencia, gas, eficiencia. Si no están, déjalos vacíos.
-    3. Si el PDF tiene tablas de financiación con coeficientes (ej: 0.087), úsalos.
-    4. "type": Infiere si es Aire Acondicionado, Aerotermia, Caldera o Termo Eléctrico.
-    5. Devuelve SOLO el JSON válido, sin markdown.`
+    Devuelve ÚNICAMENTE el JSON.`
 
     const translationSchema = {
       type: Type.OBJECT,
@@ -83,55 +85,38 @@ serve(async (req) => {
           properties: {
             brand: { type: Type.STRING },
             model: { type: Type.STRING },
-            reference: { type: Type.STRING },
-            type: { type: Type.STRING },
-            description: translationSchema,
-            technical: {
-              type: Type.OBJECT,
-              properties: {
-                powerCooling: { type: Type.STRING },
-                powerHeating: { type: Type.STRING },
-                efficiency: { type: Type.STRING },
-                gasType: { type: Type.STRING },
-                voltage: { type: Type.STRING },
-                warranty: { type: Type.STRING }
-              }
-            },
-            features: {
+            type: { type: Type.STRING, description: "Valores: aire_acondicionado, caldera, termo_electrico, aerotermia" },
+            technical_specs: {
               type: Type.ARRAY,
               items: {
                 type: Type.OBJECT,
                 properties: {
-                  title: translationSchema,
-                  description: translationSchema,
-                  icon: { type: Type.STRING }
+                  label: translationSchema,
+                  value: { type: Type.STRING }
                 },
-                required: ["title", "description", "icon"]
+                required: ["label", "value"]
               }
             },
-            pricing: {
+            pricing_variants: {
               type: Type.ARRAY,
               items: {
                 type: Type.OBJECT,
                 properties: {
-                  id: { type: Type.STRING },
-                  name: translationSchema,
-                  price: { type: Type.NUMBER },
-                  cost: { type: Type.NUMBER }
-                },
-                required: ["id", "name", "price"]
-              }
-            },
-            installationKits: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  id: { type: Type.STRING },
                   name: translationSchema,
                   price: { type: Type.NUMBER }
                 },
-                required: ["id", "name", "price"]
+                required: ["name", "price"]
+              }
+            },
+            installation_kits: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  name: translationSchema,
+                  price: { type: Type.NUMBER }
+                },
+                required: ["name", "price"]
               }
             },
             extras: {
@@ -139,28 +124,27 @@ serve(async (req) => {
               items: {
                 type: Type.OBJECT,
                 properties: {
-                  id: { type: Type.STRING },
                   name: translationSchema,
                   price: { type: Type.NUMBER }
                 },
-                required: ["id", "name", "price"]
+                required: ["name", "price"]
               }
             },
-            financing: {
+            financing_table: {
               type: Type.ARRAY,
               items: {
                 type: Type.OBJECT,
                 properties: {
                   label: translationSchema,
                   months: { type: Type.NUMBER },
-                  commission: { type: Type.NUMBER },
-                  coefficient: { type: Type.NUMBER }
+                  coefficient: { type: Type.NUMBER },
+                  commission: { type: Type.NUMBER }
                 },
                 required: ["label", "months", "coefficient"]
               }
             }
           },
-          required: ["brand", "model", "type", "description", "technical", "features", "pricing"]
+          required: ["brand", "model", "type", "technical_specs", "pricing_variants"]
         }
       }
     })
