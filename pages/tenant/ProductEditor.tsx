@@ -90,7 +90,7 @@ export const ProductEditor = () => {
 
   const handleAiExtract = async (file: File) => {
     setAiLoading(true);
-    console.log("Iniciando extracción para archivo:", file.name);
+    console.log("Iniciando extracción para tenant:", tenant.name);
     
     try {
       const formData = new FormData();
@@ -103,55 +103,60 @@ export const ProductEditor = () => {
       if (error) throw error;
       
       if (data) {
-        console.log("Datos crudos recibidos de la IA:", data);
+        console.log("Datos recibidos de la IA:", data);
 
-        // Helper ultra-seguro para extraer texto de objetos de traducción o strings
-        const getVal = (field: any) => {
-          if (!field) return "";
-          if (typeof field === 'string') return field;
-          return field[language] || field.es || field.ca || "";
+        // Función para extraer el texto plano según el idioma activo
+        const getString = (val: any) => {
+          if (!val) return "";
+          if (typeof val === 'string') return val;
+          return val[language] || val.es || val.ca || "";
         };
 
-        // 1. ACTUALIZAR PRODUCT DATA (Pestaña General y Listas)
+        // 1. Mapear datos principales (General)
+        const brandString = getString(data.brand);
+        const modelString = getString(data.model);
+
+        console.log("Mapeando a interfaz:", { brandString, modelString });
+
         setProductData(prev => ({
           ...prev,
-          brand: getVal(data.brand) || prev.brand,
-          model: getVal(data.model) || prev.model,
+          tenant_id: tenant.id, // Aseguramos que el tenant no se pierda
+          brand: brandString,
+          model: modelString,
           type: data.type || prev.type,
           pricing: data.pricing ? data.pricing.map((p: any) => ({
-            variant: getVal(p.variant),
+            variant: getString(p.variant),
             price: p.price
           })) : prev.pricing,
-          installation_kits: data.kits ? data.kits.map((k: any) => ({
-            name: getVal(k.name),
+          installation_kits: data.installation_kits ? data.installation_kits.map((k: any) => ({
+            name: getString(k.name),
             price: k.price
           })) : prev.installation_kits,
           extras: data.extras ? data.extras.map((e: any) => ({
-            name: getVal(e.name),
+            name: getString(e.name),
             price: e.price
           })) : prev.extras
         }));
 
-        // 2. ACTUALIZAR TECH SPECS
+        // 2. Mapear datos técnicos
         if (data.technical_data) {
           setTechSpecs(data.technical_data.map((s: any) => ({
-            title: getVal(s.label),
+            title: getString(s.label),
             description: s.value
           })));
         }
 
-        // 3. ACTUALIZAR FINANCIACIÓN
+        // 3. Mapear financiación
         if (data.financing) {
           setFinancing(data.financing.map((f: any) => ({
-            label: getVal(f.label),
+            label: getString(f.label),
             months: f.months,
             commission: 0,
             coefficient: f.coefficient
           })));
         }
 
-        console.log("Estado actualizado con éxito.");
-        alert("✨ Datos extraídos. Revisa los campos de Marca, Modelo y especificaciones.");
+        alert("✨ ¡Datos extraídos con éxito!");
       }
     } catch (err: any) {
       console.error("Error en handleAiExtract:", err);
@@ -203,6 +208,7 @@ export const ProductEditor = () => {
           </button>
           <div className="flex flex-col text-left">
             <h1 className="text-xl md:text-2xl font-black text-slate-800 tracking-tighter italic uppercase leading-none">Editor de Producto</h1>
+            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">Empresa: {tenant.name}</span>
           </div>
         </div>
         <button onClick={handleSave} disabled={saving} className="bg-blue-600 text-white px-8 py-3.5 rounded-xl font-black text-[11px] uppercase tracking-widest shadow-xl hover:bg-blue-700 transition-all active:scale-95">
@@ -249,8 +255,16 @@ export const ProductEditor = () => {
                  </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <Input label="Marca" value={productData.brand || ''} onChange={(e:any) => setProductData({...productData, brand: e.target.value})} />
-                <Input label="Modelo" value={productData.model || ''} onChange={(e:any) => setProductData({...productData, model: e.target.value})} />
+                <Input 
+                  label="Marca" 
+                  value={productData.brand || ''} 
+                  onChange={(e:any) => setProductData({...productData, brand: e.target.value})} 
+                />
+                <Input 
+                  label="Modelo" 
+                  value={productData.model || ''} 
+                  onChange={(e:any) => setProductData({...productData, model: e.target.value})} 
+                />
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div>

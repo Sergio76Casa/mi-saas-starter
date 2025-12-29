@@ -39,15 +39,17 @@ serve(async (req) => {
       type: Type.OBJECT,
       properties: {
         es: { type: Type.STRING },
-        ca: { type: Type.STRING },
-        en: { type: Type.STRING },
-        fr: { type: Type.STRING }
+        ca: { type: Type.STRING }
       },
       required: ["es", "ca"]
     };
 
-    const prompt = `Analiza este catálogo de climatización. Extrae la información técnica y comercial. 
-    IMPORTANTE: Todos los nombres, etiquetas y marcas DEBEN ser objetos con traducciones es y ca.`
+    const prompt = `Analiza este documento técnico de climatización. 
+    Extrae la información y devuélvela en formato JSON bilingüe.
+    IMPORTANTE: 
+    1. 'brand' y 'model' deben ser OBJETOS con 'es' y 'ca'.
+    2. 'type' debe ser uno de: aire_acondicionado, caldera, termo_electrico, aerotermia.
+    3. Respeta estrictamente los nombres de los campos.`
 
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
@@ -64,7 +66,7 @@ serve(async (req) => {
           properties: {
             brand: translationSchema,
             model: translationSchema,
-            type: { type: Type.STRING, description: "aire_acondicionado, caldera, termo_electrico, aerotermia" },
+            type: { type: Type.STRING },
             technical_data: {
               type: Type.ARRAY,
               items: {
@@ -87,7 +89,7 @@ serve(async (req) => {
                 required: ["variant", "price"]
               }
             },
-            kits: {
+            installation_kits: {
               type: Type.ARRAY,
               items: {
                 type: Type.OBJECT,
@@ -122,7 +124,7 @@ serve(async (req) => {
               }
             }
           },
-          required: ["brand", "model", "type", "technical_data", "pricing"]
+          required: ["brand", "model", "type", "pricing"]
         }
       }
     })
