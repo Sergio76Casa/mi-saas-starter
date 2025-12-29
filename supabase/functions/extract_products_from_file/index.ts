@@ -35,21 +35,12 @@ serve(async (req) => {
     const arrayBuffer = await file.arrayBuffer()
     const base64Data = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)))
 
-    const translationSchema = {
-      type: Type.OBJECT,
-      properties: {
-        es: { type: Type.STRING },
-        ca: { type: Type.STRING }
-      },
-      required: ["es", "ca"]
-    };
-
-    const prompt = `Analiza este documento técnico de climatización. 
-    Extrae la información y devuélvela en formato JSON bilingüe.
-    IMPORTANTE: 
-    1. 'brand' y 'model' deben ser OBJETOS con 'es' y 'ca'.
-    2. 'type' debe ser uno de: aire_acondicionado, caldera, termo_electrico, aerotermia.
-    3. Respeta estrictamente los nombres de los campos.`
+    const prompt = `Analiza este documento de climatización y extrae los datos técnicos.
+    DEVUELVE ÚNICAMENTE UN JSON PLANO SIN TRADUCCIONES.
+    REGLAS:
+    1. 'brand' y 'model' deben ser STRINGS simples.
+    2. 'type' debe ser: aire_acondicionado, caldera, termo_electrico o aerotermia.
+    3. Si no encuentras un campo, deja el string vacío o el array vacío.`
 
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
@@ -64,15 +55,15 @@ serve(async (req) => {
         responseSchema: {
           type: Type.OBJECT,
           properties: {
-            brand: translationSchema,
-            model: translationSchema,
+            brand: { type: Type.STRING },
+            model: { type: Type.STRING },
             type: { type: Type.STRING },
             technical_data: {
               type: Type.ARRAY,
               items: {
                 type: Type.OBJECT,
                 properties: {
-                  label: translationSchema,
+                  label: { type: Type.STRING },
                   value: { type: Type.STRING }
                 },
                 required: ["label", "value"]
@@ -83,7 +74,7 @@ serve(async (req) => {
               items: {
                 type: Type.OBJECT,
                 properties: {
-                  variant: translationSchema,
+                  variant: { type: Type.STRING },
                   price: { type: Type.NUMBER }
                 },
                 required: ["variant", "price"]
@@ -94,10 +85,9 @@ serve(async (req) => {
               items: {
                 type: Type.OBJECT,
                 properties: {
-                  name: translationSchema,
+                  name: { type: Type.STRING },
                   price: { type: Type.NUMBER }
-                },
-                required: ["name", "price"]
+                }
               }
             },
             extras: {
@@ -105,10 +95,9 @@ serve(async (req) => {
               items: {
                 type: Type.OBJECT,
                 properties: {
-                  name: translationSchema,
+                  name: { type: Type.STRING },
                   price: { type: Type.NUMBER }
-                },
-                required: ["name", "price"]
+                }
               }
             },
             financing: {
@@ -116,11 +105,10 @@ serve(async (req) => {
               items: {
                 type: Type.OBJECT,
                 properties: {
-                  label: translationSchema,
+                  label: { type: Type.STRING },
                   months: { type: Type.NUMBER },
                   coefficient: { type: Type.NUMBER }
-                },
-                required: ["label", "months", "coefficient"]
+                }
               }
             }
           },

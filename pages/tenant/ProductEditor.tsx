@@ -86,11 +86,11 @@ export const ProductEditor = () => {
       setLoading(false);
     };
     fetchProduct();
-  }, [id]);
+  }, [id, tenant.id]);
 
   const handleAiExtract = async (file: File) => {
     setAiLoading(true);
-    console.log("Iniciando extracción para tenant:", tenant.name);
+    console.log("Extrayendo datos para tenant_id:", tenant.id);
     
     try {
       const formData = new FormData();
@@ -103,63 +103,42 @@ export const ProductEditor = () => {
       if (error) throw error;
       
       if (data) {
-        console.log("Datos recibidos de la IA:", data);
+        console.log("Datos directos de la IA:", data);
 
-        // Función para extraer el texto plano según el idioma activo
-        const getString = (val: any) => {
-          if (!val) return "";
-          if (typeof val === 'string') return val;
-          return val[language] || val.es || val.ca || "";
-        };
-
-        // 1. Mapear datos principales (General)
-        const brandString = getString(data.brand);
-        const modelString = getString(data.model);
-
-        console.log("Mapeando a interfaz:", { brandString, modelString });
-
+        // 1. ASIGNACIÓN DIRECTA (SIN TRADUCCIONES)
         setProductData(prev => ({
           ...prev,
-          tenant_id: tenant.id, // Aseguramos que el tenant no se pierda
-          brand: brandString,
-          model: modelString,
+          tenant_id: tenant.id, // Seguridad máxima de tennant
+          brand: data.brand || prev.brand,
+          model: data.model || prev.model,
           type: data.type || prev.type,
-          pricing: data.pricing ? data.pricing.map((p: any) => ({
-            variant: getString(p.variant),
-            price: p.price
-          })) : prev.pricing,
-          installation_kits: data.installation_kits ? data.installation_kits.map((k: any) => ({
-            name: getString(k.name),
-            price: k.price
-          })) : prev.installation_kits,
-          extras: data.extras ? data.extras.map((e: any) => ({
-            name: getString(e.name),
-            price: e.price
-          })) : prev.extras
+          pricing: data.pricing || prev.pricing,
+          installation_kits: data.installation_kits || prev.installation_kits,
+          extras: data.extras || prev.extras
         }));
 
-        // 2. Mapear datos técnicos
+        // 2. ESPECIFICACIONES TÉCNICAS
         if (data.technical_data) {
           setTechSpecs(data.technical_data.map((s: any) => ({
-            title: getString(s.label),
+            title: s.label,
             description: s.value
           })));
         }
 
-        // 3. Mapear financiación
+        // 3. FINANCIACIÓN
         if (data.financing) {
           setFinancing(data.financing.map((f: any) => ({
-            label: getString(f.label),
+            label: f.label,
             months: f.months,
             commission: 0,
             coefficient: f.coefficient
           })));
         }
 
-        alert("✨ ¡Datos extraídos con éxito!");
+        alert("✨ Datos extraídos correctamente. Revisa la pestaña General.");
       }
     } catch (err: any) {
-      console.error("Error en handleAiExtract:", err);
+      console.error("Error en extracción:", err);
       alert("Error: " + err.message);
     } finally {
       setAiLoading(false);
@@ -208,7 +187,7 @@ export const ProductEditor = () => {
           </button>
           <div className="flex flex-col text-left">
             <h1 className="text-xl md:text-2xl font-black text-slate-800 tracking-tighter italic uppercase leading-none">Editor de Producto</h1>
-            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">Empresa: {tenant.name}</span>
+            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">Tenant: {tenant.name} ({tenant.id.slice(0,5)})</span>
           </div>
         </div>
         <button onClick={handleSave} disabled={saving} className="bg-blue-600 text-white px-8 py-3.5 rounded-xl font-black text-[11px] uppercase tracking-widest shadow-xl hover:bg-blue-700 transition-all active:scale-95">
