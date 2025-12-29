@@ -81,9 +81,7 @@ export const ProductEditor = () => {
             if (parsed.techSpecs) setTechSpecs(parsed.techSpecs);
             if (parsed.financing) setFinancing(parsed.financing);
           }
-        } catch (e) {
-          console.error("No technical features found.");
-        }
+        } catch (e) { console.error("Error parsing features"); }
       }
       setLoading(false);
     };
@@ -92,14 +90,12 @@ export const ProductEditor = () => {
 
   const handleAiExtract = async (file: File) => {
     setAiLoading(true);
-    console.group("🚀 IA Extraction Started");
-    console.log("File name:", file.name);
+    console.log("Iniciando extracción para archivo:", file.name);
     
     try {
       const formData = new FormData();
       formData.append('file', file);
 
-      // Invocamos la función de Supabase
       const { data, error } = await supabase.functions.invoke('extract_products_from_file', {
         body: formData
       });
@@ -107,61 +103,61 @@ export const ProductEditor = () => {
       if (error) throw error;
       
       if (data) {
-        // --- LOGS PARA NETWORK / CONSOLA ---
-        console.log("Raw Response from AI:", data);
-        console.table(data.technical_data);
-        
-        const getT = (obj: any) => obj?.[language] || obj?.es || "";
+        console.log("Datos crudos recibidos de la IA:", data);
 
-        // 1. MAPEAMOS DATOS GENERALES
+        // Helper ultra-seguro para extraer texto de objetos de traducción o strings
+        const getVal = (field: any) => {
+          if (!field) return "";
+          if (typeof field === 'string') return field;
+          return field[language] || field.es || field.ca || "";
+        };
+
+        // 1. ACTUALIZAR PRODUCT DATA (Pestaña General y Listas)
         setProductData(prev => ({
           ...prev,
-          brand: data.brand || prev.brand,
-          model: data.model || prev.model,
+          brand: getVal(data.brand) || prev.brand,
+          model: getVal(data.model) || prev.model,
           type: data.type || prev.type,
-          pricing: data.pricing_list ? data.pricing_list.map((p: any) => ({
-            variant: getT(p.name),
+          pricing: data.pricing ? data.pricing.map((p: any) => ({
+            variant: getVal(p.variant),
             price: p.price
           })) : prev.pricing,
           installation_kits: data.kits ? data.kits.map((k: any) => ({
-            name: getT(k.name),
+            name: getVal(k.name),
             price: k.price
           })) : prev.installation_kits,
           extras: data.extras ? data.extras.map((e: any) => ({
-            name: getT(e.name),
+            name: getVal(e.name),
             price: e.price
           })) : prev.extras
         }));
 
-        // 2. MAPEAMOS TECH SPECS
+        // 2. ACTUALIZAR TECH SPECS
         if (data.technical_data) {
-          const newSpecs = data.technical_data.map((s: any) => ({
-            title: getT(s.label),
+          setTechSpecs(data.technical_data.map((s: any) => ({
+            title: getVal(s.label),
             description: s.value
-          }));
-          setTechSpecs(newSpecs);
+          })));
         }
 
-        // 3. MAPEAMOS FINANCIACIÓN
+        // 3. ACTUALIZAR FINANCIACIÓN
         if (data.financing) {
-          const newFin = data.financing.map((f: any) => ({
-            label: getT(f.label),
+          setFinancing(data.financing.map((f: any) => ({
+            label: getVal(f.label),
             months: f.months,
             commission: 0,
             coefficient: f.coefficient
-          }));
-          setFinancing(newFin);
+          })));
         }
 
-        console.log("✅ Data mapped to React State successfully.");
-        setActiveTab('technical'); // Saltamos a una pestaña con datos para confirmar
+        console.log("Estado actualizado con éxito.");
+        alert("✨ Datos extraídos. Revisa los campos de Marca, Modelo y especificaciones.");
       }
     } catch (err: any) {
-      console.error("❌ Extraction Failed:", err);
+      console.error("Error en handleAiExtract:", err);
       alert("Error: " + err.message);
     } finally {
       setAiLoading(false);
-      console.groupEnd();
     }
   };
 
@@ -253,8 +249,8 @@ export const ProductEditor = () => {
                  </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <Input label="Marca" value={productData.brand} onChange={(e:any) => setProductData({...productData, brand: e.target.value})} />
-                <Input label="Modelo" value={productData.model} onChange={(e:any) => setProductData({...productData, model: e.target.value})} />
+                <Input label="Marca" value={productData.brand || ''} onChange={(e:any) => setProductData({...productData, brand: e.target.value})} />
+                <Input label="Modelo" value={productData.model || ''} onChange={(e:any) => setProductData({...productData, model: e.target.value})} />
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div>
