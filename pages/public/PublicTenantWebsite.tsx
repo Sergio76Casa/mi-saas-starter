@@ -307,12 +307,9 @@ export const PublicTenantWebsite = () => {
   // --- VISTA PROFESIONAL DE BAJA ---
   if (tenant.status === 'inactive') return (
     <div className="min-h-screen bg-[#050505] flex items-center justify-center p-6 relative overflow-hidden selection:bg-brand-500/30">
-       {/* Ambient Glows */}
        <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-brand-500/5 blur-[120px] rounded-full"></div>
        <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-blue-500/5 blur-[120px] rounded-full"></div>
-
        <div className="max-w-2xl w-full text-center relative z-10 animate-in slide-in-from-bottom-12 duration-1000">
-         {/* Branding Inactivo */}
          <div className="mb-12 flex justify-center opacity-40">
             {tenant.use_logo_on_web && tenant.logo_url ? (
                <img src={tenant.logo_url} className="h-10 grayscale brightness-200" alt={tenant.name} />
@@ -320,38 +317,22 @@ export const PublicTenantWebsite = () => {
                <span className="text-2xl font-black italic tracking-tighter uppercase text-white">{tenant.name}</span>
             )}
          </div>
-
-         {/* Icono de Estado */}
          <div className="w-24 h-24 bg-white/[0.03] border border-white/10 rounded-[2.5rem] flex items-center justify-center mx-auto mb-10 shadow-2xl relative group">
            <div className="absolute inset-0 bg-white/5 blur-xl rounded-full group-hover:bg-brand-500/20 transition-all duration-700"></div>
            <svg className="w-10 h-10 text-slate-400 relative z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 00-2 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
            </svg>
          </div>
-
-         <h2 className="text-4xl md:text-6xl font-black text-white tracking-tighter uppercase italic mb-8 leading-[0.95]">
-           {tt('inactive_title')}
-         </h2>
-         
+         <h2 className="text-4xl md:text-6xl font-black text-white tracking-tighter uppercase italic mb-8 leading-[0.95]">{tt('inactive_title')}</h2>
          <div className="space-y-6 max-w-lg mx-auto">
-            <p className="text-slate-400 font-medium italic text-sm md:text-base leading-relaxed">
-              {tt('inactive_msg')}
-            </p>
-            <p className="text-slate-600 text-[10px] font-black uppercase tracking-[0.2em] leading-relaxed">
-              {tt('inactive_contact')}
-            </p>
+            <p className="text-slate-400 font-medium italic text-sm md:text-base leading-relaxed">{tt('inactive_msg')}</p>
+            <p className="text-slate-600 text-[10px] font-black uppercase tracking-[0.2em] leading-relaxed">{tt('inactive_contact')}</p>
          </div>
-
          <div className="mt-16 flex flex-col items-center gap-6">
             <div className="h-px w-24 bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
-            <Link to="/" className="px-10 py-4 bg-white text-black rounded-full text-[10px] font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-xl shadow-white/5">
-              {tt('inactive_btn')}
-            </Link>
+            <Link to="/" className="px-10 py-4 bg-white text-black rounded-full text-[10px] font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-xl shadow-white/5">{tt('inactive_btn')}</Link>
          </div>
-
-         <footer className="mt-24 opacity-20">
-            <p className="text-[9px] font-black uppercase tracking-widest text-white">SYSTEM SECURITY STATUS: SUSPENDED</p>
-         </footer>
+         <footer className="mt-24 opacity-20"><p className="text-[9px] font-black uppercase tracking-widest text-white">SYSTEM SECURITY STATUS: SUSPENDED</p></footer>
        </div>
     </div>
   );
@@ -360,27 +341,60 @@ export const PublicTenantWebsite = () => {
 
   return (
     <div className="min-h-screen bg-white text-slate-900 selection:bg-blue-600/20 overflow-x-hidden animate-in fade-in duration-700">
+      {/* HEADER: FIXED GLASSMORPHISM NAVIGATION */}
       <nav className="fixed top-0 left-0 right-0 h-16 md:h-20 bg-white/80 backdrop-blur-md z-[100] border-b border-gray-100 shadow-sm transition-all duration-300">
         <div className="max-w-7xl mx-auto h-full flex items-center justify-between px-6 md:px-10">
           <button onClick={navigateToHome} className="flex items-center gap-3 group">
             {tenant.use_logo_on_web && tenant.logo_url ? (
-              <img src={tenant.logo_url} className="h-8 md:h-10 w-auto object-contain" alt={tenant.name} />
+              <img src={tenant.logo_url} className="h-8 md:h-10 w-auto object-contain transition-transform group-hover:scale-105" alt={tenant.name} />
             ) : (
-              <span className="text-lg md:text-xl font-black italic tracking-tighter uppercase text-slate-900">{tenant.name}</span>
+              <>
+                <div className="w-8 h-8 md:w-10 md:h-10 bg-blue-600 text-white shadow-lg shadow-blue-600/20 rounded-xl flex items-center justify-center transition-transform group-hover:scale-110">
+                   <svg className="w-5 h-5 md:w-6 md:h-6" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L4.5 20.29L5.21 21L12 18L18.79 21L19.5 20.29L12 2Z"/></svg>
+                </div>
+                <span className="text-lg md:text-xl font-black italic tracking-tighter uppercase text-slate-900">{tenant.name}</span>
+              </>
             )}
           </button>
           
+          {/* NAVIGATION BUTTONS (MIDDLE) */}
+          <div className="hidden lg:flex items-center gap-1">
+            <button onClick={navigateToHome} className={`px-4 py-2 rounded-lg text-[13px] font-bold tracking-tight transition-all ${view === 'landing' ? 'bg-blue-50 text-blue-600' : 'text-slate-500 hover:text-slate-900'}`}>{tt('nav_home')}</button>
+            <button onClick={navigateToCatalog} className="px-4 py-2 rounded-lg text-[13px] font-bold tracking-tight text-slate-500 hover:text-slate-900 transition-all">{tt('nav_products')}</button>
+            <button onClick={() => setIsContactModalOpen(true)} className="px-4 py-2 rounded-lg text-[13px] font-bold tracking-tight text-slate-500 hover:text-slate-900 transition-all">{tt('nav_contact')}</button>
+          </div>
+
           <div className="flex items-center gap-4">
-              <select value={language} onChange={(e) => setLanguage(e.target.value as any)} className="bg-transparent text-[11px] font-black uppercase text-slate-600 outline-none">
+              <select value={language} onChange={(e) => setLanguage(e.target.value as any)} className="bg-transparent text-[11px] font-black uppercase text-slate-600 outline-none cursor-pointer">
                  <option value="es">ES</option>
                  <option value="ca">CA</option>
               </select>
               <button onClick={handleAdminClick} className="w-9 h-9 flex items-center justify-center text-slate-400 hover:text-slate-900 transition-all bg-slate-50 border border-slate-100 rounded-lg">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
               </button>
           </div>
         </div>
       </nav>
+
+      {/* CONTACT MODAL */}
+      {isContactModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[200] flex items-center justify-center p-4 animate-in fade-in duration-300">
+          <div className="bg-white rounded-[2rem] md:rounded-[3.5rem] p-8 md:p-14 w-full max-w-xl shadow-2xl relative overflow-y-auto max-h-[90vh]">
+            <button onClick={() => setIsContactModalOpen(false)} className="absolute top-6 right-6 text-slate-300 hover:text-slate-900"><svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M6 18L18 6M6 6l12 12"/></svg></button>
+            {contactStatus === 'success' ? (
+              <div className="text-center py-8"><div className="w-16 h-16 bg-green-50 text-green-500 rounded-full flex items-center justify-center mx-auto mb-6"><svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" d="M5 13l4 4L19 7"/></svg></div><h3 className="text-2xl font-black italic uppercase">{tt('contact_success')}</h3></div>
+            ) : (
+              <><h3 className="text-3xl font-black tracking-tighter uppercase italic mb-8">{tt('contact_title')}</h3>
+                <form onSubmit={handleContactSubmit} className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4"><Input label={tt('wizard_fullname')} value={contactForm.name} onChange={(e:any) => setContactForm({...contactForm, name: e.target.value})} required /><Input label={tt('wizard_email')} type="email" value={contactForm.email} onChange={(e:any) => setContactForm({...contactForm, email: e.target.value})} required /></div>
+                  <Input label={tt('contact_phone')} value={contactForm.phone} onChange={(e:any) => setContactForm({...contactForm, phone: e.target.value})} />
+                  <textarea className="w-full px-4 py-3 border border-gray-100 rounded-xl shadow-sm bg-gray-50/50 h-24 resize-none text-sm outline-none focus:ring-2 focus:ring-blue-500" placeholder={tt('contact_message')} value={contactForm.message} onChange={(e) => setContactForm({...contactForm, message: e.target.value})} required />
+                  <button type="submit" className="w-full py-4 bg-blue-600 text-white rounded-xl font-black uppercase text-[12px] tracking-widest shadow-xl shadow-blue-600/30">{contactStatus === 'sending' ? tt('contact_sending') : tt('contact_btn_send')}</button>
+                </form></>
+            )}
+          </div>
+        </div>
+      )}
 
       {view === 'landing' ? (
         <main className="animate-in fade-in duration-1000 pb-20 pt-16 md:pt-20">
