@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate, useOutletContext } from 'react-router-dom';
 import { supabase } from '../../supabaseClient';
 import { Tenant, Product } from '../../types';
@@ -20,6 +20,11 @@ const STATUSES = [
 ];
 
 type TabId = 'general' | 'technical' | 'pricing' | 'stock' | 'multimedia';
+
+interface TechSpec {
+  title: string;
+  description: string;
+}
 
 export const ProductEditor = () => {
   const { id, slug } = useParams();
@@ -52,6 +57,9 @@ export const ProductEditor = () => {
     brand_logo_url: ''
   });
 
+  // State for structured technical specifications
+  const [techSpecs, setTechSpecs] = useState<TechSpec[]>([]);
+
   useEffect(() => {
     const fetchProduct = async () => {
       if (id === 'new') {
@@ -61,8 +69,24 @@ export const ProductEditor = () => {
       const { data, error } = await supabase.from('products').select('*').eq('id', id).single();
       if (data && !error) {
         setProductData(data);
-        // Set existing URLs as previews for backward compatibility
         setPreviews({ product: data.image_url || '', logo: data.brand_logo_url || '' });
+        
+        // Try to parse features as JSON if it's structured data
+        try {
+          if (data.features) {
+            const parsed = JSON.parse(data.features);
+            if (Array.isArray(parsed)) {
+              setTechSpecs(parsed);
+            } else {
+              setTechSpecs([{ title: 'Descripción General', description: data.features }]);
+            }
+          }
+        } catch (e) {
+          // If not JSON, it's legacy string
+          if (data.features) {
+            setTechSpecs([{ title: 'Descripción General', description: data.features }]);
+          }
+        }
       }
       setLoading(false);
     };
@@ -89,13 +113,7 @@ export const ProductEditor = () => {
     const path = `${tenant.id}/${folder}/${fileName}`;
     
     const { error } = await supabase.storage.from('products').upload(path, file);
-    
-    if (error) {
-      if (error.message.includes("Bucket not found")) {
-        throw new Error("El bucket 'products' no existe en Supabase Storage. Debes crearlo (como público) en tu panel de control.");
-      }
-      throw error;
-    }
+    if (error) throw error;
     
     const { data: { publicUrl } } = supabase.storage.from('products').getPublicUrl(path);
     return publicUrl;
@@ -129,6 +147,11 @@ export const ProductEditor = () => {
             price: p.price || 0
           }))
         }));
+        
+        // If IA provides a description, set it as the first spec
+        if (first.description) {
+          setTechSpecs([{ title: 'Características Principales', description: first.description }]);
+        }
       }
     } catch (err: any) {
       console.error("Error IA:", err.message);
@@ -150,13 +173,14 @@ export const ProductEditor = () => {
       let finalLogoUrl = productData.brand_logo_url;
       let finalPdfUrl = productData.pdf_url;
 
-      // Only upload if new files were selected
       if (productFile) finalImageUrl = await uploadToStorage(productFile, 'images');
       if (logoFile) finalLogoUrl = await uploadToStorage(logoFile, 'logos');
       if (pdfFile) finalPdfUrl = await uploadToStorage(pdfFile, 'docs');
 
+      // Sync techSpecs into features as JSON string
       const payload = {
         ...productData,
+        features: JSON.stringify(techSpecs),
         image_url: finalImageUrl,
         brand_logo_url: finalLogoUrl,
         pdf_url: finalPdfUrl,
@@ -200,6 +224,21 @@ export const ProductEditor = () => {
     });
   };
 
+  // Structured specs handlers
+  const addTechSpec = () => {
+    setTechSpecs([...techSpecs, { title: '', description: '' }]);
+  };
+
+  const updateTechSpec = (index: number, field: keyof TechSpec, value: string) => {
+    const updated = [...techSpecs];
+    updated[index] = { ...updated[index], [field]: value };
+    setTechSpecs(updated);
+  };
+
+  const removeTechSpec = (index: number) => {
+    setTechSpecs(techSpecs.filter((_, i) => i !== index));
+  };
+
   if (loading) return <LoadingSpinner />;
 
   return (
@@ -236,7 +275,7 @@ export const ProductEditor = () => {
 
         <div className="bg-white p-8 md:p-14 rounded-[2.5rem] border border-slate-100 shadow-sm min-h-[500px]">
           {activeTab === 'general' && (
-            <div className="animate-in fade-in slide-in-from-bottom-2 duration-500 space-y-10 max-w-3xl">
+            <div className="animate-in fade-in slide-in-from-bottom-2 duration-500 space-y-10 max-w-3xl text-left">
               <div className="flex justify-between items-start">
                  <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 italic">Información Principal</h3>
                  <div className="flex items-center gap-3">
@@ -260,7 +299,7 @@ export const ProductEditor = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1">Estado (CA-STATUS)</label>
+                  <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1">Estado</label>
                   <select value={productData.status} onChange={(e:any) => setProductData({...productData, status: e.target.value})} className="w-full px-4 py-3 border border-slate-100 rounded-xl bg-slate-50/50 text-sm font-bold focus:ring-2 focus:ring-blue-500 outline-none">
                     {STATUSES.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
                   </select>
@@ -270,19 +309,68 @@ export const ProductEditor = () => {
           )}
 
           {activeTab === 'technical' && (
-            <div className="animate-in fade-in slide-in-from-bottom-2 duration-500 space-y-6">
-              <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 italic mb-6">Especificaciones y Características</h3>
-              <textarea 
-                value={productData.features || ''} 
-                onChange={(e) => setProductData({...productData, features: e.target.value})}
-                placeholder="Escribe aquí los detalles técnicos que aparecerán en la web..."
-                className="w-full h-80 p-8 border border-slate-100 rounded-[2.5rem] bg-slate-50/30 text-sm font-medium focus:ring-2 focus:ring-blue-500 outline-none resize-none"
-              />
+            <div className="animate-in fade-in slide-in-from-bottom-2 duration-500 space-y-8 text-left">
+              <div className="flex justify-between items-center mb-6">
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center">
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
+                  </div>
+                  <h3 className="text-xl font-black text-slate-800 tracking-tight italic uppercase">Especificaciones Técnicas</h3>
+                </div>
+                <button 
+                  onClick={addTechSpec}
+                  className="px-6 py-2.5 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg hover:bg-black transition-all"
+                >
+                  + Nueva Especificación
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {techSpecs.map((spec, index) => (
+                  <div key={index} className="relative group p-8 bg-white border border-slate-100 rounded-[2rem] shadow-sm hover:shadow-md transition-all flex flex-col gap-4">
+                    <button 
+                      onClick={() => removeTechSpec(index)}
+                      className="absolute top-4 right-4 text-slate-300 hover:text-red-500 transition-colors p-2"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                    
+                    <div className="flex items-start gap-4">
+                      <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center shrink-0 mt-1">
+                        <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"/></svg>
+                      </div>
+                      <div className="flex-1 space-y-4">
+                        <input 
+                          type="text" 
+                          placeholder="Título de la característica..."
+                          value={spec.title}
+                          onChange={(e) => updateTechSpec(index, 'title', e.target.value)}
+                          className="w-full text-lg font-black text-slate-900 placeholder-slate-300 focus:outline-none bg-transparent leading-none"
+                        />
+                        <textarea 
+                          placeholder="Descripción detallada de la tecnología o capacidad..."
+                          value={spec.description}
+                          onChange={(e) => updateTechSpec(index, 'description', e.target.value)}
+                          className="w-full text-sm font-medium text-slate-500 placeholder-slate-300 focus:outline-none bg-transparent resize-none h-20 leading-relaxed"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+
+                {techSpecs.length === 0 && (
+                  <div className="md:col-span-2 py-20 border-2 border-dashed border-slate-100 rounded-[2.5rem] flex flex-col items-center justify-center text-slate-300 italic">
+                    <svg className="w-12 h-12 mb-4 opacity-20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                    <p className="text-xs font-black uppercase tracking-widest">No hay especificaciones técnicas añadidas.</p>
+                    <button onClick={addTechSpec} className="mt-4 text-blue-600 font-black text-[10px] uppercase tracking-widest hover:underline">Añadir la primera</button>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
           {activeTab === 'pricing' && (
-            <div className="animate-in fade-in slide-in-from-bottom-2 duration-500 space-y-16">
+            <div className="animate-in fade-in slide-in-from-bottom-2 duration-500 space-y-16 text-left">
               <section>
                 <div className="flex justify-between items-center mb-8 border-b border-slate-50 pb-4">
                   <h3 className="text-xs font-black uppercase tracking-widest text-slate-900">1. Variantes y Precios</h3>
@@ -333,7 +421,6 @@ export const ProductEditor = () => {
             </div>
           )}
 
-          {/* TAB 4: STOCK (CA-STOCK) */}
           {activeTab === 'stock' && (
             <div className="animate-in fade-in slide-in-from-bottom-2 duration-500 max-w-sm text-left">
               <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 italic mb-8">Control de Existencias</h3>
@@ -341,7 +428,6 @@ export const ProductEditor = () => {
             </div>
           )}
 
-          {/* TAB 5: MULTIMEDIA (CA-MEDIA-1, CA-MEDIA-3) */}
           {activeTab === 'multimedia' && (
             <div className="animate-in fade-in slide-in-from-bottom-2 duration-500 space-y-12 text-left">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
@@ -368,7 +454,7 @@ export const ProductEditor = () => {
                     ) : (
                       <div className="text-center p-8">
                         <svg className="w-12 h-12 text-slate-200 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"/></svg>
-                        <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Logo del fabricante</p>
+                        <p className="text-[10px] font-black text-gray-300 uppercase tracking-widest">Logo del fabricante</p>
                       </div>
                     )}
                     <input type="file" onChange={(e) => handleFileUpload(e, 'logo')} className="absolute inset-0 opacity-0 cursor-pointer" accept="image/*" />
