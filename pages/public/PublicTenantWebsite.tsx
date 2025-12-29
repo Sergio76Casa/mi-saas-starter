@@ -14,6 +14,7 @@ type PublicCatalogResponse = {
     id?: string; 
     name: string; 
     slug: string;
+    status?: string;
     logo_url?: string;
     use_logo_on_web?: boolean;
   }; 
@@ -42,6 +43,9 @@ const LOCAL_I18N = {
     nav_admin_btn: 'ADMIN',
     error_404_msg: 'Error: Empresa no encontrada',
     error_404_btn: 'Volver',
+    inactive_title: 'Web No Disponible',
+    inactive_msg: 'Esta página web se encuentra temporalmente inactiva o fuera de servicio.',
+    inactive_contact: 'Si eres el propietario, contacta con soporte para reactivar tu suscripción.',
     hero_badge: 'TECNOLOGÍA INVERTER 2024',
     hero_title_1: 'Clima perfecto,',
     hero_title_2: 'Ahorro real.',
@@ -64,7 +68,6 @@ const LOCAL_I18N = {
     brand_tag: 'MARCA',
     no_products_filter: 'No hay productos disponibles con estos filtros',
     brand_card_models: 'Varios modelos disponibles en el asistente',
-    brand_card_gama: 'Gama',
     brand_card_from: 'Desde',
     brand_feat_warranty: 'Garantía Oficial',
     brand_feat_low_cons: 'Bajo Consumo',
@@ -129,6 +132,9 @@ const LOCAL_I18N = {
     nav_admin_btn: 'ADMIN',
     error_404_msg: 'Error: Empresa no trobada',
     error_404_btn: 'Tornar',
+    inactive_title: 'Web No Disponible',
+    inactive_msg: 'Aquesta pàgina web es troba temporalment inactiva o fora de servei.',
+    inactive_contact: 'Si ets el propietari, contacta amb suport per reactivar la teva subscripció.',
     hero_badge: 'TECNOLOGIA INVERTER 2024',
     hero_title_1: 'Clima perfecte,',
     hero_title_2: 'Estalvi real.',
@@ -151,7 +157,6 @@ const LOCAL_I18N = {
     brand_tag: 'MARCA',
     no_products_filter: 'No hi ha productes disponibles amb aquests filtres',
     brand_card_models: 'Diversos models disponibles a l’assistent',
-    brand_card_gama: 'Gama',
     brand_card_from: 'Des de',
     brand_feat_warranty: 'Garantia Oficial',
     brand_feat_low_cons: 'Baix Consum',
@@ -243,7 +248,6 @@ export const PublicTenantWebsite = () => {
   const [isDrawing, setIsDrawing] = useState(false);
 
   useEffect(() => {
-    // Reset states on slug change to force loading screen
     setIsDataReady(false);
     setIsError(false);
     setTenant(null);
@@ -398,20 +402,35 @@ export const PublicTenantWebsite = () => {
     return Object.keys(errors).length === 0;
   };
 
-  // UI GATES: PRIORITY LOADING
   if (!isDataReady || dbHealthy === null) return (
     <div className="animate-in fade-in duration-300">
       <LoadingSpinner />
     </div>
   );
   
-  // UI GATES: DEFINITIVE ERROR (404)
   if (isError || !tenant) return (
     <div className="min-h-screen flex items-center justify-center bg-white p-6 text-center animate-in fade-in zoom-in duration-500">
        <div>
          <h1 className="text-7xl md:text-9xl font-black text-slate-100 mb-4 tracking-tighter uppercase italic">404</h1>
          <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">{tt('error_404_msg')}</p>
          <Link to="/" className="mt-10 inline-block px-8 py-3 bg-blue-600 text-white rounded-full font-black uppercase text-[10px]">{tt('error_404_btn')}</Link>
+       </div>
+    </div>
+  );
+
+  // VISTA DE EMPRESA DE BAJA (STATUS INACTIVE)
+  if (tenant.status === 'inactive') return (
+    <div className="min-h-screen flex items-center justify-center bg-slate-900 p-6 text-center selection:bg-red-500/30">
+       <div className="max-w-md animate-in slide-in-from-bottom-8 duration-700">
+         <div className="w-24 h-24 bg-red-500/10 border border-red-500/20 text-red-500 rounded-[2rem] flex items-center justify-center mx-auto mb-10 shadow-2xl shadow-red-500/10">
+           <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+         </div>
+         <h2 className="text-3xl md:text-4xl font-black text-white tracking-tighter uppercase italic mb-4">{tt('inactive_title')}</h2>
+         <p className="text-slate-400 font-medium italic mb-2 text-sm leading-relaxed">{tt('inactive_msg')}</p>
+         <p className="text-slate-600 text-[10px] font-black uppercase tracking-widest leading-relaxed">{tt('inactive_contact')}</p>
+         <div className="mt-12">
+            <Link to="/" className="px-8 py-3 bg-white/5 border border-white/10 text-white rounded-full text-[9px] font-black uppercase tracking-[0.2em] hover:bg-white/10 transition-colors">Volver a la Plataforma</Link>
+         </div>
        </div>
     </div>
   );

@@ -16,6 +16,7 @@ export interface Tenant {
   status?: 'active' | 'inactive';
   logo_url?: string;
   use_logo_on_web?: boolean;
+  is_deleted?: boolean;
   created_at: string;
 }
 

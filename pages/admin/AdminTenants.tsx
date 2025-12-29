@@ -7,50 +7,92 @@ import { useApp } from '../../AppProvider';
 
 export const AdminTenants = () => {
   const [tenants, setTenants] = useState<Tenant[]>([]);
+  const [activeTab, setActiveTab] = useState<'directory' | 'trash'>('directory');
   const [isCreating, setIsCreating] = useState(false);
   const [newTenant, setNewTenant] = useState({ name: '', slug: '', plan: 'free' });
   const { dbHealthy } = useApp();
 
   const fetchTenants = async () => {
     if (!dbHealthy) return;
-    const { data } = await supabase.from('tenants').select('*').order('created_at', { ascending: false });
-    if (data) setTenants(data as any);
+    try {
+      const { data, error } = await supabase
+        .from('tenants')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      if (data) setTenants(data as any);
+    } catch (err: any) {
+      console.error("Error fetching tenants:", err.message);
+    }
   };
 
   useEffect(() => { fetchTenants(); }, [dbHealthy]);
 
+  const filteredTenants = tenants.filter(t => 
+    activeTab === 'directory' ? !t.is_deleted : t.is_deleted
+  );
+
   const handleCreateTenant = async () => {
     if (!newTenant.name || !newTenant.slug) return alert("Rellena nombre y slug");
-    const { error } = await supabase.from('tenants').insert([{ ...newTenant, status: 'active' }]);
+    const { error } = await supabase.from('tenants').insert([{ ...newTenant, status: 'active', is_deleted: false }]);
     if (!error) { 
       setIsCreating(false); 
       setNewTenant({ name: '', slug: '', plan: 'free' }); 
       fetchTenants(); 
     } else {
-      alert("Error al crear: " + error.message);
+      alert("Error al crear: " + error.message + "\n\n¿Has ejecutado el SQL para añadir las columnas 'status' e 'is_deleted'?");
     }
   };
 
   const handleToggleStatus = async (tenantId: string, currentStatus: string | undefined) => {
-    const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
+    const newStatus = (currentStatus === 'active' || !currentStatus) ? 'inactive' : 'active';
     const { error } = await supabase
       .from('tenants')
       .update({ status: newStatus })
       .eq('id', tenantId);
     
-    if (error) alert("Error al cambiar estado: " + error.message);
+    if (error) {
+      alert("Error al cambiar estado: " + error.message + "\n\nTip: Asegúrate de que la columna 'status' existe en la tabla 'tenants'.");
+    } else {
+      fetchTenants();
+    }
+  };
+
+  const handleSoftDelete = async (tenantId: string, name: string) => {
+    if (!window.confirm(`¿Mover "${name}" a la papelera? No aparecerá en la web pública ni en los listados activos.`)) return;
+    
+    const { error } = await supabase
+      .from('tenants')
+      .update({ is_deleted: true })
+      .eq('id', tenantId);
+    
+    if (error) {
+      alert("Error al borrar: " + error.message + "\n\nTip: Asegúrate de que la columna 'is_deleted' existe en la tabla 'tenants'.");
+    } else {
+      fetchTenants();
+    }
+  };
+
+  const handleRestore = async (tenantId: string) => {
+    const { error } = await supabase
+      .from('tenants')
+      .update({ is_deleted: false })
+      .eq('id', tenantId);
+    
+    if (error) alert("Error al restaurar: " + error.message);
     else fetchTenants();
   };
 
-  const handleDeleteTenant = async (tenantId: string, name: string) => {
-    if (!window.confirm(`¿Estás COMPLETAMENTE SEGURO de querer eliminar la empresa "${name}"? Esta acción no se puede deshacer.`)) return;
+  const handlePermanentDelete = async (tenantId: string, name: string) => {
+    if (!window.confirm(`¿ELIMINAR DEFINITIVAMENTE "${name}"? Esta acción es irreversible y borrará todos los datos asociados.`)) return;
     
     const { error } = await supabase
       .from('tenants')
       .delete()
       .eq('id', tenantId);
     
-    if (error) alert("Error al eliminar: " + error.message);
+    if (error) alert("Error en el borrado físico: " + error.message);
     else fetchTenants();
   };
 
@@ -58,10 +100,27 @@ export const AdminTenants = () => {
     <div className="space-y-6 text-left">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h3 className="text-xl md:text-2xl font-black text-white tracking-tight">Directorio de Empresas</h3>
-          <p className="text-slate-500 text-xs mt-1">Gestión centralizada de todas las instancias del sistema.</p>
+          <h3 className="text-xl md:text-2xl font-black text-white tracking-tight uppercase italic">Gestión de Empresas</h3>
+          <p className="text-slate-500 text-xs mt-1">Directorio maestro y control de instancias.</p>
         </div>
         <button onClick={() => setIsCreating(true)} className="w-full sm:w-auto px-6 py-3 bg-brand-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg hover:bg-brand-600 transition-colors">+ Registrar Empresa</button>
+      </div>
+
+      <div className="flex border-b border-white/5">
+        <button 
+          onClick={() => setActiveTab('directory')}
+          className={`px-8 py-4 text-[10px] font-black uppercase tracking-widest transition-all relative ${activeTab === 'directory' ? 'text-brand-500' : 'text-slate-500 hover:text-slate-300'}`}
+        >
+          Directorio ({tenants.filter(t => !t.is_deleted).length})
+          {activeTab === 'directory' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-brand-500 animate-in fade-in duration-300"></div>}
+        </button>
+        <button 
+          onClick={() => setActiveTab('trash')}
+          className={`px-8 py-4 text-[10px] font-black uppercase tracking-widest transition-all relative ${activeTab === 'trash' ? 'text-red-500' : 'text-slate-500 hover:text-slate-300'}`}
+        >
+          Papelera ({tenants.filter(t => t.is_deleted).length})
+          {activeTab === 'trash' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-red-500 animate-in fade-in duration-300"></div>}
+        </button>
       </div>
 
       {isCreating && (
@@ -91,74 +150,100 @@ export const AdminTenants = () => {
           <thead className="bg-white/5 text-slate-500 text-[10px] font-black uppercase tracking-widest">
             <tr>
               <th className="px-10 py-6">Empresa</th>
-              <th className="px-6 py-6">Web Pública</th>
+              <th className="px-6 py-6 text-center">Web Pública</th>
               <th className="px-6 py-6">Licencia</th>
               <th className="px-6 py-6">Estado</th>
               <th className="px-10 py-6 text-right">Acciones</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-white/5">
-            {tenants.map(t => (
-              <tr key={t.id} className="hover:bg-white/[0.02] transition-colors group">
-                <td className="px-10 py-6">
-                  <div className="font-black text-white">{t.name}</div>
-                  <div className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">ID: {t.id.slice(0, 8)}</div>
-                </td>
-                <td className="px-6 py-6">
-                  <a 
-                    href={`#/c/${t.slug}`} 
-                    target="_blank" 
-                    rel="noreferrer" 
-                    className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-brand-500/10 text-brand-400 text-[9px] font-black uppercase tracking-widest rounded-lg border border-white/5 transition-all"
-                  >
-                    Ver Web ↗
-                  </a>
-                </td>
-                <td className="px-6 py-6">
-                  <span className="px-4 py-1.5 text-[9px] font-black uppercase rounded-full bg-slate-800 text-slate-300 border border-white/5">
-                    {t.plan}
-                  </span>
-                </td>
-                <td className="px-6 py-6">
-                  <div className="flex items-center gap-2">
-                    <span className={`w-2 h-2 rounded-full ${t.status === 'inactive' ? 'bg-red-500' : 'bg-green-500'}`}></span>
-                    <span className={`text-[9px] font-black uppercase tracking-widest ${t.status === 'inactive' ? 'text-red-400' : 'text-green-400'}`}>
-                      {t.status === 'inactive' ? 'Baja' : 'Activo'}
+            {filteredTenants.map(t => {
+              const status = t.status || 'active';
+              return (
+                <tr key={t.id} className="hover:bg-white/[0.02] transition-colors group">
+                  <td className="px-10 py-6">
+                    <div className="font-black text-white">{t.name}</div>
+                    <div className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">ID: {t.id.slice(0, 8)}</div>
+                  </td>
+                  <td className="px-6 py-6 text-center">
+                    {!t.is_deleted ? (
+                      <a 
+                        href={`#/c/${t.slug}`} 
+                        target="_blank" 
+                        rel="noreferrer" 
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-brand-500/10 text-brand-400 text-[9px] font-black uppercase tracking-widest rounded-lg border border-white/5 transition-all"
+                      >
+                        Ver Web ↗
+                      </a>
+                    ) : (
+                      <span className="text-[9px] font-black uppercase text-slate-600">Desactivada</span>
+                    )}
+                  </td>
+                  <td className="px-6 py-6">
+                    <span className="px-4 py-1.5 text-[9px] font-black uppercase rounded-full bg-slate-800 text-slate-300 border border-white/5">
+                      {t.plan}
                     </span>
-                  </div>
-                </td>
-                <td className="px-10 py-6 text-right">
-                  <div className="flex gap-2 justify-end">
-                    <Link 
-                      to={`/t/${t.slug}/dashboard`} 
-                      className="px-4 py-2 bg-white/5 hover:bg-white/10 text-white text-[9px] font-black uppercase tracking-widest rounded-lg border border-white/5 transition-all"
-                    >
-                      Panel
-                    </Link>
-                    <button 
-                      onClick={() => handleToggleStatus(t.id, t.status)}
-                      className={`px-4 py-2 text-[9px] font-black uppercase tracking-widest rounded-lg border transition-all ${
-                        t.status === 'inactive' 
-                          ? 'bg-green-500/10 border-green-500/20 text-green-400 hover:bg-green-500/20' 
-                          : 'bg-amber-500/10 border-amber-500/20 text-amber-400 hover:bg-amber-500/20'
-                      }`}
-                    >
-                      {t.status === 'inactive' ? 'Activar' : 'Dar Baja'}
-                    </button>
-                    <button 
-                      onClick={() => handleDeleteTenant(t.id, t.name)}
-                      className="px-4 py-2 bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 text-[9px] font-black uppercase tracking-widest rounded-lg transition-all"
-                    >
-                      Borrar
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-            {tenants.length === 0 && (
+                  </td>
+                  <td className="px-6 py-6">
+                    <div className="flex items-center gap-2">
+                      <span className={`w-2 h-2 rounded-full ${status === 'inactive' ? 'bg-red-500' : 'bg-green-500'}`}></span>
+                      <span className={`text-[9px] font-black uppercase tracking-widest ${status === 'inactive' ? 'text-red-400' : 'text-green-400'}`}>
+                        {status === 'inactive' ? 'Baja' : 'Activo'}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="px-10 py-6 text-right">
+                    <div className="flex gap-2 justify-end">
+                      {activeTab === 'directory' ? (
+                        <>
+                          <Link 
+                            to={`/t/${t.slug}/dashboard`} 
+                            className="px-4 py-2 bg-white/5 hover:bg-white/10 text-white text-[9px] font-black uppercase tracking-widest rounded-lg border border-white/5 transition-all"
+                          >
+                            Panel
+                          </Link>
+                          <button 
+                            onClick={() => handleToggleStatus(t.id, status)}
+                            className={`px-4 py-2 text-[9px] font-black uppercase tracking-widest rounded-lg border transition-all ${
+                              status === 'inactive' 
+                                ? 'bg-green-500/10 border-green-500/20 text-green-400 hover:bg-green-500/20' 
+                                : 'bg-amber-500/10 border-amber-500/20 text-amber-400 hover:bg-amber-500/20'
+                            }`}
+                          >
+                            {status === 'inactive' ? 'Activar' : 'Dar Baja'}
+                          </button>
+                          <button 
+                            onClick={() => handleSoftDelete(t.id, t.name)}
+                            className="px-4 py-2 bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 text-[9px] font-black uppercase tracking-widest rounded-lg transition-all"
+                          >
+                            Borrar
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button 
+                            onClick={() => handleRestore(t.id)}
+                            className="px-4 py-2 bg-green-500/10 border border-green-500/20 text-green-400 hover:bg-green-500/20 text-[9px] font-black uppercase tracking-widest rounded-lg transition-all"
+                          >
+                            Restaurar
+                          </button>
+                          <button 
+                            onClick={() => handlePermanentDelete(t.id, t.name)}
+                            className="px-4 py-2 bg-red-600 text-white text-[9px] font-black uppercase tracking-widest rounded-lg transition-all"
+                          >
+                            Eliminar Físico
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+            {filteredTenants.length === 0 && (
               <tr>
                 <td colSpan={5} className="px-10 py-20 text-center text-slate-600 font-black uppercase tracking-widest italic text-xs">
-                  No se han encontrado empresas registradas.
+                  {activeTab === 'directory' ? 'No hay empresas activas.' : 'La papelera está vacía.'}
                 </td>
               </tr>
             )}
