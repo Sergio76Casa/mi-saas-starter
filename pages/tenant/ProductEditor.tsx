@@ -85,7 +85,7 @@ export const ProductEditor = () => {
     fetchProduct();
   }, [id, tenant.id]);
 
-  const normalizeNumber = (val: any): number => {
+  const toNum = (val: any): number => {
     if (val === undefined || val === null || val === '') return 0;
     if (typeof val === 'number') return val;
     const cleaned = String(val).replace(',', '.').replace(/[^0-9.-]/g, '');
@@ -113,74 +113,81 @@ export const ProductEditor = () => {
         } catch (e) { console.error("Error parsing string AI response"); }
       }
 
-      const extracted = rawData.products ? rawData.products[0] : rawData;
-      console.log("AI normalized ->", extracted);
+      // Normalización de la estructura de respuesta
+      const normalized = rawData.products ? rawData.products[0] : (rawData.product ? rawData.product : rawData);
+      console.log("AI normalized ->", normalized);
 
-      // --- 1. NORMALIZACIÓN DE PRECIOS ---
-      let pricing = extracted.pricing || extracted.prices || [];
-      if (pricing.length === 0 && (extracted.price || extracted.pvp)) {
-        pricing = [{ variant: 'Precio Base', price: normalizeNumber(extracted.price || extracted.pvp) }];
+      // 1. Normalización de Precios
+      let pricing = normalized.pricing || normalized.prices || [];
+      if (!Array.isArray(pricing) && typeof pricing === 'object') pricing = [pricing];
+      if (pricing.length === 0 && (normalized.price || normalized.pvp || normalized.cost)) {
+        pricing = [{ variant: 'Precio Base', price: toNum(normalized.price || normalized.pvp || normalized.cost) }];
       }
       pricing = pricing.map((p: any) => ({
-        variant: p.variant || p.name || 'Estándar',
-        price: normalizeNumber(p.price)
+        variant: p.variant || p.name || p.label || 'Estándar',
+        price: toNum(p.price || p.value)
       }));
       if (pricing.length === 0) pricing = [{ variant: '', price: 0 }];
 
-      // --- 2. NORMALIZACIÓN DE KITS ---
-      let kits = extracted.installation_kits || extracted.installationKits || [];
+      // 2. Normalización de Kits
+      let kits = normalized.installation_kits || normalized.installationKits || [];
+      if (!Array.isArray(kits)) kits = [kits];
       kits = kits.map((k: any) => ({
-        name: k.name || k.label || '',
-        price: normalizeNumber(k.price || k.value)
+        name: k.name || k.label || k.variant || '',
+        price: toNum(k.price || k.value)
       }));
       if (kits.length === 0) kits = [{ name: '', price: 0 }];
 
-      // --- 3. NORMALIZACIÓN DE EXTRAS ---
-      let extras = extracted.extras || extracted.accessories || [];
+      // 3. Normalización de Extras
+      let extras = normalized.extras || normalized.accessories || normalized.extra_materials || [];
+      if (!Array.isArray(extras)) extras = [extras];
       extras = extras.map((e: any) => ({
         name: e.name || e.label || '',
-        price: normalizeNumber(e.price || e.value)
+        price: toNum(e.price || e.value)
       }));
       if (extras.length === 0) extras = [{ name: '', price: 0 }];
 
-      // --- 4. NORMALIZACIÓN DE DATOS TÉCNICOS ---
+      // 4. Normalización de Datos Técnicos
       let specs: TechSpec[] = [];
-      if (extracted.technical_data || extracted.technicalData) {
-        specs = (extracted.technical_data || extracted.technicalData).map((s: any) => ({
+      const technicalData = normalized.technical_data || normalized.technicalData || normalized.specs;
+      if (technicalData && Array.isArray(technicalData)) {
+        specs = technicalData.map((s: any) => ({
           title: s.label || s.title || s.key || '',
-          description: s.value || s.description || ''
+          description: String(s.value || s.description || '')
         }));
-      } else if (extracted.features && Array.isArray(extracted.features)) {
-        specs = extracted.features.map((f: string) => ({ title: 'Característica', description: f }));
+      } else if (normalized.features && Array.isArray(normalized.features)) {
+        specs = normalized.features.map((f: string) => ({ title: 'Característica', description: f }));
       }
       if (specs.length === 0) specs = [{ title: '', description: '' }];
 
-      // --- 5. NORMALIZACIÓN DE FINANCIACIÓN ---
+      // 5. Normalización de Financiación
       let fin: FinancingRow[] = [];
-      if (extracted.financing && Array.isArray(extracted.financing)) {
-        fin = extracted.financing.map((f: any) => ({
-          label: f.label || `${f.months || 0} meses`,
-          months: normalizeNumber(f.months),
-          commission: normalizeNumber(f.commission || 0),
-          coefficient: normalizeNumber(f.coefficient || 0)
+      const financingData = normalized.financing || normalized.financing_options;
+      if (financingData && Array.isArray(financingData)) {
+        fin = financingData.map((f: any) => ({
+          label: f.label || f.name || `${f.months || 0} meses`,
+          months: toNum(f.months),
+          commission: toNum(f.commission || 0),
+          coefficient: toNum(f.coefficient || 0)
         }));
       }
       if (fin.length === 0) fin = [{ label: '12 meses', months: 12, commission: 0, coefficient: 0 }];
 
-      // --- ACTUALIZACIÓN DE ESTADOS ---
+      // Actualización masiva de estados
       setProductData(prev => ({
         ...prev,
-        brand: extracted.brand || prev.brand,
-        model: extracted.model || prev.model,
-        type: extracted.type || prev.type || 'aire_acondicionado',
+        brand: normalized.brand || prev.brand,
+        model: normalized.model || prev.model,
+        type: normalized.type || prev.type || 'aire_acondicionado',
         pricing: pricing,
         installation_kits: kits,
-        extras: extras
+        extras: extras,
+        stock: toNum(normalized.stock || prev.stock)
       }));
       setTechSpecs(specs);
       setFinancing(fin);
 
-      alert("✨ Todos los campos han sido actualizados.");
+      alert("✨ Extracción completada. Los datos se han distribuido en las pestañas.");
     } catch (err: any) {
       alert("Error en extracción: " + err.message);
     } finally {
@@ -225,10 +232,25 @@ export const ProductEditor = () => {
 
   const updateList = (key: 'pricing' | 'installation_kits' | 'extras', index: number, field: string, val: any) => {
     setProductData(prev => {
-      const list = prev[key] || [];
-      const copy = [...list];
-      copy[index] = { ...copy[index], [field]: val };
-      return { ...prev, [key]: copy };
+      const list = [...(prev[key] || [])];
+      list[index] = { ...list[index], [field]: val };
+      return { ...prev, [key]: list };
+    });
+  };
+
+  const updateFinancing = (index: number, field: keyof FinancingRow, val: any) => {
+    setFinancing(prev => {
+      const next = [...prev];
+      next[index] = { ...next[index], [field]: val };
+      return next;
+    });
+  };
+
+  const updateSpecs = (index: number, field: keyof TechSpec, val: any) => {
+    setTechSpecs(prev => {
+      const next = [...prev];
+      next[index] = { ...next[index], [field]: val };
+      return next;
     });
   };
 
@@ -317,16 +339,8 @@ export const ProductEditor = () => {
                 {techSpecs.map((spec, index) => (
                   <div key={index} className="p-6 bg-slate-50 border border-slate-100 rounded-2xl flex flex-col gap-2 relative group">
                     <button onClick={() => setTechSpecs(techSpecs.filter((_, i) => i !== index))} className="absolute top-4 right-4 text-red-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all">×</button>
-                    <Input label="Concepto" value={spec.title} onChange={(e:any) => {
-                      const copy = [...techSpecs];
-                      copy[index].title = e.target.value;
-                      setTechSpecs(copy);
-                    }} />
-                    <Input label="Valor" value={spec.description} onChange={(e:any) => {
-                      const copy = [...techSpecs];
-                      copy[index].description = e.target.value;
-                      setTechSpecs(copy);
-                    }} />
+                    <Input label="Concepto" value={spec.title} onChange={(e:any) => updateSpecs(index, 'title', e.target.value)} />
+                    <Input label="Valor" value={spec.description} onChange={(e:any) => updateSpecs(index, 'description', e.target.value)} />
                   </div>
                 ))}
                 <button onClick={() => setTechSpecs([...techSpecs, { title: '', description: '' }])} className="p-10 border-2 border-dashed border-slate-100 rounded-3xl text-[10px] font-black uppercase text-slate-400 hover:text-blue-600 transition-all">+ Añadir Fila</button>
@@ -346,7 +360,7 @@ export const ProductEditor = () => {
                     {productData.installation_kits?.map((kit, i) => (
                       <tr key={i}>
                         <td className="px-8 py-5"><input className="w-full bg-transparent font-bold outline-none" value={kit.name} onChange={(e) => updateList('installation_kits', i, 'name', e.target.value)} /></td>
-                        <td className="px-8 py-5 text-right"><input type="number" className="w-24 bg-transparent text-right font-black text-blue-600 outline-none" value={kit.price} onChange={(e) => updateList('installation_kits', i, 'price', parseFloat(e.target.value))} /></td>
+                        <td className="px-8 py-5 text-right"><input type="number" className="w-24 bg-transparent text-right font-black text-blue-600 outline-none" value={kit.price} onChange={(e) => updateList('installation_kits', i, 'price', toNum(e.target.value))} /></td>
                         <td className="px-4 py-5 text-center"><button onClick={() => setProductData(p => ({...p, installation_kits: p.installation_kits?.filter((_,idx) => idx !== i)}))} className="text-red-300 hover:text-red-500">×</button></td>
                       </tr>
                     ))}
@@ -372,10 +386,13 @@ export const ProductEditor = () => {
                     {productData.extras?.map((ex, i) => (
                       <tr key={i}>
                         <td className="px-8 py-5"><input className="w-full bg-transparent font-bold outline-none" value={ex.name} onChange={(e) => updateList('extras', i, 'name', e.target.value)} /></td>
-                        <td className="px-8 py-5 text-right"><input type="number" className="w-24 bg-transparent text-right font-black text-blue-600 outline-none" value={ex.price} onChange={(e) => updateList('extras', i, 'price', parseFloat(e.target.value))} /></td>
+                        <td className="px-8 py-5 text-right"><input type="number" className="w-24 bg-transparent text-right font-black text-blue-600 outline-none" value={ex.price} onChange={(e) => updateList('extras', i, 'price', toNum(e.target.value))} /></td>
                         <td className="px-4 py-5 text-center"><button onClick={() => setProductData(p => ({...p, extras: p.extras?.filter((_,idx) => idx !== i)}))} className="text-red-300 hover:text-red-500">×</button></td>
                       </tr>
                     ))}
+                    {(!productData.extras || productData.extras.length === 0) && (
+                      <tr><td colSpan={3} className="px-8 py-10 text-center text-slate-300 font-bold italic">No hay extras definidos</td></tr>
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -394,24 +411,15 @@ export const ProductEditor = () => {
                   <tbody className="divide-y divide-slate-200">
                     {financing.map((f, i) => (
                       <tr key={i}>
-                        <td className="px-8 py-5"><input className="w-full bg-transparent font-bold outline-none" value={f.label} onChange={(e) => {
-                          const copy = [...financing];
-                          copy[i] = { ...copy[i], label: e.target.value };
-                          setFinancing(copy);
-                        }} /></td>
-                        <td className="px-8 py-5 text-center"><input type="number" className="w-16 bg-transparent text-center outline-none font-bold" value={f.months} onChange={(e) => {
-                          const copy = [...financing];
-                          copy[i] = { ...copy[i], months: parseInt(e.target.value) || 0 };
-                          setFinancing(copy);
-                        }} /></td>
-                        <td className="px-8 py-5 text-right"><input type="number" step="0.0001" className="w-32 bg-transparent text-right font-black text-blue-600 outline-none" value={f.coefficient} onChange={(e) => {
-                          const copy = [...financing];
-                          copy[i] = { ...copy[i], coefficient: parseFloat(e.target.value) || 0 };
-                          setFinancing(copy);
-                        }} /></td>
+                        <td className="px-8 py-5"><input className="w-full bg-transparent font-bold outline-none" value={f.label} onChange={(e) => updateFinancing(i, 'label', e.target.value)} /></td>
+                        <td className="px-8 py-5 text-center"><input type="number" className="w-16 bg-transparent text-center outline-none font-bold" value={f.months} onChange={(e) => updateFinancing(i, 'months', parseInt(e.target.value) || 0)} /></td>
+                        <td className="px-8 py-5 text-right"><input type="number" step="0.000001" className="w-32 bg-transparent text-right font-black text-blue-600 outline-none" value={f.coefficient} onChange={(e) => updateFinancing(i, 'coefficient', toNum(e.target.value))} /></td>
                         <td className="px-4 py-5 text-center"><button onClick={() => setFinancing(financing.filter((_,idx) => idx !== i))} className="text-red-300 hover:text-red-500">×</button></td>
                       </tr>
                     ))}
+                    {financing.length === 0 && (
+                      <tr><td colSpan={4} className="px-8 py-10 text-center text-slate-300 font-bold italic">No hay planes de financiación definidos</td></tr>
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -426,7 +434,7 @@ export const ProductEditor = () => {
                 {productData.pricing?.map((p, i) => (
                   <div key={i} className="flex gap-4 items-end bg-slate-50 p-6 rounded-2xl border border-slate-100">
                     <div className="flex-1"><Input label="Variante (ej: Estándar)" value={p.variant} onChange={(e:any) => updateList('pricing', i, 'variant', e.target.value)} /></div>
-                    <div className="w-48"><Input label="PVP (€)" type="number" value={p.price} onChange={(e:any) => updateList('pricing', i, 'price', parseFloat(e.target.value) || 0)} /></div>
+                    <div className="w-48"><Input label="PVP (€)" type="number" value={p.price} onChange={(e:any) => updateList('pricing', i, 'price', toNum(e.target.value))} /></div>
                     <button onClick={() => setProductData(prev => ({...prev, pricing: prev.pricing?.filter((_,idx) => idx !== i)}))} className="mb-4 p-2 text-red-400 hover:bg-red-50 rounded-lg transition-colors">×</button>
                   </div>
                 ))}
