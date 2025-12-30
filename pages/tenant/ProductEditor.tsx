@@ -28,7 +28,7 @@ interface TechSpec {
 }
 
 interface FinancingRow {
-  label: string;
+  label: { es: string; ca: string };
   months: number;
   commission: number;
   coefficient: number;
@@ -38,6 +38,7 @@ export const ProductEditor = () => {
   const { id, slug } = useParams();
   const navigate = useNavigate();
   const { tenant } = useOutletContext<{ tenant: Tenant }>();
+  const { language } = useApp();
   const [activeTab, setActiveTab] = useState<TabId>('general');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -45,7 +46,7 @@ export const ProductEditor = () => {
   
   const [previews, setPreviews] = useState({ product: '', logo: '' });
 
-  const [productData, setProductData] = useState<Partial<Product>>({
+  const [productData, setProductData] = useState<any>({
     brand: '',
     model: '',
     type: 'aire_acondicionado',
@@ -85,14 +86,6 @@ export const ProductEditor = () => {
     fetchProduct();
   }, [id, tenant.id]);
 
-  const toNum = (val: any): number => {
-    if (val === undefined || val === null || val === '') return 0;
-    if (typeof val === 'number') return val;
-    const cleaned = String(val).replace(',', '.').replace(/[^0-9.-]/g, '');
-    const num = parseFloat(cleaned);
-    return isNaN(num) ? 0 : num;
-  };
-
   const handleAiExtract = async (file: File) => {
     setAiLoading(true);
     try {
@@ -105,89 +98,30 @@ export const ProductEditor = () => {
 
       if (error) throw error;
       
-      let rawData = data;
-      if (typeof data === 'string') {
-        try {
-          const match = data.match(/\{[\s\S]*\}/);
-          if (match) rawData = JSON.parse(match[0]);
-        } catch (e) { console.error("Error parsing string AI response"); }
-      }
-
-      // Normalización de la estructura de respuesta
-      const normalized = rawData.products ? rawData.products[0] : (rawData.product ? rawData.product : rawData);
+      const normalized = data;
       console.log("AI normalized ->", normalized);
 
-      // 1. Normalización de Precios
-      let pricing = normalized.pricing || normalized.prices || [];
-      if (!Array.isArray(pricing) && typeof pricing === 'object') pricing = [pricing];
-      if (pricing.length === 0 && (normalized.price || normalized.pvp || normalized.cost)) {
-        pricing = [{ variant: 'Precio Base', price: toNum(normalized.price || normalized.pvp || normalized.cost) }];
-      }
-      pricing = pricing.map((p: any) => ({
-        variant: p.variant || p.name || p.label || 'Estándar',
-        price: toNum(p.price || p.value)
-      }));
-      if (pricing.length === 0) pricing = [{ variant: '', price: 0 }];
-
-      // 2. Normalización de Kits
-      let kits = normalized.installation_kits || normalized.installationKits || [];
-      if (!Array.isArray(kits)) kits = [kits];
-      kits = kits.map((k: any) => ({
-        name: k.name || k.label || k.variant || '',
-        price: toNum(k.price || k.value)
-      }));
-      if (kits.length === 0) kits = [{ name: '', price: 0 }];
-
-      // 3. Normalización de Extras
-      let extras = normalized.extras || normalized.accessories || normalized.extra_materials || [];
-      if (!Array.isArray(extras)) extras = [extras];
-      extras = extras.map((e: any) => ({
-        name: e.name || e.label || '',
-        price: toNum(e.price || e.value)
-      }));
-      if (extras.length === 0) extras = [{ name: '', price: 0 }];
-
-      // 4. Normalización de Datos Técnicos
-      let specs: TechSpec[] = [];
-      const technicalData = normalized.technical_data || normalized.technicalData || normalized.specs;
-      if (technicalData && Array.isArray(technicalData)) {
-        specs = technicalData.map((s: any) => ({
-          title: s.label || s.title || s.key || '',
-          description: String(s.value || s.description || '')
-        }));
-      } else if (normalized.features && Array.isArray(normalized.features)) {
-        specs = normalized.features.map((f: string) => ({ title: 'Característica', description: f }));
-      }
-      if (specs.length === 0) specs = [{ title: '', description: '' }];
-
-      // 5. Normalización de Financiación
-      let fin: FinancingRow[] = [];
-      const financingData = normalized.financing || normalized.financing_options;
-      if (financingData && Array.isArray(financingData)) {
-        fin = financingData.map((f: any) => ({
-          label: f.label || f.name || `${f.months || 0} meses`,
-          months: toNum(f.months),
-          commission: toNum(f.commission || 0),
-          coefficient: toNum(f.coefficient || 0)
-        }));
-      }
-      if (fin.length === 0) fin = [{ label: '12 meses', months: 12, commission: 0, coefficient: 0 }];
-
-      // Actualización masiva de estados
-      setProductData(prev => ({
+      // Mapeo inteligente al estado de la UI
+      setProductData((prev: any) => ({
         ...prev,
         brand: normalized.brand || prev.brand,
         model: normalized.model || prev.model,
-        type: normalized.type || prev.type || 'aire_acondicionado',
-        pricing: pricing,
-        installation_kits: kits,
-        extras: extras,
-        stock: toNum(normalized.stock || prev.stock)
+        type: normalized.type || prev.type,
+        pricing: normalized.pricing,
+        installation_kits: normalized.installationKits || normalized.installation_kits,
+        extras: normalized.extras,
+        stock: normalized.stock || prev.stock
       }));
-      setTechSpecs(specs);
-      setFinancing(fin);
 
-      alert("✨ Extracción completada. Los datos se han distribuido en las pestañas.");
+      if (normalized.technical) {
+        const specs = Object.entries(normalized.technical)
+          .filter(([_, v]) => !!v)
+          .map(([k, v]) => ({ title: k, description: v as string }));
+        setTechSpecs(specs);
+      }
+
+      setFinancing(normalized.financing);
+      alert("✨ Datos sincronizados en todas las pestañas.");
     } catch (err: any) {
       alert("Error en extracción: " + err.message);
     } finally {
@@ -202,7 +136,6 @@ export const ProductEditor = () => {
     }
     setSaving(true);
     try {
-      const isNew = id === 'new';
       const payload = {
         tenant_id: tenant.id,
         brand: productData.brand,
@@ -217,7 +150,7 @@ export const ProductEditor = () => {
         is_deleted: false
       };
 
-      const { error } = isNew 
+      const { error } = id === 'new' 
         ? await supabase.from('products').insert([payload])
         : await supabase.from('products').update(payload).eq('id', id);
 
@@ -230,27 +163,22 @@ export const ProductEditor = () => {
     }
   };
 
-  const updateList = (key: 'pricing' | 'installation_kits' | 'extras', index: number, field: string, val: any) => {
-    setProductData(prev => {
+  // Ayudante para actualizar campos i18n
+  const updateI18nList = (key: string, index: number, field: string, lang: string, val: any) => {
+    setProductData((prev: any) => {
       const list = [...(prev[key] || [])];
-      list[index] = { ...list[index], [field]: val };
+      const item = { ...list[index] };
+      item[field] = { ...item[field], [lang]: val };
+      list[index] = item;
       return { ...prev, [key]: list };
     });
   };
 
-  const updateFinancing = (index: number, field: keyof FinancingRow, val: any) => {
-    setFinancing(prev => {
-      const next = [...prev];
-      next[index] = { ...next[index], [field]: val };
-      return next;
-    });
-  };
-
-  const updateSpecs = (index: number, field: keyof TechSpec, val: any) => {
-    setTechSpecs(prev => {
-      const next = [...prev];
-      next[index] = { ...next[index], [field]: val };
-      return next;
+  const updateSimpleList = (key: string, index: number, field: string, val: any) => {
+    setProductData((prev: any) => {
+      const list = [...(prev[key] || [])];
+      list[index] = { ...list[index], [field]: val };
+      return { ...prev, [key]: list };
     });
   };
 
@@ -265,214 +193,115 @@ export const ProductEditor = () => {
           </button>
           <div className="flex flex-col text-left">
             <h1 className="text-xl md:text-2xl font-black text-slate-800 tracking-tighter italic uppercase leading-none">Editor de Producto</h1>
-            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">Empresa: {tenant.name}</span>
           </div>
         </div>
-        <button onClick={handleSave} disabled={saving} className="bg-blue-600 text-white px-8 py-3.5 rounded-xl font-black text-[11px] uppercase tracking-widest shadow-xl hover:bg-blue-700 transition-all active:scale-95 disabled:opacity-50">
+        <button onClick={handleSave} disabled={saving} className="bg-blue-600 text-white px-8 py-3.5 rounded-xl font-black text-[11px] uppercase shadow-xl">
           {saving ? 'GUARDANDO...' : 'GUARDAR PRODUCTO'}
         </button>
       </header>
 
       <main className="max-w-7xl mx-auto px-6 py-10">
         <div className="flex border-b border-slate-100 mb-10 overflow-x-auto whitespace-nowrap scrollbar-hide">
-          {[
-            { id: 'general', label: 'General' },
-            { id: 'technical', label: 'Datos Técnicos' },
-            { id: 'kits', label: 'Kits' },
-            { id: 'extras_tab', label: 'Extras' },
-            { id: 'financing', label: 'Financiación' },
-            { id: 'pricing', label: 'Precios' },
-            { id: 'stock', label: 'Stock' },
-            { id: 'multimedia', label: 'Multimedia' }
-          ].map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as TabId)}
-              className={`px-6 py-4 text-[11px] font-black uppercase tracking-widest transition-all border-b-2 ${
-                activeTab === tab.id ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-400 hover:text-slate-600'
-              }`}
-            >
-              {tab.label}
+          {['general', 'technical', 'kits', 'extras_tab', 'financing', 'pricing', 'stock'].map(tid => (
+            <button key={tid} onClick={() => setActiveTab(tid as TabId)} className={`px-6 py-4 text-[11px] font-black uppercase tracking-widest transition-all border-b-2 ${activeTab === tid ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-400'}`}>
+              {tid.replace('_tab', '').toUpperCase()}
             </button>
           ))}
         </div>
 
-        <div className="bg-white p-8 md:p-14 rounded-[2.5rem] border border-slate-100 shadow-sm min-h-[600px]">
+        <div className="bg-white p-8 md:p-14 rounded-[2.5rem] border border-slate-100 shadow-sm min-h-[500px]">
           {activeTab === 'general' && (
-            <div className="animate-in fade-in space-y-10 max-w-3xl text-left">
+            <div className="space-y-10 max-w-3xl text-left">
               <div className="flex justify-between items-start">
-                 <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 italic">Información Principal</h3>
-                 <div className="flex items-center gap-3">
-                    <input type="file" id="ai-extract" className="hidden" accept=".pdf,image/*" onChange={(e) => e.target.files && handleAiExtract(e.target.files[0])} />
-                    <label htmlFor="ai-extract" className={`flex items-center gap-2 px-5 py-2.5 bg-blue-50 text-blue-600 rounded-xl text-[10px] font-black uppercase tracking-widest cursor-pointer hover:bg-blue-100 transition-all ${aiLoading ? 'opacity-50 pointer-events-none' : ''}`}>
-                       {aiLoading ? (
-                         <><span className="w-3 h-3 border-2 border-blue-600 border-t-transparent animate-spin rounded-full"></span> PROCESANDO...</>
-                       ) : '✨ EXTRAER CON IA'}
-                    </label>
-                 </div>
+                 <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 italic">Info Principal</h3>
+                 <label className={`flex items-center gap-2 px-5 py-2.5 bg-blue-50 text-blue-600 rounded-xl text-[10px] font-black uppercase cursor-pointer hover:bg-blue-100 transition-all ${aiLoading ? 'opacity-50' : ''}`}>
+                    <input type="file" className="hidden" onChange={(e) => e.target.files && handleAiExtract(e.target.files[0])} />
+                    {aiLoading ? 'EXTRAYENDO...' : '✨ EXTRAER CON IA'}
+                 </label>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <Input label="Marca" value={productData.brand || ''} onChange={(e:any) => setProductData({...productData, brand: e.target.value})} />
                 <Input label="Modelo" value={productData.model || ''} onChange={(e:any) => setProductData({...productData, model: e.target.value})} />
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div>
-                  <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1">Tipo de Producto</label>
-                  <select value={productData.type} onChange={(e) => setProductData({...productData, type: e.target.value})} className="w-full px-4 py-3 border border-slate-100 rounded-xl bg-slate-50 text-sm font-bold focus:ring-2 focus:ring-blue-500 outline-none appearance-none">
-                    {TYPES.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1">Estado</label>
-                  <select value={productData.status} onChange={(e:any) => setProductData({...productData, status: e.target.value})} className="w-full px-4 py-3 border border-slate-100 rounded-xl bg-slate-50 text-sm font-bold focus:ring-2 focus:ring-blue-500 outline-none appearance-none">
-                    {STATUSES.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
-                  </select>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'technical' && (
-            <div className="animate-in fade-in space-y-8 text-left">
-              <h3 className="text-xl font-black text-slate-800 tracking-tight italic uppercase">Especificaciones Técnicas</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {techSpecs.map((spec, index) => (
-                  <div key={index} className="p-6 bg-slate-50 border border-slate-100 rounded-2xl flex flex-col gap-2 relative group">
-                    <button onClick={() => setTechSpecs(techSpecs.filter((_, i) => i !== index))} className="absolute top-4 right-4 text-red-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all">×</button>
-                    <Input label="Concepto" value={spec.title} onChange={(e:any) => updateSpecs(index, 'title', e.target.value)} />
-                    <Input label="Valor" value={spec.description} onChange={(e:any) => updateSpecs(index, 'description', e.target.value)} />
-                  </div>
-                ))}
-                <button onClick={() => setTechSpecs([...techSpecs, { title: '', description: '' }])} className="p-10 border-2 border-dashed border-slate-100 rounded-3xl text-[10px] font-black uppercase text-slate-400 hover:text-blue-600 transition-all">+ Añadir Fila</button>
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'kits' && (
-            <div className="animate-in fade-in space-y-8 text-left">
-              <h3 className="text-xl font-black text-slate-800 tracking-tight italic uppercase">Kits de Instalación</h3>
-              <div className="bg-slate-50 rounded-3xl border border-slate-100 overflow-hidden">
-                <table className="w-full">
-                  <thead className="bg-slate-100 text-[10px] font-black uppercase text-slate-500">
-                    <tr><th className="px-8 py-5 text-left">Nombre</th><th className="px-8 py-5 text-right">Precio (€)</th><th className="w-16"></th></tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-200">
-                    {productData.installation_kits?.map((kit, i) => (
-                      <tr key={i}>
-                        <td className="px-8 py-5"><input className="w-full bg-transparent font-bold outline-none" value={kit.name} onChange={(e) => updateList('installation_kits', i, 'name', e.target.value)} /></td>
-                        <td className="px-8 py-5 text-right"><input type="number" className="w-24 bg-transparent text-right font-black text-blue-600 outline-none" value={kit.price} onChange={(e) => updateList('installation_kits', i, 'price', toNum(e.target.value))} /></td>
-                        <td className="px-4 py-5 text-center"><button onClick={() => setProductData(p => ({...p, installation_kits: p.installation_kits?.filter((_,idx) => idx !== i)}))} className="text-red-300 hover:text-red-500">×</button></td>
-                      </tr>
-                    ))}
-                    {(!productData.installation_kits || productData.installation_kits.length === 0) && (
-                      <tr><td colSpan={3} className="px-8 py-10 text-center text-slate-300 font-bold italic">No hay kits definidos</td></tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-              <button onClick={() => setProductData(p => ({...p, installation_kits: [...(p.installation_kits || []), { name: '', price: 0 }]}))} className="px-8 py-3 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest">+ Añadir Kit</button>
-            </div>
-          )}
-
-          {activeTab === 'extras_tab' && (
-            <div className="animate-in fade-in space-y-8 text-left">
-              <h3 className="text-xl font-black text-slate-800 tracking-tight italic uppercase">Extras y Accesorios</h3>
-              <div className="bg-slate-50 rounded-3xl border border-slate-100 overflow-hidden">
-                <table className="w-full">
-                  <thead className="bg-slate-100 text-[10px] font-black uppercase text-slate-500">
-                    <tr><th className="px-8 py-5 text-left">Concepto</th><th className="px-8 py-5 text-right">Precio (€)</th><th className="w-16"></th></tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-200">
-                    {productData.extras?.map((ex, i) => (
-                      <tr key={i}>
-                        <td className="px-8 py-5"><input className="w-full bg-transparent font-bold outline-none" value={ex.name} onChange={(e) => updateList('extras', i, 'name', e.target.value)} /></td>
-                        <td className="px-8 py-5 text-right"><input type="number" className="w-24 bg-transparent text-right font-black text-blue-600 outline-none" value={ex.price} onChange={(e) => updateList('extras', i, 'price', toNum(e.target.value))} /></td>
-                        <td className="px-4 py-5 text-center"><button onClick={() => setProductData(p => ({...p, extras: p.extras?.filter((_,idx) => idx !== i)}))} className="text-red-300 hover:text-red-500">×</button></td>
-                      </tr>
-                    ))}
-                    {(!productData.extras || productData.extras.length === 0) && (
-                      <tr><td colSpan={3} className="px-8 py-10 text-center text-slate-300 font-bold italic">No hay extras definidos</td></tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-              <button onClick={() => setProductData(p => ({...p, extras: [...(p.extras || []), { name: '', price: 0 }]}))} className="px-8 py-3 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest">+ Añadir Extra</button>
-            </div>
-          )}
-
-          {activeTab === 'financing' && (
-            <div className="animate-in fade-in space-y-8 text-left">
-              <h3 className="text-xl font-black text-slate-800 tracking-tight italic uppercase">Financiación</h3>
-              <div className="bg-slate-50 rounded-3xl border border-slate-100 overflow-hidden">
-                <table className="w-full">
-                  <thead className="bg-slate-100 text-[10px] font-black uppercase text-slate-500">
-                    <tr><th className="px-8 py-5 text-left">Etiqueta</th><th className="px-8 py-5 text-center">Meses</th><th className="px-8 py-5 text-right">Coeficiente</th><th className="w-16"></th></tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-200">
-                    {financing.map((f, i) => (
-                      <tr key={i}>
-                        <td className="px-8 py-5"><input className="w-full bg-transparent font-bold outline-none" value={f.label} onChange={(e) => updateFinancing(i, 'label', e.target.value)} /></td>
-                        <td className="px-8 py-5 text-center"><input type="number" className="w-16 bg-transparent text-center outline-none font-bold" value={f.months} onChange={(e) => updateFinancing(i, 'months', parseInt(e.target.value) || 0)} /></td>
-                        <td className="px-8 py-5 text-right"><input type="number" step="0.000001" className="w-32 bg-transparent text-right font-black text-blue-600 outline-none" value={f.coefficient} onChange={(e) => updateFinancing(i, 'coefficient', toNum(e.target.value))} /></td>
-                        <td className="px-4 py-5 text-center"><button onClick={() => setFinancing(financing.filter((_,idx) => idx !== i))} className="text-red-300 hover:text-red-500">×</button></td>
-                      </tr>
-                    ))}
-                    {financing.length === 0 && (
-                      <tr><td colSpan={4} className="px-8 py-10 text-center text-slate-300 font-bold italic">No hay planes de financiación definidos</td></tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-              <button onClick={() => setFinancing([...financing, { label: '', months: 12, commission: 0, coefficient: 0 }])} className="px-8 py-3 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest">+ Añadir Tramo</button>
             </div>
           )}
 
           {activeTab === 'pricing' && (
-            <div className="animate-in fade-in space-y-8 text-left">
-              <h3 className="text-xl font-black text-slate-800 tracking-tight italic uppercase">Variantes de Precio</h3>
-              <div className="grid grid-cols-1 gap-4">
-                {productData.pricing?.map((p, i) => (
-                  <div key={i} className="flex gap-4 items-end bg-slate-50 p-6 rounded-2xl border border-slate-100">
-                    <div className="flex-1"><Input label="Variante (ej: Estándar)" value={p.variant} onChange={(e:any) => updateList('pricing', i, 'variant', e.target.value)} /></div>
-                    <div className="w-48"><Input label="PVP (€)" type="number" value={p.price} onChange={(e:any) => updateList('pricing', i, 'price', toNum(e.target.value))} /></div>
-                    <button onClick={() => setProductData(prev => ({...prev, pricing: prev.pricing?.filter((_,idx) => idx !== i)}))} className="mb-4 p-2 text-red-400 hover:bg-red-50 rounded-lg transition-colors">×</button>
+            <div className="space-y-8 text-left">
+              <h3 className="text-xl font-black uppercase italic">Variantes de Precio</h3>
+              {productData.pricing?.map((p: any, i: number) => (
+                <div key={i} className="flex gap-4 items-end bg-slate-50 p-6 rounded-2xl border border-slate-100">
+                  <div className="flex-1"><Input label={`Nombre (${language})`} value={p.name?.[language] || ''} onChange={(e:any) => updateI18nList('pricing', i, 'name', language, e.target.value)} /></div>
+                  <div className="w-32"><Input label="PVP (€)" type="number" value={p.price} onChange={(e:any) => updateSimpleList('pricing', i, 'price', parseFloat(e.target.value))} /></div>
+                  <button onClick={() => setProductData((prev:any) => ({...prev, pricing: prev.pricing.filter((_:any,idx:number)=>idx!==i)}))} className="mb-4 p-2 text-red-400">×</button>
+                </div>
+              ))}
+              <button onClick={() => setProductData((p:any)=>({...p, pricing: [...(p.pricing||[]), { name: {es:'',ca:''}, price: 0 }]}))} className="text-[10px] font-black uppercase text-blue-600">+ Añadir Variante</button>
+            </div>
+          )}
+
+          {activeTab === 'kits' && (
+            <div className="space-y-8 text-left">
+              <h3 className="text-xl font-black uppercase italic">Kits de Instalación</h3>
+              <table className="w-full">
+                <thead className="text-[10px] font-black uppercase text-slate-400"><tr><th className="text-left py-4">Nombre</th><th className="text-right">Precio (€)</th><th className="w-10"></th></tr></thead>
+                <tbody className="divide-y divide-slate-100">
+                  {productData.installation_kits?.map((k: any, i: number) => (
+                    <tr key={i}>
+                      <td className="py-4"><input className="w-full bg-transparent font-bold outline-none" value={k.name?.[language] || ''} onChange={(e)=>updateI18nList('installation_kits', i, 'name', language, e.target.value)} /></td>
+                      <td className="text-right"><input type="number" className="w-20 bg-transparent text-right font-black text-blue-600 outline-none" value={k.price} onChange={(e)=>updateSimpleList('installation_kits', i, 'price', parseFloat(e.target.value))} /></td>
+                      <td className="text-center"><button onClick={()=>setProductData((p:any)=>({...p, installation_kits: p.installation_kits.filter((_:any,idx:number)=>idx!==i)}))} className="text-red-300">×</button></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <button onClick={() => setProductData((p:any)=>({...p, installation_kits: [...(p.installation_kits||[]), { name: {es:'',ca:''}, price: 0 }]}))} className="text-[10px] font-black uppercase text-blue-600">+ Añadir Kit</button>
+            </div>
+          )}
+
+          {activeTab === 'extras_tab' && (
+            <div className="space-y-8 text-left">
+              <h3 className="text-xl font-black uppercase italic">Extras</h3>
+              <table className="w-full">
+                <tbody className="divide-y divide-slate-100">
+                  {productData.extras?.map((e: any, i: number) => (
+                    <tr key={i}>
+                      <td className="py-4"><input className="w-full bg-transparent font-bold outline-none" value={e.name?.[language] || ''} onChange={(val)=>updateI18nList('extras', i, 'name', language, val.target.value)} /></td>
+                      <td className="text-right"><input type="number" className="w-20 bg-transparent text-right font-black text-blue-600 outline-none" value={e.price} onChange={(val)=>updateSimpleList('extras', i, 'price', parseFloat(val.target.value))} /></td>
+                      <td className="text-center"><button onClick={()=>setProductData((p:any)=>({...p, extras: p.extras.filter((_:any,idx:number)=>idx!==i)}))} className="text-red-300">×</button></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <button onClick={() => setProductData((p:any)=>({...p, extras: [...(p.extras||[]), { name: {es:'',ca:''}, price: 0 }]}))} className="text-[10px] font-black uppercase text-blue-600">+ Añadir Extra</button>
+            </div>
+          )}
+
+          {activeTab === 'financing' && (
+            <div className="space-y-8 text-left">
+              <h3 className="text-xl font-black uppercase italic">Financiación</h3>
+              <div className="bg-slate-50 p-8 rounded-3xl border border-slate-100">
+                {financing.map((f: any, i: number) => (
+                  <div key={i} className="grid grid-cols-4 gap-4 mb-4 items-end">
+                    <Input label="Etiqueta" value={f.label?.[language] || ''} onChange={(e:any) => {
+                      const copy = [...financing];
+                      copy[i].label = { ...copy[i].label, [language]: e.target.value };
+                      setFinancing(copy);
+                    }} />
+                    <Input label="Meses" type="number" value={f.months} onChange={(e:any) => {
+                      const copy = [...financing];
+                      copy[i].months = parseInt(e.target.value);
+                      setFinancing(copy);
+                    }} />
+                    <Input label="Coeficiente" type="number" step="0.0001" value={f.coefficient} onChange={(e:any) => {
+                      const copy = [...financing];
+                      copy[i].coefficient = parseFloat(e.target.value);
+                      setFinancing(copy);
+                    }} />
+                    <button onClick={() => setFinancing(financing.filter((_,idx)=>idx!==i))} className="mb-4 text-red-400 font-black">ELIMINAR</button>
                   </div>
                 ))}
-                <button onClick={() => setProductData(p => ({...p, pricing: [...(p.pricing || []), { variant: '', price: 0 }]}))} className="py-5 border-2 border-dashed border-slate-100 rounded-2xl text-[10px] font-black uppercase text-slate-400 hover:text-blue-600 transition-all">+ Añadir Variante</button>
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'stock' && (
-            <div className="animate-in fade-in max-w-sm text-left">
-              <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 italic mb-8">Gestión de Stock</h3>
-              <Input label="Unidades Disponibles" type="number" value={productData.stock || 0} onChange={(e:any) => setProductData({...productData, stock: parseInt(e.target.value) || 0})} />
-            </div>
-          )}
-
-          {activeTab === 'multimedia' && (
-            <div className="animate-in fade-in space-y-12 text-left">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
-                <div>
-                  <h4 className="text-[10px] font-black uppercase text-slate-800 mb-4">Imagen del Producto</h4>
-                  <div className="aspect-video bg-slate-50 border-2 border-dashed border-slate-200 rounded-3xl flex items-center justify-center overflow-hidden relative group">
-                    {previews.product ? <img src={previews.product} className="w-full h-full object-contain p-4" /> : <span className="text-slate-300 font-black text-[10px] uppercase">Sin Imagen</span>}
-                    <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" onChange={(e) => {
-                      const f = e.target.files?.[0];
-                      if(f) { setPreviews(p => ({...p, product: URL.createObjectURL(f)})); }
-                    }} />
-                  </div>
-                </div>
-                <div>
-                  <h4 className="text-[10px] font-black uppercase text-slate-800 mb-4">Logo Marca</h4>
-                  <div className="aspect-video bg-slate-50 border-2 border-dashed border-slate-200 rounded-3xl flex items-center justify-center overflow-hidden relative group">
-                    {previews.logo ? <img src={previews.logo} className="w-full h-full object-contain p-8" /> : <span className="text-slate-300 font-black text-[10px] uppercase">Sin Logo</span>}
-                    <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" onChange={(e) => {
-                      const f = e.target.files?.[0];
-                      if(f) { setPreviews(p => ({...p, logo: URL.createObjectURL(f)})); }
-                    }} />
-                  </div>
-                </div>
+                <button onClick={() => setFinancing([...financing, { label: {es:'12 meses',ca:'12 mesos'}, months: 12, commission: 0, coefficient: 0 }])} className="text-[10px] font-black uppercase text-blue-600">+ Añadir Tramo</button>
               </div>
             </div>
           )}
