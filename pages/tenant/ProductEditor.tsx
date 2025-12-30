@@ -85,6 +85,14 @@ export const ProductEditor = () => {
     fetchProduct();
   }, [id, tenant.id]);
 
+  const normalizeNumber = (val: any): number => {
+    if (val === undefined || val === null || val === '') return 0;
+    if (typeof val === 'number') return val;
+    const cleaned = String(val).replace(',', '.').replace(/[^0-9.-]/g, '');
+    const num = parseFloat(cleaned);
+    return isNaN(num) ? 0 : num;
+  };
+
   const handleAiExtract = async (file: File) => {
     setAiLoading(true);
     try {
@@ -97,52 +105,82 @@ export const ProductEditor = () => {
 
       if (error) throw error;
       
-      if (data) {
-        // Detectar si la IA devolvió una lista o un objeto directo
-        const extracted = data.products ? data.products[0] : data;
-        console.log("Datos extraídos para mapear:", extracted);
-
-        // 1. Mapeo de Precios (Si viene un precio único, creamos una variante)
-        let pricing = extracted.pricing || [];
-        if (pricing.length === 0 && extracted.price) {
-          pricing = [{ variant: 'Precio Base', price: extracted.price }];
-        }
-
-        // 2. Mapeo de Kits e Instalación
-        const kits = extracted.installation_kits || [];
-        const extras = extracted.extras || [];
-
-        // 3. Actualizar estado principal (General, Precios, Kits, Extras)
-        setProductData(prev => ({
-          ...prev,
-          brand: extracted.brand || prev.brand,
-          model: extracted.model || prev.model,
-          type: extracted.type || prev.type,
-          pricing: pricing,
-          installation_kits: kits,
-          extras: extras
-        }));
-
-        // 4. Mapeo de Datos Técnicos
-        if (extracted.technical_data || extracted.features) {
-          const specs = extracted.technical_data 
-            ? extracted.technical_data.map((s: any) => ({ title: s.label, description: s.value }))
-            : (Array.isArray(extracted.features) ? extracted.features.map((f:string) => ({ title: 'Característica', description: f })) : []);
-          setTechSpecs(specs);
-        }
-
-        // 5. Mapeo de Financiación
-        if (extracted.financing && Array.isArray(extracted.financing)) {
-          setFinancing(extracted.financing.map((f: any) => ({
-            label: f.label || `${f.months} meses`,
-            months: f.months || 12,
-            commission: 0,
-            coefficient: f.coefficient || 0
-          })));
-        }
-
-        alert("✨ Datos distribuidos en todas las pestañas.");
+      let rawData = data;
+      if (typeof data === 'string') {
+        try {
+          const match = data.match(/\{[\s\S]*\}/);
+          if (match) rawData = JSON.parse(match[0]);
+        } catch (e) { console.error("Error parsing string AI response"); }
       }
+
+      const extracted = rawData.products ? rawData.products[0] : rawData;
+      console.log("AI normalized ->", extracted);
+
+      // --- 1. NORMALIZACIÓN DE PRECIOS ---
+      let pricing = extracted.pricing || extracted.prices || [];
+      if (pricing.length === 0 && (extracted.price || extracted.pvp)) {
+        pricing = [{ variant: 'Precio Base', price: normalizeNumber(extracted.price || extracted.pvp) }];
+      }
+      pricing = pricing.map((p: any) => ({
+        variant: p.variant || p.name || 'Estándar',
+        price: normalizeNumber(p.price)
+      }));
+      if (pricing.length === 0) pricing = [{ variant: '', price: 0 }];
+
+      // --- 2. NORMALIZACIÓN DE KITS ---
+      let kits = extracted.installation_kits || extracted.installationKits || [];
+      kits = kits.map((k: any) => ({
+        name: k.name || k.label || '',
+        price: normalizeNumber(k.price || k.value)
+      }));
+      if (kits.length === 0) kits = [{ name: '', price: 0 }];
+
+      // --- 3. NORMALIZACIÓN DE EXTRAS ---
+      let extras = extracted.extras || extracted.accessories || [];
+      extras = extras.map((e: any) => ({
+        name: e.name || e.label || '',
+        price: normalizeNumber(e.price || e.value)
+      }));
+      if (extras.length === 0) extras = [{ name: '', price: 0 }];
+
+      // --- 4. NORMALIZACIÓN DE DATOS TÉCNICOS ---
+      let specs: TechSpec[] = [];
+      if (extracted.technical_data || extracted.technicalData) {
+        specs = (extracted.technical_data || extracted.technicalData).map((s: any) => ({
+          title: s.label || s.title || s.key || '',
+          description: s.value || s.description || ''
+        }));
+      } else if (extracted.features && Array.isArray(extracted.features)) {
+        specs = extracted.features.map((f: string) => ({ title: 'Característica', description: f }));
+      }
+      if (specs.length === 0) specs = [{ title: '', description: '' }];
+
+      // --- 5. NORMALIZACIÓN DE FINANCIACIÓN ---
+      let fin: FinancingRow[] = [];
+      if (extracted.financing && Array.isArray(extracted.financing)) {
+        fin = extracted.financing.map((f: any) => ({
+          label: f.label || `${f.months || 0} meses`,
+          months: normalizeNumber(f.months),
+          commission: normalizeNumber(f.commission || 0),
+          coefficient: normalizeNumber(f.coefficient || 0)
+        }));
+      }
+      if (fin.length === 0) fin = [{ label: '12 meses', months: 12, commission: 0, coefficient: 0 }];
+
+      // --- ACTUALIZACIÓN DE ESTADOS ---
+      setProductData(prev => ({
+        ...prev,
+        brand: extracted.brand || prev.brand,
+        model: extracted.model || prev.model,
+        type: extracted.type || prev.type || 'aire_acondicionado',
+        pricing: pricing,
+        installation_kits: kits,
+        extras: extras
+      }));
+      setTechSpecs(specs);
+      setFinancing(fin);
+
+      alert("✨ Todos los campos han sido actualizados.");
     } catch (err: any) {
       alert("Error en extracción: " + err.message);
     } finally {
@@ -187,7 +225,8 @@ export const ProductEditor = () => {
 
   const updateList = (key: 'pricing' | 'installation_kits' | 'extras', index: number, field: string, val: any) => {
     setProductData(prev => {
-      const copy = [...(prev[key] || [])];
+      const list = prev[key] || [];
+      const copy = [...list];
       copy[index] = { ...copy[index], [field]: val };
       return { ...prev, [key]: copy };
     });
@@ -311,6 +350,9 @@ export const ProductEditor = () => {
                         <td className="px-4 py-5 text-center"><button onClick={() => setProductData(p => ({...p, installation_kits: p.installation_kits?.filter((_,idx) => idx !== i)}))} className="text-red-300 hover:text-red-500">×</button></td>
                       </tr>
                     ))}
+                    {(!productData.installation_kits || productData.installation_kits.length === 0) && (
+                      <tr><td colSpan={3} className="px-8 py-10 text-center text-slate-300 font-bold italic">No hay kits definidos</td></tr>
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -354,17 +396,17 @@ export const ProductEditor = () => {
                       <tr key={i}>
                         <td className="px-8 py-5"><input className="w-full bg-transparent font-bold outline-none" value={f.label} onChange={(e) => {
                           const copy = [...financing];
-                          copy[i].label = e.target.value;
+                          copy[i] = { ...copy[i], label: e.target.value };
                           setFinancing(copy);
                         }} /></td>
-                        <td className="px-8 py-5 text-center"><input type="number" className="w-16 bg-transparent text-center outline-none" value={f.months} onChange={(e) => {
+                        <td className="px-8 py-5 text-center"><input type="number" className="w-16 bg-transparent text-center outline-none font-bold" value={f.months} onChange={(e) => {
                           const copy = [...financing];
-                          copy[i].months = parseInt(e.target.value);
+                          copy[i] = { ...copy[i], months: parseInt(e.target.value) || 0 };
                           setFinancing(copy);
                         }} /></td>
                         <td className="px-8 py-5 text-right"><input type="number" step="0.0001" className="w-32 bg-transparent text-right font-black text-blue-600 outline-none" value={f.coefficient} onChange={(e) => {
                           const copy = [...financing];
-                          copy[i].coefficient = parseFloat(e.target.value);
+                          copy[i] = { ...copy[i], coefficient: parseFloat(e.target.value) || 0 };
                           setFinancing(copy);
                         }} /></td>
                         <td className="px-4 py-5 text-center"><button onClick={() => setFinancing(financing.filter((_,idx) => idx !== i))} className="text-red-300 hover:text-red-500">×</button></td>
@@ -384,8 +426,8 @@ export const ProductEditor = () => {
                 {productData.pricing?.map((p, i) => (
                   <div key={i} className="flex gap-4 items-end bg-slate-50 p-6 rounded-2xl border border-slate-100">
                     <div className="flex-1"><Input label="Variante (ej: Estándar)" value={p.variant} onChange={(e:any) => updateList('pricing', i, 'variant', e.target.value)} /></div>
-                    <div className="w-48"><Input label="PVP (€)" type="number" value={p.price} onChange={(e:any) => updateList('pricing', i, 'price', parseFloat(e.target.value))} /></div>
-                    <button onClick={() => setProductData(prev => ({...prev, pricing: prev.pricing?.filter((_,idx) => idx !== i)}))} className="mb-4 p-2 text-red-400 hover:bg-red-50 rounded-lg">×</button>
+                    <div className="w-48"><Input label="PVP (€)" type="number" value={p.price} onChange={(e:any) => updateList('pricing', i, 'price', parseFloat(e.target.value) || 0)} /></div>
+                    <button onClick={() => setProductData(prev => ({...prev, pricing: prev.pricing?.filter((_,idx) => idx !== i)}))} className="mb-4 p-2 text-red-400 hover:bg-red-50 rounded-lg transition-colors">×</button>
                   </div>
                 ))}
                 <button onClick={() => setProductData(p => ({...p, pricing: [...(p.pricing || []), { variant: '', price: 0 }]}))} className="py-5 border-2 border-dashed border-slate-100 rounded-2xl text-[10px] font-black uppercase text-slate-400 hover:text-blue-600 transition-all">+ Añadir Variante</button>
@@ -396,7 +438,7 @@ export const ProductEditor = () => {
           {activeTab === 'stock' && (
             <div className="animate-in fade-in max-w-sm text-left">
               <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 italic mb-8">Gestión de Stock</h3>
-              <Input label="Unidades Disponibles" type="number" value={productData.stock || 0} onChange={(e:any) => setProductData({...productData, stock: parseInt(e.target.value)})} />
+              <Input label="Unidades Disponibles" type="number" value={productData.stock || 0} onChange={(e:any) => setProductData({...productData, stock: parseInt(e.target.value) || 0})} />
             </div>
           )}
 
