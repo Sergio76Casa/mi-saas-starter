@@ -55,25 +55,23 @@ const normType = (t: any): string => {
 };
 
 export async function extractProductWithGemini(file: File): Promise<any> {
-  // Inicialización obligatoria usando process.env.API_KEY
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  // BLOQUE DE DETECCIÓN DE API KEY (VITE + LEGACY)
+  const viteKey = (import.meta as any).env?.VITE_GEMINI_API_KEY as string | undefined;
+  const legacyKey = (globalThis as any)?.process?.env?.API_KEY as string | undefined;
+  const API_KEY = viteKey || legacyKey;
+
+  console.log("[Gemini] key present?", !!API_KEY);
+  if (!API_KEY) throw new Error("Falta VITE_GEMINI_API_KEY (o API_KEY legacy).");
+
+  const ai = new GoogleGenAI({ apiKey: API_KEY });
   const base64Data = await fileToBase64(file);
 
   const systemInstruction = `
 Actúa como extractor técnico experto de climatización.
-DEVUELVE SOLO JSON válido.
-Idiomas obligatorios: es y ca.
-Números: solo NUMBER puro.
-Estructura:
-{
- brand, model, reference, type,
- description: {es, ca},
- pricing: [{id, name:{es,ca}, price, cost}],
- installationKits: [{id, name:{es,ca}, price}],
- extras: [{id, name:{es,ca}, price}],
- financing: [{label:{es,ca}, months, commission, coefficient}],
- techSpecs: [{title, value}]
-}
+Extrae datos a JSON bilingüe (es/ca). 
+Si falta un idioma, tradúcelo. 
+Números sin símbolos.
+Estructura exacta: { brand, model, reference, type, description:{es,ca}, pricing:[{id,name:{es,ca},price,cost}], installationKits:[{id,name:{es,ca},price}], extras:[{id,name:{es,ca},price}], financing:[{label:{es,ca},months,commission,coefficient}], techSpecs:[{title,value}] }
 `.trim();
 
   const response = await ai.models.generateContent({

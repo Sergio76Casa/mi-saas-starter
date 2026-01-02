@@ -63,7 +63,7 @@ export const ProductEditor = () => {
         model: normalized.model || prev.model,
         type: normalized.type || prev.type,
         pricing: normalized.pricing,
-        // Mapeo crucial: installationKits (SDK) -> installation_kits (DB State)
+        // Mapeo crucial: installationKits (extraído) -> installation_kits (DB)
         installation_kits: normalized.installationKits,
         extras: normalized.extras,
         stock: prev.stock || 0
@@ -77,10 +77,10 @@ export const ProductEditor = () => {
         setFinancing(normalized.financing);
       }
 
-      alert("✨ Datos extraídos correctamente.");
+      alert("✨ Datos extraídos correctamente con Gemini v3.");
     } catch (err: any) {
       console.error("DIAGNOSTIC ERROR:", err);
-      alert("Error en la extracción. Verifica la consola para más detalles.");
+      alert("Error en la extracción: " + err.message);
     } finally {
       setAiLoading(false);
       console.log("--- END FRONTEND GEMINI EXTRACTION ---");
@@ -157,7 +157,7 @@ export const ProductEditor = () => {
             onChange={(e) => {
               if (e.target.files && e.target.files[0]) {
                 handleAiExtract(e.target.files[0]);
-                e.currentTarget.value = ""; // Permitir re-selección
+                e.currentTarget.value = ""; // Reset crucial para permitir re-selección
               }
             }} 
           />
