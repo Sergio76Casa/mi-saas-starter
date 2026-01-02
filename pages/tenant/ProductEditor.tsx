@@ -50,43 +50,42 @@ export const ProductEditor = () => {
   }, [id]);
 
   const handleAiExtract = async (file: File) => {
-  setAiLoading(true);
-  console.log("--- START FRONTEND GEMINI EXTRACTION ---");
+    setAiLoading(true);
+    console.log("--- START FRONTEND GEMINI v3 EXTRACTION ---");
 
-  try {
-    const normalized = await extractProductWithGemini(file);
-    console.log("GEMINI normalized ->", normalized);
-    console.log("VERSION ->", normalized.__version);
+    try {
+      const normalized = await extractProductWithGemini(file);
+      console.log("Gemini response version:", normalized.__version);
 
-    setProductData((prev: any) => ({
-      ...prev,
-      brand: normalized.brand || prev.brand,
-      model: normalized.model || prev.model,
-      type: normalized.type || prev.type,
-      pricing: Array.isArray(normalized.pricing) ? normalized.pricing : [],
-      installation_kits: Array.isArray(normalized.installationKits) ? normalized.installationKits : [],
-      extras: Array.isArray(normalized.extras) ? normalized.extras : [],
-      stock: normalized.stock || prev.stock || 0
-    }));
+      setProductData((prev: any) => ({
+        ...prev,
+        brand: normalized.brand || prev.brand,
+        model: normalized.model || prev.model,
+        type: normalized.type || prev.type,
+        pricing: normalized.pricing,
+        // Mapeo crucial: installationKits (SDK) -> installation_kits (DB State)
+        installation_kits: normalized.installationKits,
+        extras: normalized.extras,
+        stock: prev.stock || 0
+      }));
 
-    // ✅ AHORA VIENE DIRECTO
-    if (Array.isArray(normalized.techSpecs)) {
-      setTechSpecs(normalized.techSpecs);
+      if (Array.isArray(normalized.techSpecs)) {
+        setTechSpecs(normalized.techSpecs);
+      }
+
+      if (Array.isArray(normalized.financing)) {
+        setFinancing(normalized.financing);
+      }
+
+      alert("✨ Datos extraídos correctamente.");
+    } catch (err: any) {
+      console.error("DIAGNOSTIC ERROR:", err);
+      alert("Error en la extracción. Verifica la consola para más detalles.");
+    } finally {
+      setAiLoading(false);
+      console.log("--- END FRONTEND GEMINI EXTRACTION ---");
     }
-
-    setFinancing(Array.isArray(normalized.financing) ? normalized.financing : []);
-
-    alert("✨ Extracción completada con éxito.");
-  } catch (err: any) {
-    console.error("DIAGNOSTIC ERROR:", err);
-    alert("Error en la extracción: " + (err?.message || "Error desconocido"));
-  } finally {
-    setAiLoading(false);
-    console.log("--- END FRONTEND GEMINI EXTRACTION ---");
-  }
-};
-
-
+  };
 
   const handleSave = async () => {
     setSaving(true);
@@ -158,7 +157,7 @@ export const ProductEditor = () => {
             onChange={(e) => {
               if (e.target.files && e.target.files[0]) {
                 handleAiExtract(e.target.files[0]);
-                e.currentTarget.value = ""; // Reset value para permitir re-selección
+                e.currentTarget.value = ""; // Permitir re-selección
               }
             }} 
           />
