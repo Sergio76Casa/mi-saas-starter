@@ -109,12 +109,17 @@ export const ProductEditor = () => {
     try {
       const formData = new FormData();
       formData.append('file', file);
-
+      
+      // ✅ AQUÍ ESTÁ EL invoke (busca esta llamada)
       const { data, error } = await supabase.functions.invoke('extract_products_from_file', {
         body: formData
       });
 
+      // ✅ JUSTO DESPUÉS DE ESTA LLAMADA, PEGAS EL console.log
+    console.log("INVOKE RESULT ->", { data, error });
+
       if (error) throw error;
+      if (!data) throw new Error("Edge function devolvió data=null (mira logs en Supabase)");
       
       const rawData = data;
       const normalized = rawData?.data?.products?.[0] ?? rawData?.products?.[0] ?? rawData?.product ?? rawData;
