@@ -50,48 +50,46 @@ export const ProductEditor = () => {
   }, [id]);
 
   const handleAiExtract = async (file: File) => {
-    setAiLoading(true);
-    console.log("--- START FRONTEND GEMINI v3 EXTRACTION ---");
-    
-    try {
-      const normalized = await extractProductWithGemini(file);
-      
-      console.log("GEMINI extracted version ->", normalized.__version);
+  setAiLoading(true);
+  console.log("--- START FRONTEND GEMINI EXTRACTION ---");
 
-      // Actualizamos el estado principal con mapeo a snake_case
-      setProductData((prev: any) => ({
-        ...prev,
-        brand: normalized.brand || prev.brand,
-        model: normalized.model || prev.model,
-        type: normalized.type || prev.type,
-        pricing: Array.isArray(normalized.pricing) ? normalized.pricing : [],
-        installation_kits: Array.isArray(normalized.installationKits) ? normalized.installationKits : [],
-        extras: Array.isArray(normalized.extras) ? normalized.extras : [],
-        stock: normalized.stock || prev.stock || 0
-      }));
+  try {
+    const normalized = await extractProductWithGemini(file);
+    console.log("GEMINI normalized ->", normalized);
+    console.log("VERSION ->", normalized.__version);
 
-      // Mapeo de especificaciones técnicas: Objeto -> Array {title, description}
-      if (normalized.technical && typeof normalized.technical === 'object') {
-        const specs = Object.entries(normalized.technical)
-          .filter(([_, v]) => v !== undefined && v !== null && v !== '')
-          .map(([k, v]) => ({ 
-            title: k.replace(/([A-Z])/g, ' $1').trim(), 
-            description: String(v) 
-          }));
-        if (specs.length > 0) setTechSpecs(specs);
-      }
+    setProductData((prev: any) => ({
+      ...prev,
+      brand: normalized.brand || prev.brand,
+      model: normalized.model || prev.model,
+      type: normalized.type || prev.type,
+      pricing: Array.isArray(normalized.pricing) ? normalized.pricing : [],
+      installation_kits: Array.isArray(normalized.installationKits) ? normalized.installationKits : [],
+      extras: Array.isArray(normalized.extras) ? normalized.extras : [],
+      stock: normalized.stock || prev.stock || 0,
+    }));
 
-      setFinancing(Array.isArray(normalized.financing) ? normalized.financing : []);
-
-      alert("✨ Extracción completada correctamente con Gemini Frontend v3.");
-    } catch (err: any) {
-      console.error("DIAGNOSTIC ERROR:", err.message);
-      alert("Error en la extracción: " + err.message);
-    } finally {
-      setAiLoading(false);
-      console.log("--- END FRONTEND GEMINI EXTRACTION ---");
+    if (normalized.technical && typeof normalized.technical === "object") {
+      const specs = Object.entries(normalized.technical)
+        .filter(([_, v]) => v !== undefined && v !== null && v !== "")
+        .map(([k, v]) => ({
+          title: k.replace(/([A-Z])/g, " $1").trim(),
+          description: String(v),
+        }));
+      setTechSpecs(specs);
     }
-  };
+
+    setFinancing(Array.isArray(normalized.financing) ? normalized.financing : []);
+    alert("✨ Extracción completada con éxito.");
+  } catch (err: any) {
+    console.error("DIAGNOSTIC ERROR:", err);
+    alert("Error en la extracción: " + (err?.message || "desconocido"));
+  } finally {
+    setAiLoading(false);
+    console.log("--- END FRONTEND GEMINI EXTRACTION ---");
+  }
+};
+
 
   const handleSave = async () => {
     setSaving(true);
