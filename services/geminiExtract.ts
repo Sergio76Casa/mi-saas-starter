@@ -1,10 +1,26 @@
 import { GoogleGenAI, Type } from "@google/genai";
 
 /**
+ * En Vite (browser) la API key DEBE venir de import.meta.env.VITE_GEMINI_API_KEY
+ * process.env NO existe en el navegador.
+ */
+const getApiKey = (): string => {
+  // Vite build-time
+  const fromVite = (import.meta as any)?.env?.VITE_GEMINI_API_KEY;
+
+  // Fallbacks (por si algún hosting inyecta globals)
+  const fromGlobalEnv = (globalThis as any)?.__ENV?.VITE_GEMINI_API_KEY;
+  const fromProcess = (globalThis as any)?.process?.env?.VITE_GEMINI_API_KEY;
+
+  const key = fromVite || fromGlobalEnv || fromProcess || "";
+  return String(key).trim();
+};
+
+/**
  * Convierte un archivo File en una cadena Base64 pura.
  */
-const fileToBase64 = (file: File): Promise<string> => {
-  return new Promise((resolve, reject) => {
+const fileToBase64 = (file: File): Promise<string> =>
+  new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.readAsDataURL(file);
     reader.onload = () => {
@@ -13,10 +29,9 @@ const fileToBase64 = (file: File): Promise<string> => {
     };
     reader.onerror = (error) => reject(error);
   });
-};
 
 /**
- * Limpia bloques de código Markdown del string de respuesta.
+ * Limpia bloques Markdown ```json ... ```
  */
 const stripMarkdownJson = (text: string): string => {
   if (!text) return "{}";
@@ -24,33 +39,18 @@ const stripMarkdownJson = (text: string): string => {
 };
 
 /**
- * Intenta parsear JSON de forma robusta aunque Gemini devuelva texto extra.
- */
-const safeJsonParse = (text: string): any => {
-  const cleaned = stripMarkdownJson(text || "{}");
-  try {
-    return JSON.parse(cleaned);
-  } catch {
-    // Fallback: intenta extraer el primer bloque {...}
-    const match = cleaned.match(/\{[\s\S]*\}/);
-    if (match?.[0]) {
-      try {
-        return JSON.parse(match[0]);
-      } catch {
-        return {};
-      }
-    }
-    return {};
-  }
-};
-
-/**
- * Normalización robusta de arrays: acepta objeto -> [objeto], null -> [].
+ * Normalización robusta de arrays: objeto -> [objeto], null -> [].
  */
 const ensureArray = (x: any): any[] => {
   if (Array.isArray(x)) return x;
   if (x && typeof x === "object" && Object.keys(x).length > 0) return [x];
   return [];
+};
+
+const toNum = (v: any): number => {
+  if (typeof v === "number") return v;
+  const n = parseFloat(String(v || "0").replace(",", ".").replace(/[^0-9.-]/g, ""));
+  return isNaN(n) ? 0 : n;
 };
 
 /**
@@ -65,13 +65,9 @@ const normI18n = (obj: any, def = ""): { es: string; ca: string } => {
   };
 };
 
-const toNum = (v: any): number => {
-  if (typeof v === "number") return v;
-  const n = parseFloat(String(v || "0").replace(",", ".").replace(/[^0-9.-]/g, ""));
-  return isNaN(n) ? 0 : n;
-};
-
-const normType = (t: any): "aire_acondicionado" | "aerotermia" | "caldera" | "termo_electrico" => {
+const normType = (
+  t: any
+): "aire_acondicionado" | "aerotermia" | "caldera" | "termo_electrico" => {
   const str = String(t || "").toLowerCase();
   if (str.includes("aire") || str.includes("ac") || str.includes("clima")) return "aire_acondicionado";
   if (str.includes("aerotermia")) return "aerotermia";
@@ -80,23 +76,17 @@ const normType = (t: any): "aire_acondicionado" | "aerotermia" | "caldera" | "te
   return "aire_acondicionado";
 };
 
-/**
- * Obtiene API Key para FRONTEND (Vite).
- * - Principal: import.meta.env.VITE_GEMINI_API_KEY
- * - Fallback opcional: globalThis.process?.env?.API_KEY (solo si tu entorno lo inyecta)
- */
-const getApiKey = (): string | undefined => {
-  const viteKey = (import.meta as any)?.env?.VITE_GEMINI_API_KEY as string | undefined;
-  const fallbackKey = (globalThis as any)?.process?.env?.API_KEY as string | undefined;
-  return viteKey || fallbackKey;
-};
-
 export async function extractProductWithGemini(file: File): Promise<any> {
   const API_KEY = getApiKey();
 
-  console.log("[Gemini] key present?", !!API_KEY);
+  // Logs para verificar INYECCIÓN REAL en el build
+  console.log("[Gemini] VITE key present?", !!API_KEY, "len=", API_KEY?.length || 0);
+  console.log("[Gemini] import.meta.env keys:", Object.keys((import.meta as any)?.env || {}));
+
   if (!API_KEY) {
-    throw new Error("An API Key must be set when running in a browser. Falta VITE_GEMINI_API_KEY.");
+    throw new Error(
+      "Falta VITE_GEMINI_API_KEY. En Vercel debes definirla en Settings → Environment Variables (Production) y redeploy (sin cache)."
+    );
   }
 
   const ai = new GoogleGenAI({ apiKey: API_KEY });
@@ -105,25 +95,13 @@ export async function extractProductWithGemini(file: File): Promise<any> {
   const systemInstruction = `Actúa como un extractor técnico experto de climatización.
 OBJETIVO: Extraer datos a JSON bilingüe.
 IDIOMAS: SOLO 'es' y 'ca'. Si falta uno, copia el otro.
-NÚMEROS: Formato NUMBER puro, sin símbolos de moneda.
-ESTRUCTURA: JSON con:
-- brand (string)
-- model (string)
-- reference (string)
-- type: aire_acondicionado | aerotermia | caldera | termo_electrico
-- description: {es, ca}
-- technical: objeto libre
-- pricing: [{id?, name:{es,ca}, price:number, cost:number}]
-- installationKits: [{id?, name:{es,ca}, price:number}]
-- extras: [{id?, name:{es,ca}, price:number}]
-- financing: [{label:{es,ca}, months:number, commission:number, coefficient:number}]
-Devuelve SOLO JSON.`;
+NÚMEROS: NUMBER puro, sin símbolos.
+ESTRUCTURA: brand, model, reference, type, description{es,ca}, technical{}, pricing[], installationKits[], extras[], financing[].`;
 
   const response = await ai.models.generateContent({
     model: "gemini-3-flash-preview",
     contents: [
       {
-        role: "user",
         parts: [
           { text: systemInstruction },
           { inlineData: { data: base64Data, mimeType: file.type || "application/pdf" } },
@@ -144,73 +122,25 @@ Devuelve SOLO JSON.`;
             properties: { es: { type: Type.STRING }, ca: { type: Type.STRING } },
           },
           technical: { type: Type.OBJECT },
-          pricing: {
-            type: Type.ARRAY,
-            items: {
-              type: Type.OBJECT,
-              properties: {
-                id: { type: Type.STRING },
-                name: {
-                  type: Type.OBJECT,
-                  properties: { es: { type: Type.STRING }, ca: { type: Type.STRING } },
-                },
-                price: { type: Type.NUMBER },
-                cost: { type: Type.NUMBER },
-              },
-            },
-          },
-          installationKits: {
-            type: Type.ARRAY,
-            items: {
-              type: Type.OBJECT,
-              properties: {
-                id: { type: Type.STRING },
-                name: {
-                  type: Type.OBJECT,
-                  properties: { es: { type: Type.STRING }, ca: { type: Type.STRING } },
-                },
-                price: { type: Type.NUMBER },
-              },
-            },
-          },
-          extras: {
-            type: Type.ARRAY,
-            items: {
-              type: Type.OBJECT,
-              properties: {
-                id: { type: Type.STRING },
-                name: {
-                  type: Type.OBJECT,
-                  properties: { es: { type: Type.STRING }, ca: { type: Type.STRING } },
-                },
-                price: { type: Type.NUMBER },
-              },
-            },
-          },
-          financing: {
-            type: Type.ARRAY,
-            items: {
-              type: Type.OBJECT,
-              properties: {
-                label: {
-                  type: Type.OBJECT,
-                  properties: { es: { type: Type.STRING }, ca: { type: Type.STRING } },
-                },
-                months: { type: Type.NUMBER },
-                commission: { type: Type.NUMBER },
-                coefficient: { type: Type.NUMBER },
-              },
-            },
-          },
+          pricing: { type: Type.ARRAY, items: { type: Type.OBJECT } },
+          installationKits: { type: Type.ARRAY, items: { type: Type.OBJECT } },
+          extras: { type: Type.ARRAY, items: { type: Type.OBJECT } },
+          financing: { type: Type.ARRAY, items: { type: Type.OBJECT } },
         },
       },
     },
   });
 
-  const textOut = (response as any)?.text ?? "";
-  console.log("[Gemini] response.text ->", textOut);
+  console.log("[Gemini] response.text ->", response.text);
 
-  const raw = safeJsonParse(textOut);
+  let raw: any = {};
+  try {
+    raw = JSON.parse(stripMarkdownJson(response.text || "{}"));
+  } catch (e) {
+    console.error("[Gemini] Error parsing JSON response", e);
+    raw = {};
+  }
+
   console.log("[Gemini] raw parsed ->", raw);
 
   const clean: any = {
@@ -219,49 +149,44 @@ Devuelve SOLO JSON.`;
     reference: String(raw.reference || ""),
     type: normType(raw.type),
     description: normI18n(raw.description, "Descripción no disponible"),
-    technical: raw.technical && typeof raw.technical === "object" ? raw.technical : {},
+    technical: raw.technical || {},
 
-    pricing:
-      ensureArray(raw.pricing).length > 0
-        ? ensureArray(raw.pricing).map((p: any, i: number) => ({
-            id: p.id || `p${i + 1}`,
-            name: normI18n(p.name, "Precio Base"),
-            price: toNum(p.price),
-            cost: toNum(p.cost),
-          }))
-        : [{ id: "p1", name: { es: "Precio Base", ca: "Preu Base" }, price: 0, cost: 0 }],
+    pricing: ensureArray(raw.pricing).length
+      ? ensureArray(raw.pricing).map((p: any, i: number) => ({
+          id: p.id || `p${i + 1}`,
+          name: normI18n(p.name, "Precio Base"),
+          price: toNum(p.price),
+          cost: toNum(p.cost),
+        }))
+      : [{ id: "p1", name: { es: "Precio Base", ca: "Preu Base" }, price: 0, cost: 0 }],
 
-    installationKits:
-      ensureArray(raw.installationKits).length > 0
-        ? ensureArray(raw.installationKits).map((k: any, i: number) => ({
-            id: k.id || `k${i + 1}`,
-            name: normI18n(k.name, "Instalación Básica"),
-            price: toNum(k.price),
-          }))
-        : [{ id: "k1", name: { es: "Instalación Básica", ca: "Instal·lació Bàsica" }, price: 0 }],
+    installationKits: ensureArray(raw.installationKits).length
+      ? ensureArray(raw.installationKits).map((k: any, i: number) => ({
+          id: k.id || `k${i + 1}`,
+          name: normI18n(k.name, "Instalación Básica"),
+          price: toNum(k.price),
+        }))
+      : [{ id: "k1", name: { es: "Instalación Básica", ca: "Instal·lació Bàsica" }, price: 0 }],
 
-    extras:
-      ensureArray(raw.extras).length > 0
-        ? ensureArray(raw.extras).map((e: any, i: number) => ({
-            id: e.id || `e${i + 1}`,
-            name: normI18n(e.name, "Soportes"),
-            price: toNum(e.price),
-          }))
-        : [{ id: "e1", name: { es: "Soportes", ca: "Suports" }, price: 0 }],
+    extras: ensureArray(raw.extras).length
+      ? ensureArray(raw.extras).map((e: any, i: number) => ({
+          id: e.id || `e${i + 1}`,
+          name: normI18n(e.name, "Soportes"),
+          price: toNum(e.price),
+        }))
+      : [{ id: "e1", name: { es: "Soportes", ca: "Suports" }, price: 0 }],
 
-    financing:
-      ensureArray(raw.financing).length > 0
-        ? ensureArray(raw.financing).map((f: any, i: number) => ({
-            label: normI18n(f.label, `${toNum(f.months) || 12} meses`),
-            months: toNum(f.months) || 12,
-            commission: toNum(f.commission),
-            coefficient: toNum(f.coefficient) || 0.087,
-            id: f.id || `f${i + 1}`,
-          }))
-        : [{ label: { es: "12 Meses", ca: "12 Mesos" }, months: 12, commission: 0, coefficient: 0.087, id: "f1" }],
+    financing: ensureArray(raw.financing).length
+      ? ensureArray(raw.financing).map((f: any) => ({
+          label: normI18n(f.label, `${f.months || 12} meses`),
+          months: toNum(f.months) || 12,
+          commission: toNum(f.commission),
+          coefficient: toNum(f.coefficient) || 0.087,
+        }))
+      : [{ label: { es: "12 Meses", ca: "12 Mesos" }, months: 12, commission: 0, coefficient: 0.087 }],
   };
 
-  clean.__version = "frontend-gemini-v4-vite";
+  clean.__version = "frontend-gemini-v4";
   clean.__extracted_at = new Date().toISOString();
 
   console.log("[Gemini] clean ->", clean);
