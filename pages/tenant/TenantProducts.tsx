@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { useOutletContext, useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '../../supabaseClient';
@@ -14,8 +13,8 @@ const TYPES = [
 
 const STATUS_MAP = {
   active: { label: 'Activo', color: 'bg-green-500' },
-  draft: { label: 'Borrador', color: 'bg-amber-500' },
-  inactive: { label: 'Inactivo', color: 'bg-slate-300' }
+  inactive: { label: 'Inactivo', color: 'bg-slate-300' },
+  draft: { label: 'Borrador', color: 'bg-amber-500' }
 };
 
 export const TenantProducts = () => {
@@ -115,7 +114,7 @@ export const TenantProducts = () => {
                 <th className="px-6 py-6">Tipo</th>
                 <th className="px-6 py-6">Variantes y Precios</th>
                 <th className="px-6 py-6 text-center">Multimedia</th>
-                <th className="px-6 py-6 text-center">Ficha</th>
+                <th className="px-6 py-6 text-center">Ficha Origen</th>
                 <th className="px-8 py-6 text-right">Acciones</th>
               </tr>
             </thead>
@@ -134,7 +133,7 @@ export const TenantProducts = () => {
                       <div className="flex flex-col">
                         <div className="flex items-center gap-2">
                           <span className="text-[14px] font-black text-slate-900 leading-tight tracking-tight uppercase italic">{p.brand}</span>
-                          <span className={`w-2 h-2 rounded-full ${STATUS_MAP[p.status || 'draft'].color}`} title={STATUS_MAP[p.status || 'draft'].label}></span>
+                          <span className={`w-2 h-2 rounded-full ${STATUS_MAP[p.status || 'active'].color}`} title={STATUS_MAP[p.status || 'active'].label}></span>
                         </div>
                         <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">{p.model}</span>
                       </div>
@@ -147,15 +146,12 @@ export const TenantProducts = () => {
                   </td>
                   <td className="px-6 py-8">
                     <div className="space-y-2 max-w-[240px]">
-                      {p.pricing?.map((v, idx) => (
+                      {p.pricing?.map((v: any, idx) => (
                         <div key={idx} className="flex justify-between items-center bg-white/50 border border-slate-100 px-3 py-2 rounded-xl text-[10px] font-medium">
-                          <span className="text-slate-500 font-bold truncate max-w-[120px]">{v.variant || p.model}</span>
+                          <span className="text-slate-500 font-bold truncate max-w-[120px]">{typeof v.name === 'object' ? (v.name[language] || v.name.es) : v.variant || p.model}</span>
                           <span className="font-black text-blue-600 shrink-0">{formatCurrency(v.price, language)}</span>
                         </div>
                       ))}
-                      {(!p.pricing || p.pricing.length === 0) && (
-                        <span className="text-slate-300 italic text-[10px]">Sin variantes</span>
-                      )}
                     </div>
                   </td>
                   <td className="px-6 py-8">
@@ -173,11 +169,11 @@ export const TenantProducts = () => {
                   <td className="px-6 py-8 text-center">
                     <div className="flex justify-center">
                       {p.pdf_url ? (
-                        <a href={p.pdf_url} target="_blank" rel="noreferrer" className="w-10 h-10 flex items-center justify-center text-blue-500 bg-blue-50 hover:bg-blue-100 rounded-xl transition-all" title="Ver Ficha Técnica">
+                        <a href={p.pdf_url} target="_blank" rel="noreferrer" className="w-10 h-10 flex items-center justify-center text-blue-500 bg-blue-50 hover:bg-blue-100 rounded-xl transition-all border border-blue-100/50 shadow-sm" title="Ver Documento de Extracción">
                           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                         </a>
                       ) : (
-                        <span className="text-slate-200 font-black text-xs">-</span>
+                        <span className="text-slate-200 font-black text-[10px] uppercase italic">Sin Ficha</span>
                       )}
                     </div>
                   </td>

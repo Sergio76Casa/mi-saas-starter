@@ -22,14 +22,15 @@ export const ProductEditor = () => {
     brand: '', 
     model: '', 
     type: 'aire_acondicionado',
-    status: 'draft',
+    status: 'active',
     description: { es: '', ca: '' },
     pricing: [], 
     installation_kits: [], 
     extras: [],
     stock: 0,
     image_url: '',
-    brand_logo_url: ''
+    brand_logo_url: '',
+    pdf_url: ''
   });
   const [financing, setFinancing] = useState<any[]>([]);
   const [techSpecs, setTechSpecs] = useState<any[]>([]);
@@ -70,9 +71,14 @@ export const ProductEditor = () => {
 
   const handleAiExtract = async (file: File) => {
     setAiLoading(true);
-    setAiStatus('Leyendo documento...');
+    setAiStatus('Subiendo y leyendo documento...');
     
     try {
+      // 1. Subir el archivo para que quede como ficha técnica
+      const folder = file.type.includes('pdf') ? 'fichas' : 'images';
+      const uploadedUrl = await uploadFile(file, folder);
+
+      // 2. Extraer datos con Gemini
       const normalized = await extractProductWithGemini(file);
       
       setProductData((prev: any) => ({
@@ -86,6 +92,7 @@ export const ProductEditor = () => {
         pricing: normalized.pricing,
         installation_kits: normalized.installationKits,
         extras: normalized.extras,
+        pdf_url: uploadedUrl // Guardamos la URL del archivo usado para la extracción
       }));
 
       if (Array.isArray(normalized.techSpecs)) setTechSpecs(normalized.techSpecs);
@@ -109,13 +116,14 @@ export const ProductEditor = () => {
         brand: productData.brand,
         model: productData.model,
         type: productData.type,
-        status: productData.status || 'draft',
+        status: productData.status || 'active',
         pricing: productData.pricing,
         installation_kits: productData.installation_kits,
         extras: productData.extras,
         stock: parseInt(productData.stock) || 0,
         image_url: productData.image_url,
         brand_logo_url: productData.brand_logo_url,
+        pdf_url: productData.pdf_url,
         features: JSON.stringify({ techSpecs, financing }),
         is_deleted: false
       };
@@ -226,7 +234,6 @@ export const ProductEditor = () => {
               <Input label="Marca" value={productData.brand} onChange={(e:any) => setProductData({...productData, brand: e.target.value})} />
               <Input label="Modelo" value={productData.model} onChange={(e:any) => setProductData({...productData, model: e.target.value})} />
               
-              {/* NUEVOS CAMPOS: STOCK Y ESTADO */}
               <Input label="Stock Disponible" type="number" value={productData.stock} onChange={(e:any) => setProductData({...productData, stock: e.target.value})} />
               <div>
                 <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1">Estado</label>
@@ -236,7 +243,6 @@ export const ProductEditor = () => {
                   className="w-full px-6 py-4 border border-slate-100 rounded-2xl bg-slate-50 text-sm font-bold focus:ring-2 focus:ring-blue-500 outline-none appearance-none"
                 >
                   <option value="active">Activo</option>
-                  <option value="draft">Borrador</option>
                   <option value="inactive">Inactivo</option>
                 </select>
               </div>
@@ -249,7 +255,6 @@ export const ProductEditor = () => {
                   className="w-full px-6 py-4 border border-slate-100 rounded-2xl bg-slate-50 text-sm font-bold focus:ring-2 focus:ring-blue-500 outline-none appearance-none"
                 >
                   <option value="aire_acondicionado">Aire Acondicionado</option>
-                  <option value="aerotermia">Aerotermia</option>
                   <option value="caldera">Caldera</option>
                   <option value="termo_electrico">Termo Eléctrico</option>
                 </select>
@@ -339,9 +344,7 @@ export const ProductEditor = () => {
           </section>
         </div>
 
-        {/* SIDEBAR COL - FINANCIACIÓN Y SPECS */}
         <aside className="space-y-8">
-          
           <section className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm">
             <h4 className="text-[10px] font-black uppercase text-slate-400 mb-6 tracking-widest flex items-center gap-2">
               <span className="w-1.5 h-1.5 bg-purple-500 rounded-full"></span> Financiación
@@ -377,6 +380,14 @@ export const ProductEditor = () => {
               <span className="w-1.5 h-1.5 bg-amber-500 rounded-full"></span> Ficha Técnica
             </h4>
             <div className="space-y-4">
+              {productData.pdf_url && (
+                 <div className="mb-4">
+                    <a href={productData.pdf_url} target="_blank" rel="noreferrer" className="flex items-center gap-3 p-4 bg-blue-50 text-blue-600 rounded-2xl border border-blue-100 hover:bg-blue-100 transition-colors group">
+                       <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                       <span className="text-[10px] font-black uppercase tracking-widest">Ver Documento Original</span>
+                    </a>
+                 </div>
+              )}
               {techSpecs.map((s: any, i: number) => (
                 <div key={i} className="group border-b border-slate-50 pb-3">
                   <div className="flex justify-between items-start">
