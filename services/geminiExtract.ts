@@ -29,12 +29,16 @@ const stripMarkdownJson = (text: string): string => {
 const ensureArray = (x: any): any[] => Array.isArray(x) ? x : (x && typeof x === "object" ? [x] : []);
 
 /**
- * Normalización bilingüe robusta.
+ * Normalización bilingüe robusta. Siempre devuelve {es, ca}.
  */
-const normI18n = (obj: any, def = ""): { es: string; ca: string } => ({
-  es: typeof obj === "string" ? obj : (obj?.es || obj?.ca || def),
-  ca: typeof obj === "string" ? obj : (obj?.ca || obj?.es || def),
-});
+const normI18n = (obj: any, def = ""): { es: string; ca: string } => {
+  if (!obj) return { es: def, ca: def };
+  if (typeof obj === "string") return { es: obj, ca: obj };
+  return {
+    es: obj.es || obj.ca || def,
+    ca: obj.ca || obj.es || def,
+  };
+};
 
 const toNum = (v: any): number => {
   if (typeof v === 'number') return v;
@@ -52,32 +56,25 @@ const normType = (t: any): "aire_acondicionado" | "aerotermia" | "caldera" | "te
 };
 
 export async function extractProductWithGemini(file: File): Promise<any> {
-  // CRITICAL: El acceso a la API Key en este entorno se realiza exclusivamente mediante process.env.API_KEY.
-  console.log("[Gemini] key present?", !!process.env.API_KEY);
-  
-  if (!process.env.API_KEY) {
-    throw new Error("Falta la configuración de API_KEY en el entorno (process.env.API_KEY).");
-  }
-  
+  // Use the process.env.API_KEY directly as specified in the Google GenAI guidelines.
+  // This also resolves the "Property 'env' does not exist on type 'ImportMeta'" error.
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const base64Data = await fileToBase64(file);
 
   const systemInstruction = `Actúa como un extractor técnico experto de climatización. 
 OBJETIVO: Extraer datos a JSON bilingüe.
 IDIOMAS: SOLO 'es' y 'ca'. Si falta uno, tradúcelo.
-NÚMEROS: Formato NUMBER puro, sin símbolos.
-ESTRUCTURA: JSON con brand, model, type, pricing[], installationKits[], extras[], technical{}, financing[].`;
+NÚMEROS: Formato NUMBER puro, sin símbolos de moneda.
+ESTRUCTURA: JSON con brand, model, reference, type, description, technical{}, pricing[], installationKits[], extras[], financing[].`;
 
   const response = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',
-    contents: [
-      {
-        parts: [
-          { text: systemInstruction },
-          { inlineData: { data: base64Data, mimeType: file.type || 'application/pdf' } }
-        ]
-      }
-    ],
+    contents: {
+      parts: [
+        { text: systemInstruction },
+        { inlineData: { data: base64Data, mimeType: file.type || 'application/pdf' } }
+      ]
+    },
     config: {
       responseMimeType: "application/json",
       responseSchema: {
@@ -87,25 +84,80 @@ ESTRUCTURA: JSON con brand, model, type, pricing[], installationKits[], extras[]
           model: { type: Type.STRING },
           reference: { type: Type.STRING },
           type: { type: Type.STRING },
-          description: { type: Type.OBJECT, properties: { es: { type: Type.STRING }, ca: { type: Type.STRING } } },
-          technical: { type: Type.OBJECT },
-          pricing: { type: Type.ARRAY, items: { type: Type.OBJECT } },
-          installationKits: { type: Type.ARRAY, items: { type: Type.OBJECT } },
-          extras: { type: Type.ARRAY, items: { type: Type.OBJECT } },
-          financing: { type: Type.ARRAY, items: { type: Type.OBJECT } }
+          description: { 
+            type: Type.OBJECT, 
+            properties: { 
+              es: { type: Type.STRING }, 
+              ca: { type: Type.STRING } 
+            } 
+          },
+          technical: { 
+            type: Type.OBJECT, 
+            properties: {
+              btu: { type: Type.STRING },
+              efficiency: { type: Type.STRING },
+              refrigerant: { type: Type.STRING }
+            } 
+          },
+          pricing: { 
+            type: Type.ARRAY, 
+            items: { 
+              type: Type.OBJECT,
+              properties: {
+                id: { type: Type.STRING },
+                name: { type: Type.OBJECT, properties: { es: { type: Type.STRING }, ca: { type: Type.STRING } } },
+                price: { type: Type.NUMBER },
+                cost: { type: Type.NUMBER }
+              }
+            } 
+          },
+          installationKits: { 
+            type: Type.ARRAY, 
+            items: { 
+              type: Type.OBJECT,
+              properties: {
+                id: { type: Type.STRING },
+                name: { type: Type.OBJECT, properties: { es: { type: Type.STRING }, ca: { type: Type.STRING } } },
+                price: { type: Type.NUMBER }
+              }
+            } 
+          },
+          extras: { 
+            type: Type.ARRAY, 
+            items: { 
+              type: Type.OBJECT,
+              properties: {
+                id: { type: Type.STRING },
+                name: { type: Type.OBJECT, properties: { es: { type: Type.STRING }, ca: { type: Type.STRING } } },
+                price: { type: Type.NUMBER }
+              }
+            } 
+          },
+          financing: { 
+            type: Type.ARRAY, 
+            items: { 
+              type: Type.OBJECT,
+              properties: {
+                label: { type: Type.OBJECT, properties: { es: { type: Type.STRING }, ca: { type: Type.STRING } } },
+                months: { type: Type.NUMBER },
+                commission: { type: Type.NUMBER },
+                coefficient: { type: Type.NUMBER }
+              }
+            } 
+          }
         }
       }
     }
   });
 
-  // LOGS DE DIAGNÓSTICO OBLIGATORIOS
   console.log("[Gemini] response.text ->", response.text);
 
   let raw: any = {};
   try {
+    // Access response.text directly as it is a property on GenerateContentResponse.
     raw = JSON.parse(stripMarkdownJson(response.text || "{}"));
   } catch (e) {
-    console.error("[Gemini] Error parsing JSON, attempting fallback", e);
+    console.error("[Gemini] Error parsing JSON response", e);
     raw = {};
   }
   
@@ -154,8 +206,7 @@ ESTRUCTURA: JSON con brand, model, type, pricing[], installationKits[], extras[]
       : [{ label: { es: "12 Meses", ca: "12 Mesos" }, months: 12, commission: 0, coefficient: 0.087 }]
   };
 
-  // FIRMA DE VERSIÓN Y TIMESTAMP
-  clean.__version = "frontend-gemini-v2";
+  clean.__version = "frontend-gemini-v3";
   clean.__extracted_at = new Date().toISOString();
 
   console.log("[Gemini] clean ->", clean);

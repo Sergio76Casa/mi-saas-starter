@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { GoogleGenAI, Type } from "@google/genai";
 
@@ -21,6 +20,7 @@ serve(async (req) => {
     const file = formData.get("file") as File;
     if (!file) throw new Error("No file provided");
 
+    // Correctly initialize GoogleGenAI with the API key from environment variables.
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const arrayBuffer = await file.arrayBuffer();
     const base64Data = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
@@ -29,10 +29,17 @@ serve(async (req) => {
 
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
-      contents: [{ parts: [{ text: systemPrompt }, { inlineData: { data: base64Data, mimeType: file.type || "application/pdf" } }] }],
+      // Use a single Content object for a single-turn request instead of an array.
+      contents: { 
+        parts: [
+          { text: systemPrompt }, 
+          { inlineData: { data: base64Data, mimeType: file.type || "application/pdf" } }
+        ] 
+      },
       config: { responseMimeType: "application/json" }
     });
 
+    // Access text property directly from GenerateContentResponse.
     const raw = JSON.parse(response.text || "{}");
     
     // Simplificación del procesado para este snippet de diagnóstico
