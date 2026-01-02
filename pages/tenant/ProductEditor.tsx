@@ -41,25 +41,36 @@ export const ProductEditor = () => {
         setLoading(false);
         return;
       }
-      const { data, error } = await supabase.from('products').select('*').eq('id', id).single();
+      // SEGURIDAD: Filtramos estrictamente por ID del producto Y tenant_id de la empresa actual
+      const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .eq('id', id)
+        .eq('tenant_id', tenant.id)
+        .single();
+
       if (data && !error) {
         setProductData(data);
         try {
           if (data.features) {
-            const parsed = JSON.parse(data.features);
+            const parsed = typeof data.features === 'string' ? JSON.parse(data.features) : data.features;
             if (parsed.techSpecs) setTechSpecs(parsed.techSpecs);
             if (parsed.financing) setFinancing(parsed.financing);
           }
         } catch (e) { console.error("Error parsing features", e); }
+      } else if (error) {
+        console.error("Error fetching product or unauthorized access:", error.message);
+        navigate(`/t/${slug}/products`); // Redirigir si no tiene acceso
       }
       setLoading(false);
     };
     fetchProduct();
-  }, [id]);
+  }, [id, tenant.id, slug, navigate]);
 
   const uploadFile = async (file: File, folder: string) => {
     const fileExt = file.name.split('.').pop();
     const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+    // AISLAMIENTO: Los archivos se guardan en una ruta única por tenant
     const path = `${tenant.id}/${folder}/${fileName}`;
     
     const { error } = await supabase.storage.from('products').upload(path, file);
@@ -71,14 +82,14 @@ export const ProductEditor = () => {
 
   const handleAiExtract = async (file: File) => {
     setAiLoading(true);
-    setAiStatus('Subiendo y leyendo documento...');
+    setAiStatus('Procesando documento...');
     
     try {
-      // 1. Subir el archivo para que quede como ficha técnica
+      // 1. Subir archivo al bucket de la empresa
       const folder = file.type.includes('pdf') ? 'fichas' : 'images';
       const uploadedUrl = await uploadFile(file, folder);
 
-      // 2. Extraer datos con Gemini
+      // 2. Extraer datos (Gemini ya está configurado para bilingüe y tipos específicos)
       const normalized = await extractProductWithGemini(file);
       
       setProductData((prev: any) => ({
@@ -92,17 +103,17 @@ export const ProductEditor = () => {
         pricing: normalized.pricing,
         installation_kits: normalized.installationKits,
         extras: normalized.extras,
-        pdf_url: uploadedUrl // Guardamos la URL del archivo usado para la extracción
+        pdf_url: uploadedUrl 
       }));
 
       if (Array.isArray(normalized.techSpecs)) setTechSpecs(normalized.techSpecs);
       if (Array.isArray(normalized.financing)) setFinancing(normalized.financing);
 
-      setAiStatus('¡Completado!');
+      setAiStatus('Extracción finalizada');
       setTimeout(() => setAiStatus(''), 2000);
     } catch (err: any) {
-      alert("Error: " + err.message);
-      setAiStatus('Error en la extracción');
+      alert("Error en la extracción IA: " + err.message);
+      setAiStatus('Error');
     } finally {
       setAiLoading(false);
     }
@@ -111,6 +122,7 @@ export const ProductEditor = () => {
   const handleSave = async () => {
     setSaving(true);
     try {
+      // payload con tenant_id forzado desde el contexto actual
       const payload = {
         tenant_id: tenant.id,
         brand: productData.brand,
@@ -130,7 +142,7 @@ export const ProductEditor = () => {
 
       const { error } = id === 'new' 
         ? await supabase.from('products').insert([payload])
-        : await supabase.from('products').update(payload).eq('id', id);
+        : await supabase.from('products').update(payload).eq('id', id).eq('tenant_id', tenant.id);
 
       if (error) throw error;
       navigate(`/t/${slug}/products`);
@@ -148,7 +160,7 @@ export const ProductEditor = () => {
       <header className="flex justify-between items-center mb-10">
         <div>
           <h1 className="text-2xl font-black uppercase italic tracking-tighter text-slate-900">Editor de Producto</h1>
-          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1 italic">Gestión de Activos y Contenido Bilingüe</p>
+          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1 italic">Empresa: {tenant.name}</p>
         </div>
         <div className="flex gap-4">
           <button onClick={() => navigate(-1)} className="text-slate-400 font-bold uppercase text-[10px] hover:text-slate-900 transition-colors">Cancelar</button>
@@ -158,7 +170,7 @@ export const ProductEditor = () => {
         </div>
       </header>
 
-      {/* ZONA DE CARGA IA */}
+      {/* ZONA DE CARGA IA AISLADA */}
       <div className={`bg-slate-50 p-6 rounded-[2.5rem] border-2 border-dashed transition-all group ${aiLoading ? 'border-blue-500 bg-blue-50/30' : 'border-slate-200 hover:border-blue-300'} mb-10`}>
         <label className="flex items-center justify-center gap-6 cursor-pointer relative py-4">
           {aiLoading ? (
@@ -172,8 +184,8 @@ export const ProductEditor = () => {
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
               </div>
               <div className="text-left">
-                <span className="text-[11px] font-black uppercase tracking-widest text-slate-900 block">Sincronizar con IA Gemini</span>
-                <p className="text-[9px] text-slate-400 font-bold uppercase tracking-tight italic">Extraer datos automáticamente de PDF o Foto</p>
+                <span className="text-[11px] font-black uppercase tracking-widest text-slate-900 block">Extraer con IA Gemini</span>
+                <p className="text-[9px] text-slate-400 font-bold uppercase tracking-tight italic">Los datos se guardarán solo para {tenant.name}</p>
               </div>
             </>
           )}
@@ -184,16 +196,14 @@ export const ProductEditor = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
         <div className="lg:col-span-2 space-y-8">
           
-          {/* INFORMACIÓN BÁSICA Y MULTIMEDIA */}
           <section className="bg-white p-10 rounded-[2.5rem] border border-slate-100 shadow-sm">
             <h4 className="text-[10px] font-black uppercase text-slate-400 mb-8 tracking-widest flex items-center gap-2">
-              <span className="w-1.5 h-1.5 bg-blue-500 rounded-full"></span> Información y Multimedia
+              <span className="w-1.5 h-1.5 bg-blue-500 rounded-full"></span> Información del Equipo
             </h4>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10">
-              {/* IMAGEN DE MARCA */}
               <div className="space-y-3">
-                <label className="text-[9px] font-black uppercase text-slate-400 ml-1">Logo de Marca</label>
+                <label className="text-[9px] font-black uppercase text-slate-400 ml-1">Logo Marca</label>
                 <div 
                   onClick={() => brandLogoRef.current?.click()}
                   className="h-32 rounded-3xl border-2 border-dashed border-slate-100 bg-slate-50 flex items-center justify-center cursor-pointer group relative overflow-hidden transition-all hover:bg-slate-100"
@@ -210,9 +220,8 @@ export const ProductEditor = () => {
                 </div>
               </div>
 
-              {/* IMAGEN DE PRODUCTO */}
               <div className="space-y-3">
-                <label className="text-[9px] font-black uppercase text-slate-400 ml-1">Imagen del Producto</label>
+                <label className="text-[9px] font-black uppercase text-slate-400 ml-1">Foto Producto</label>
                 <div 
                   onClick={() => productImgRef.current?.click()}
                   className="h-32 rounded-3xl border-2 border-dashed border-slate-100 bg-slate-50 flex items-center justify-center cursor-pointer group relative overflow-hidden transition-all hover:bg-slate-100"
@@ -236,7 +245,7 @@ export const ProductEditor = () => {
               
               <Input label="Stock Disponible" type="number" value={productData.stock} onChange={(e:any) => setProductData({...productData, stock: e.target.value})} />
               <div>
-                <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1">Estado</label>
+                <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1">Estado en {tenant.name}</label>
                 <select 
                   value={productData.status} 
                   onChange={(e) => setProductData({...productData, status: e.target.value})}
@@ -248,7 +257,7 @@ export const ProductEditor = () => {
               </div>
 
               <div className="md:col-span-2">
-                <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1">Tipo de Equipo</label>
+                <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1">Categoría del Equipo</label>
                 <select 
                   value={productData.type} 
                   onChange={(e) => setProductData({...productData, type: e.target.value})}
@@ -265,7 +274,7 @@ export const ProductEditor = () => {
           {/* DESCRIPCIÓN BILINGÜE */}
           <section className="bg-white p-10 rounded-[2.5rem] border border-slate-100 shadow-sm">
             <h4 className="text-[10px] font-black uppercase text-slate-400 mb-8 tracking-widest flex items-center gap-2">
-              <span className="w-1.5 h-1.5 bg-orange-500 rounded-full"></span> Descripción de Producto
+              <span className="w-1.5 h-1.5 bg-orange-500 rounded-full"></span> Descripción del Catálogo
             </h4>
             <div className="space-y-6">
               <div>
@@ -277,7 +286,7 @@ export const ProductEditor = () => {
                   value={productData.description?.es || ''} 
                   onChange={(e) => setProductData({...productData, description: {...productData.description, es: e.target.value}})}
                   className="w-full px-6 py-4 border border-slate-100 rounded-2xl bg-slate-50 text-sm font-medium h-24 resize-none focus:ring-2 focus:ring-blue-500 outline-none"
-                  placeholder="Descripción en castellano..."
+                  placeholder="Descripción técnica..."
                 />
               </div>
               <div>
@@ -289,7 +298,7 @@ export const ProductEditor = () => {
                   value={productData.description?.ca || ''} 
                   onChange={(e) => setProductData({...productData, description: {...productData.description, ca: e.target.value}})}
                   className="w-full px-6 py-4 border border-slate-100 rounded-2xl bg-slate-50 text-sm font-medium h-24 resize-none focus:ring-2 focus:ring-blue-500 outline-none"
-                  placeholder="Descripció en català..."
+                  placeholder="Descripció tècnica..."
                 />
               </div>
             </div>
@@ -298,7 +307,7 @@ export const ProductEditor = () => {
           {/* VARIANTES DE PRECIO BILINGÜES */}
           <section className="bg-white p-10 rounded-[2.5rem] border border-slate-100 shadow-sm">
             <h4 className="text-[10px] font-black uppercase text-slate-400 mb-8 tracking-widest flex items-center gap-2">
-              <span className="w-1.5 h-1.5 bg-green-500 rounded-full"></span> Variantes y Precios
+              <span className="w-1.5 h-1.5 bg-green-500 rounded-full"></span> Precios y Costes de Empresa
             </h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {productData.pricing.map((p: any, i: number) => (
@@ -322,11 +331,11 @@ export const ProductEditor = () => {
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-1">
-                        <span className="text-[8px] font-black text-slate-400 uppercase ml-1">PVP (Venta)</span>
+                        <span className="text-[8px] font-black text-slate-400 uppercase ml-1">Venta Público</span>
                         <input type="number" value={p.price} onChange={(e) => { const cp = [...productData.pricing]; cp[i].price = parseFloat(e.target.value); setProductData({...productData, pricing: cp}); }} className="w-full px-3 py-2 bg-white border border-slate-100 rounded-xl text-[13px] font-black text-blue-600" />
                       </div>
                       <div className="space-y-1">
-                        <span className="text-[8px] font-black text-slate-400 uppercase ml-1">Coste</span>
+                        <span className="text-[8px] font-black text-slate-400 uppercase ml-1">Coste Compra</span>
                         <input type="number" value={p.cost} onChange={(e) => { const cp = [...productData.pricing]; cp[i].cost = parseFloat(e.target.value); setProductData({...productData, pricing: cp}); }} className="w-full px-3 py-2 bg-white border border-slate-100 rounded-xl text-[13px] font-black text-slate-900" />
                       </div>
                     </div>
@@ -334,11 +343,11 @@ export const ProductEditor = () => {
                 </div>
               ))}
               <button 
-                onClick={() => setProductData({...productData, pricing: [...productData.pricing, { name: {es:'Variante',ca:'Variant'}, price: 0, cost: 0 }]})}
+                onClick={() => setProductData({...productData, pricing: [...productData.pricing, { name: {es:'Estándar',ca:'Estàndard'}, price: 0, cost: 0 }]})}
                 className="h-full min-h-[140px] flex flex-col items-center justify-center border-2 border-dashed border-slate-100 rounded-3xl text-slate-300 hover:text-blue-500 hover:border-blue-200 transition-all group"
               >
                 <span className="text-2xl mb-1 group-hover:scale-125 transition-transform">+</span>
-                <span className="text-[9px] font-black uppercase tracking-widest">Añadir Variante</span>
+                <span className="text-[9px] font-black uppercase tracking-widest text-center px-4">Nueva Variante de Precio</span>
               </button>
             </div>
           </section>
@@ -347,7 +356,7 @@ export const ProductEditor = () => {
         <aside className="space-y-8">
           <section className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm">
             <h4 className="text-[10px] font-black uppercase text-slate-400 mb-6 tracking-widest flex items-center gap-2">
-              <span className="w-1.5 h-1.5 bg-purple-500 rounded-full"></span> Financiación
+              <span className="w-1.5 h-1.5 bg-purple-500 rounded-full"></span> Opciones de Pago
             </h4>
             <div className="space-y-3">
               {financing.map((f: any, i: number) => (
@@ -362,7 +371,7 @@ export const ProductEditor = () => {
                       <span className="text-[11px] font-bold">{f.months}</span>
                     </div>
                     <div className="text-center bg-white p-2 rounded-xl border border-slate-100">
-                      <span className="block text-[7px] font-black text-slate-400 uppercase">Comis.</span>
+                      <span className="block text-[7px] font-black text-slate-400 uppercase">Apertura</span>
                       <span className="text-[11px] font-bold text-blue-600">{f.commission}%</span>
                     </div>
                     <div className="text-center bg-white p-2 rounded-xl border border-slate-100">
@@ -377,14 +386,14 @@ export const ProductEditor = () => {
 
           <section className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm">
             <h4 className="text-[10px] font-black uppercase text-slate-400 mb-6 tracking-widest flex items-center gap-2">
-              <span className="w-1.5 h-1.5 bg-amber-500 rounded-full"></span> Ficha Técnica
+              <span className="w-1.5 h-1.5 bg-amber-500 rounded-full"></span> Especificaciones
             </h4>
             <div className="space-y-4">
               {productData.pdf_url && (
                  <div className="mb-4">
                     <a href={productData.pdf_url} target="_blank" rel="noreferrer" className="flex items-center gap-3 p-4 bg-blue-50 text-blue-600 rounded-2xl border border-blue-100 hover:bg-blue-100 transition-colors group">
                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                       <span className="text-[10px] font-black uppercase tracking-widest">Ver Documento Original</span>
+                       <span className="text-[10px] font-black uppercase tracking-widest">Ficha Técnica Original</span>
                     </a>
                  </div>
               )}
@@ -408,10 +417,10 @@ export const ProductEditor = () => {
                 </div>
               ))}
               <button 
-                onClick={() => setTechSpecs([...techSpecs, { title: 'Dato', description: '-' }])}
+                onClick={() => setTechSpecs([...techSpecs, { title: 'Característica', description: '-' }])}
                 className="w-full py-3 border-2 border-dashed border-slate-100 rounded-2xl text-[8px] font-black uppercase text-slate-300 hover:text-blue-500 transition-colors"
               >
-                + Añadir Dato Técnico
+                + Añadir Especificación
               </button>
             </div>
           </section>
