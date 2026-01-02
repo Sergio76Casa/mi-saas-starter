@@ -148,20 +148,26 @@ export const ProductEditor = () => {
         brand_logo_url: productData.brand_logo_url || '',
         pdf_url: productData.pdf_url || '',
         features: JSON.stringify({ techSpecs, financing }),
-        is_deleted: false // SEGURO: Forzamos false para que aparezca en el inventario
+        is_deleted: false 
       };
 
       const { data, error } = id === 'new' 
         ? await supabase.from('products').insert([payload]).select()
         : await supabase.from('products').update(payload).eq('id', id).eq('tenant_id', tenant.id).select();
 
-      if (error) throw error;
+      if (error) {
+        // Manejo específico del error de RLS
+        if (error.message.includes('row-level security policy')) {
+          throw new Error("No tienes permisos de escritura para esta empresa. Verifica que seas administrador de la misma.");
+        }
+        throw error;
+      }
       
       console.log("Producto guardado con éxito:", data);
       navigate(`/t/${slug}/products`);
     } catch (err: any) {
       console.error("Error fatal al guardar:", err);
-      alert("No se pudo guardar: " + err.message);
+      alert("Error al guardar: " + err.message);
     } finally {
       setSaving(false);
     }

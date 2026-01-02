@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../../supabaseClient';
@@ -15,12 +14,11 @@ export const AdminTenants = () => {
   const [activeTab, setActiveTab] = useState<'directory' | 'trash'>('directory');
   const [isCreating, setIsCreating] = useState(false);
   const [newTenant, setNewTenant] = useState({ name: '', slug: '', plan: 'free' });
-  const { dbHealthy } = useApp();
+  const { dbHealthy, session, refreshProfile } = useApp();
 
   const fetchTenants = async () => {
     if (!dbHealthy) return;
     try {
-      // Usamos la sintaxis de Supabase para contar registros relacionados (products)
       const { data, error } = await supabase
         .from('tenants')
         .select('*, products:products(count)')
@@ -41,13 +39,38 @@ export const AdminTenants = () => {
 
   const handleCreateTenant = async () => {
     if (!newTenant.name || !newTenant.slug) return alert("Rellena nombre y slug");
-    const { error } = await supabase.from('tenants').insert([{ ...newTenant, status: 'active', is_deleted: false }]);
-    if (!error) { 
+    
+    try {
+      // 1. Crear el Tenant
+      const { data: tenant, error: tError } = await supabase
+        .from('tenants')
+        .insert([{ ...newTenant, status: 'active', is_deleted: false }])
+        .select()
+        .single();
+
+      if (tError) throw tError;
+
+      // 2. IMPORTANTE: Crear membresía para el admin actual
+      // Sin esto, el RLS bloqueará cualquier inserción de productos en esta nueva empresa
+      if (tenant && session?.user?.id) {
+        const { error: mError } = await supabase
+          .from('memberships')
+          .insert([{ 
+            user_id: session.user.id, 
+            tenant_id: tenant.id, 
+            role: 'admin' 
+          }]);
+        
+        if (mError) console.error("Error al crear membresía administrativa:", mError.message);
+      }
+
       setIsCreating(false); 
       setNewTenant({ name: '', slug: '', plan: 'free' }); 
+      await refreshProfile(); // Actualizar membresías en el estado global
       fetchTenants(); 
-    } else {
-      alert("Error al crear: " + error.message);
+      alert("Empresa registrada y vinculada correctamente.");
+    } catch (err: any) {
+      alert("Error al crear: " + err.message);
     }
   };
 
@@ -130,7 +153,6 @@ export const AdminTenants = () => {
           <tbody className="divide-y divide-white/5">
             {filteredTenants.map(t => {
               const status = t.status || 'active';
-              // Obtenemos el conteo desde la respuesta rpc-like de Supabase
               const productCount = t.products?.[0]?.count || 0;
               
               return (
