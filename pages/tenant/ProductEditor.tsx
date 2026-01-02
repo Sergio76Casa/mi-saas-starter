@@ -12,6 +12,7 @@ export const ProductEditor = () => {
   const { tenant } = useOutletContext<{ tenant: Tenant }>();
   const [loading, setLoading] = useState(true);
   const [aiLoading, setAiLoading] = useState(false);
+  const [aiStatus, setAiStatus] = useState('');
   const [saving, setSaving] = useState(false);
   
   const [productData, setProductData] = useState<any>({ 
@@ -51,39 +52,34 @@ export const ProductEditor = () => {
 
   const handleAiExtract = async (file: File) => {
     setAiLoading(true);
-    console.log("--- START FRONTEND GEMINI v3 EXTRACTION ---");
-
+    setAiStatus('Leyendo documento...');
+    
     try {
-      const normalized = await extractProductWithGemini(file);
-      console.log("Gemini response version:", normalized.__version);
+      setTimeout(() => setAiStatus('Analizando texto e imágenes...'), 1500);
+      setTimeout(() => setAiStatus('Estructurando datos técnicos...'), 4000);
 
+      const normalized = await extractProductWithGemini(file);
+      
       setProductData((prev: any) => ({
         ...prev,
         brand: normalized.brand || prev.brand,
         model: normalized.model || prev.model,
         type: normalized.type || prev.type,
         pricing: normalized.pricing,
-        // Mapeo crucial: installationKits (extraído) -> installation_kits (DB)
         installation_kits: normalized.installationKits,
         extras: normalized.extras,
-        stock: prev.stock || 0
       }));
 
-      if (Array.isArray(normalized.techSpecs)) {
-        setTechSpecs(normalized.techSpecs);
-      }
+      if (Array.isArray(normalized.techSpecs)) setTechSpecs(normalized.techSpecs);
+      if (Array.isArray(normalized.financing)) setFinancing(normalized.financing);
 
-      if (Array.isArray(normalized.financing)) {
-        setFinancing(normalized.financing);
-      }
-
-      alert("✨ Datos extraídos correctamente con Gemini v3.");
+      setAiStatus('¡Completado!');
+      setTimeout(() => setAiStatus(''), 2000);
     } catch (err: any) {
-      console.error("DIAGNOSTIC ERROR:", err);
-      alert("Error en la extracción: " + err.message);
+      alert("Error: " + err.message);
+      setAiStatus('Error en la extracción');
     } finally {
       setAiLoading(false);
-      console.log("--- END FRONTEND GEMINI EXTRACTION ---");
     }
   };
 
@@ -124,40 +120,46 @@ export const ProductEditor = () => {
       <header className="flex justify-between items-center mb-10">
         <div>
           <h1 className="text-2xl font-black uppercase italic tracking-tighter text-slate-900">Editor de Producto (IA Gemini)</h1>
-          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1">Soporte bilingüe ES / CA integrado</p>
+          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1">Modo Turbo: Latencia Optimizada</p>
         </div>
         <div className="flex gap-4">
           <button onClick={() => navigate(-1)} className="text-slate-400 font-bold uppercase text-[10px] hover:text-slate-900 transition-colors">Volver</button>
-          <button 
-            onClick={handleSave} 
-            disabled={saving} 
-            className="px-8 py-3 bg-slate-900 text-white rounded-xl font-black uppercase text-[11px] tracking-widest shadow-xl hover:bg-black transition-all active:scale-95 disabled:opacity-50"
-          >
+          <button onClick={handleSave} disabled={saving} className="px-8 py-3 bg-slate-900 text-white rounded-xl font-black uppercase text-[11px] tracking-widest shadow-xl hover:bg-black transition-all active:scale-95 disabled:opacity-50">
             {saving ? 'GUARDANDO...' : 'GUARDAR CAMBIOS'}
           </button>
         </div>
       </header>
 
-      <div className="bg-slate-50 p-8 rounded-[2.5rem] border-2 border-dashed border-slate-200 mb-10 hover:border-blue-300 transition-colors group">
-        <label className="flex flex-col items-center gap-4 cursor-pointer">
-          <div className="w-16 h-16 bg-blue-600/10 text-blue-600 rounded-full flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
-            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
-          </div>
-          <div className="text-center">
-            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-1">Analizar Ficha Técnica (PDF / JPG)</span>
-            <p className="text-[9px] text-slate-400 italic">Gemini extraerá automáticamente marcas, modelos y datos técnicos.</p>
-          </div>
-          <div className="px-10 py-4 bg-blue-600 text-white rounded-2xl font-black uppercase text-[11px] shadow-2xl shadow-blue-600/20 hover:bg-blue-700 transition-all active:scale-95">
-            {aiLoading ? 'ANALIZANDO DOCUMENTO...' : 'EXTRAER DATOS CON IA'}
-          </div>
+      <div className={`bg-slate-50 p-8 rounded-[2.5rem] border-2 border-dashed transition-all group ${aiLoading ? 'border-blue-500 bg-blue-50/30' : 'border-slate-200 hover:border-blue-300'} mb-10`}>
+        <label className="flex flex-col items-center gap-4 cursor-pointer relative">
+          {aiLoading ? (
+            <div className="flex flex-col items-center">
+              <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4"></div>
+              <p className="text-[11px] font-black uppercase tracking-widest text-blue-600 animate-pulse">{aiStatus}</p>
+            </div>
+          ) : (
+            <>
+              <div className="w-16 h-16 bg-blue-600/10 text-blue-600 rounded-full flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
+                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+              </div>
+              <div className="text-center">
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-1">Analizar Documento</span>
+                <p className="text-[9px] text-slate-400 italic">Extracción instantánea de características técnicas.</p>
+              </div>
+              <div className="px-10 py-4 bg-blue-600 text-white rounded-2xl font-black uppercase text-[11px] shadow-2xl shadow-blue-600/20 hover:bg-blue-700 transition-all active:scale-95">
+                EXTRAER DATOS TURBO
+              </div>
+            </>
+          )}
           <input 
             type="file" 
             className="hidden" 
             accept=".pdf,image/*" 
+            disabled={aiLoading}
             onChange={(e) => {
               if (e.target.files && e.target.files[0]) {
                 handleAiExtract(e.target.files[0]);
-                e.currentTarget.value = ""; // Reset crucial para permitir re-selección
+                e.currentTarget.value = "";
               }
             }} 
           />
@@ -191,7 +193,7 @@ export const ProductEditor = () => {
 
           <section className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm">
             <h4 className="text-[10px] font-black uppercase text-slate-400 mb-6 tracking-widest flex items-center gap-2">
-              <span className="w-1.5 h-1.5 bg-green-500 rounded-full"></span> Precios y Costes (Bilingüe)
+              <span className="w-1.5 h-1.5 bg-green-500 rounded-full"></span> Precios y Costes
             </h4>
             <div className="space-y-3 max-h-[350px] overflow-y-auto pr-2 custom-scrollbar">
               {productData.pricing.map((p: any, i: number) => (
@@ -229,28 +231,7 @@ export const ProductEditor = () => {
                   <button onClick={() => setTechSpecs(techSpecs.filter((_: any, idx: number) => idx !== i))} className="opacity-0 group-hover:opacity-100 text-red-300 hover:text-red-500 transition-opacity">×</button>
                 </div>
               )) : (
-                <div className="py-10 text-center text-slate-300 text-[10px] font-black uppercase italic tracking-widest opacity-40">Sin datos técnicos extraídos</div>
-              )}
-              <button onClick={() => setTechSpecs([...techSpecs, { title: 'Nueva Propiedad', description: '-' }])} className="w-full py-2 border-t border-slate-50 text-[8px] font-black uppercase text-slate-300 hover:text-blue-500 mt-2">+ Añadir Campo</button>
-            </div>
-          </section>
-
-          <section className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm">
-            <h4 className="text-[10px] font-black uppercase text-slate-400 mb-6 tracking-widest flex items-center gap-2">
-              <span className="w-1.5 h-1.5 bg-indigo-500 rounded-full"></span> Instalación y Kits
-            </h4>
-            <div className="space-y-3">
-              {productData.installation_kits.map((k: any, i: number) => (
-                <div key={i} className="flex justify-between items-center p-4 bg-slate-50 rounded-xl border border-slate-100">
-                  <div className="flex flex-col">
-                    <span className="text-[10px] font-black uppercase text-slate-800 leading-tight">{k.name?.es}</span>
-                    <span className="text-[9px] font-bold text-slate-400 italic leading-tight">{k.name?.ca}</span>
-                  </div>
-                  <div className="font-black text-blue-600 text-sm">{k.price} €</div>
-                </div>
-              ))}
-              {productData.installation_kits.length === 0 && (
-                <p className="text-center py-4 text-[10px] text-slate-300 font-black uppercase italic tracking-widest">No se han definido kits</p>
+                <div className="py-10 text-center text-slate-300 text-[10px] font-black uppercase italic tracking-widest opacity-40">Esperando análisis...</div>
               )}
             </div>
           </section>
