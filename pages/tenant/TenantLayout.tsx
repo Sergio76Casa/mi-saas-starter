@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useParams, useLocation, Outlet } from 'react-router-dom';
 import { supabase } from '../../supabaseClient';
@@ -9,23 +8,65 @@ import { SuperAdminFloatingBar } from '../../components/layout/CommonLayoutCompo
 
 export const TenantLayout = () => {
   const { slug } = useParams();
-  const { memberships, signOut, loading, t, profile, session, dbHealthy } = useApp();
+  const { memberships, signOut, loading, t, profile, session, dbHealthy, refreshProfile } = useApp();
   const navigate = useNavigate();
   const location = useLocation();
   const [impersonatedTenant, setImpersonatedTenant] = useState<Tenant | null>(null);
+  const [checkingAccess, setCheckingAccess] = useState(true);
 
   const currentMembership = memberships.find(m => m.tenant?.slug === slug);
   const currentTenant = currentMembership?.tenant || impersonatedTenant;
 
   useEffect(() => {
-    const fetchImpersonated = async () => {
-      if (profile?.is_superadmin && !currentMembership && slug && dbHealthy) {
-        const { data } = await supabase.from('tenants').select('*').eq('slug', slug).single();
-        if (data) setImpersonatedTenant(data);
+    const ensureAccess = async () => {
+      if (loading || !dbHealthy || !session || !slug) return;
+      
+      setCheckingAccess(true);
+      
+      try {
+        // 1. Intentar obtener el tenant por su slug
+        const { data: tenantData, error: tError } = await supabase
+          .from('tenants')
+          .select('*')
+          .eq('slug', slug)
+          .single();
+
+        if (tError || !tenantData) {
+          console.error("Tenant no encontrado");
+          setCheckingAccess(false);
+          return;
+        }
+
+        setImpersonatedTenant(tenantData);
+
+        // 2. Si es Superadmin y NO tiene membresía, crearla automáticamente para habilitar RLS
+        if (profile?.is_superadmin && !currentMembership) {
+          console.log(`Superadmin detectado sin membresía en ${slug}. Creando acceso de base de datos...`);
+          
+          const { error: mError } = await supabase
+            .from('memberships')
+            .insert([{ 
+              user_id: session.user.id, 
+              tenant_id: tenantData.id, 
+              role: 'admin' 
+            }]);
+
+          if (!mError || mError.message.includes('unique_user_tenant')) {
+            // Refrescamos el perfil global para que memberships contenga el nuevo vínculo
+            await refreshProfile();
+          } else {
+            console.error("Error al auto-vincular superadmin:", mError.message);
+          }
+        }
+      } catch (err) {
+        console.error("Error en validación de acceso:", err);
+      } finally {
+        setCheckingAccess(false);
       }
     };
-    fetchImpersonated();
-  }, [slug, profile, currentMembership, dbHealthy]);
+
+    ensureAccess();
+  }, [slug, profile, loading, dbHealthy, session]);
 
   useEffect(() => {
     if (!loading && !session) {
@@ -33,7 +74,7 @@ export const TenantLayout = () => {
     }
   }, [loading, session, navigate, location.pathname]);
 
-  if (loading) return <LoadingSpinner />;
+  if (loading || checkingAccess) return <LoadingSpinner />;
   
   if (session && !currentTenant && !profile?.is_superadmin) {
     return (
@@ -69,7 +110,12 @@ export const TenantLayout = () => {
       </aside>
       <main className="flex-1 flex flex-col h-screen overflow-hidden">
         <header className="h-20 md:h-24 bg-white border-b border-gray-100 flex items-center justify-between px-6 md:px-12 shrink-0">
-          <div className="flex flex-col"><h2 className="text-lg md:text-2xl font-black text-gray-900 tracking-tight leading-none uppercase italic">{currentTenant.name}</h2></div>
+          <div className="flex flex-col">
+            <h2 className="text-lg md:text-2xl font-black text-gray-900 tracking-tight leading-none uppercase italic">{currentTenant.name}</h2>
+            {profile?.is_superadmin && !currentMembership && (
+              <span className="text-[9px] font-black text-amber-500 uppercase tracking-widest mt-1 animate-pulse">⚠️ Acceso via Superadmin</span>
+            )}
+          </div>
           <div className="flex gap-2 md:gap-4">
             <a href={`#/c/${slug}`} target="_blank" rel="noreferrer" className="hidden sm:flex px-4 py-2 bg-gray-50 text-gray-400 text-[9px] font-black uppercase rounded-full border border-gray-100 hover:text-gray-900 transition-all">Web ↗</a>
             {profile?.is_superadmin && <Link to="/admin/dashboard" className="px-3 md:px-4 py-2 bg-slate-900 text-white text-[9px] font-black uppercase rounded-full shadow-lg">ADMIN</Link>}

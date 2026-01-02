@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { supabase } from '../../supabaseClient';
@@ -16,13 +15,40 @@ export const Onboarding = () => {
     const handleCreate = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
-        const { data: tenant, error } = await supabase.from('tenants').insert([{ name, slug }]).select().single();
-        if (!error && tenant) {
-            await supabase.from('memberships').insert([{ user_id: session?.user?.id, tenant_id: tenant.id, role: 'owner' }]);
-            await refreshProfile();
-            navigate(`/t/${slug}/dashboard`);
-        } else alert("Error: " + error?.message);
-        setLoading(false);
+        try {
+            // 1. Crear el tenant
+            const { data: tenant, error: tError } = await supabase
+                .from('tenants')
+                .insert([{ name, slug, status: 'active', is_deleted: false }])
+                .select()
+                .single();
+
+            if (tError) throw tError;
+
+            if (tenant && session?.user?.id) {
+                // 2. Crear la membresía (Propietario)
+                const { error: mError } = await supabase
+                    .from('memberships')
+                    .insert([{ 
+                        user_id: session.user.id, 
+                        tenant_id: tenant.id, 
+                        role: 'owner' 
+                    }]);
+                
+                if (mError) throw mError;
+
+                // 3. Refrescar estado global antes de navegar
+                await refreshProfile();
+                
+                // 4. Navegar al dashboard
+                navigate(`/t/${slug}/dashboard`);
+            }
+        } catch (err: any) {
+            console.error("Error en onboarding:", err.message);
+            alert("Error: " + err.message);
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
@@ -32,7 +58,9 @@ export const Onboarding = () => {
                 <form onSubmit={handleCreate} className="space-y-6">
                     <Input label="Nombre Empresa" value={name} onChange={(e:any) => { setName(e.target.value); setSlug(e.target.value.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-')); }} required />
                     <Input label="Slug / URL personalizada" value={slug} onChange={(e: any) => setSlug(e.target.value)} required />
-                    <button type="submit" disabled={loading} className="w-full py-5 bg-slate-900 text-white rounded-xl md:rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-xl">{loading ? '...' : 'EMPEZAR'}</button>
+                    <button type="submit" disabled={loading} className="w-full py-5 bg-slate-900 text-white rounded-xl md:rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-xl transition-all active:scale-95 disabled:opacity-50">
+                        {loading ? 'CONFIGURANDO...' : 'EMPEZAR AHORA'}
+                    </button>
                 </form>
             </div>
         </div>
