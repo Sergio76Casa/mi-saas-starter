@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useOutletContext } from 'react-router-dom';
 import { supabase } from '../../supabaseClient';
 import { Tenant } from '../../types';
@@ -15,15 +15,21 @@ export const ProductEditor = () => {
   const [aiStatus, setAiStatus] = useState('');
   const [saving, setSaving] = useState(false);
   
+  const brandLogoRef = useRef<HTMLInputElement>(null);
+  const productImgRef = useRef<HTMLInputElement>(null);
+
   const [productData, setProductData] = useState<any>({ 
     brand: '', 
     model: '', 
     type: 'aire_acondicionado',
     status: 'draft',
+    description: { es: '', ca: '' },
     pricing: [], 
     installation_kits: [], 
     extras: [],
-    stock: 0
+    stock: 0,
+    image_url: '',
+    brand_logo_url: ''
   });
   const [financing, setFinancing] = useState<any[]>([]);
   const [techSpecs, setTechSpecs] = useState<any[]>([]);
@@ -50,14 +56,23 @@ export const ProductEditor = () => {
     fetchProduct();
   }, [id]);
 
+  const uploadFile = async (file: File, folder: string) => {
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+    const path = `${tenant.id}/${folder}/${fileName}`;
+    
+    const { error } = await supabase.storage.from('products').upload(path, file);
+    if (error) throw error;
+    
+    const { data: { publicUrl } } = supabase.storage.from('products').getPublicUrl(path);
+    return publicUrl;
+  };
+
   const handleAiExtract = async (file: File) => {
     setAiLoading(true);
     setAiStatus('Leyendo documento...');
     
     try {
-      setTimeout(() => setAiStatus('Analizando texto e imágenes...'), 1500);
-      setTimeout(() => setAiStatus('Estructurando datos técnicos...'), 4000);
-
       const normalized = await extractProductWithGemini(file);
       
       setProductData((prev: any) => ({
@@ -65,6 +80,7 @@ export const ProductEditor = () => {
         brand: normalized.brand || prev.brand,
         model: normalized.model || prev.model,
         type: normalized.type || prev.type,
+        description: normalized.description || prev.description,
         pricing: normalized.pricing,
         installation_kits: normalized.installationKits,
         extras: normalized.extras,
@@ -96,6 +112,8 @@ export const ProductEditor = () => {
         installation_kits: productData.installation_kits,
         extras: productData.extras,
         stock: productData.stock,
+        image_url: productData.image_url,
+        brand_logo_url: productData.brand_logo_url,
         features: JSON.stringify({ techSpecs, financing }),
         is_deleted: false
       };
@@ -116,71 +134,101 @@ export const ProductEditor = () => {
   if (loading) return <LoadingSpinner />;
 
   return (
-    <div className="p-10 text-left max-w-5xl mx-auto pb-20">
+    <div className="p-10 text-left max-w-6xl mx-auto pb-32">
       <header className="flex justify-between items-center mb-10">
         <div>
-          <h1 className="text-2xl font-black uppercase italic tracking-tighter text-slate-900">Editor de Producto (IA Gemini)</h1>
-          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1">Modo Turbo: Latencia Optimizada</p>
+          <h1 className="text-2xl font-black uppercase italic tracking-tighter text-slate-900">Editor de Producto</h1>
+          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1 italic">Gestión de Activos y Contenido Bilingüe</p>
         </div>
         <div className="flex gap-4">
-          <button onClick={() => navigate(-1)} className="text-slate-400 font-bold uppercase text-[10px] hover:text-slate-900 transition-colors">Volver</button>
-          <button onClick={handleSave} disabled={saving} className="px-8 py-3 bg-slate-900 text-white rounded-xl font-black uppercase text-[11px] tracking-widest shadow-xl hover:bg-black transition-all active:scale-95 disabled:opacity-50">
-            {saving ? 'GUARDANDO...' : 'GUARDAR CAMBIOS'}
+          <button onClick={() => navigate(-1)} className="text-slate-400 font-bold uppercase text-[10px] hover:text-slate-900 transition-colors">Cancelar</button>
+          <button onClick={handleSave} disabled={saving} className="px-10 py-4 bg-slate-900 text-white rounded-2xl font-black uppercase text-[11px] tracking-widest shadow-xl hover:bg-black transition-all active:scale-95 disabled:opacity-50">
+            {saving ? 'PROCESANDO...' : 'GUARDAR PRODUCTO'}
           </button>
         </div>
       </header>
 
-      <div className={`bg-slate-50 p-8 rounded-[2.5rem] border-2 border-dashed transition-all group ${aiLoading ? 'border-blue-500 bg-blue-50/30' : 'border-slate-200 hover:border-blue-300'} mb-10`}>
-        <label className="flex flex-col items-center gap-4 cursor-pointer relative">
+      {/* ZONA DE CARGA IA */}
+      <div className={`bg-slate-50 p-6 rounded-[2.5rem] border-2 border-dashed transition-all group ${aiLoading ? 'border-blue-500 bg-blue-50/30' : 'border-slate-200 hover:border-blue-300'} mb-10`}>
+        <label className="flex items-center justify-center gap-6 cursor-pointer relative py-4">
           {aiLoading ? (
-            <div className="flex flex-col items-center">
-              <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4"></div>
-              <p className="text-[11px] font-black uppercase tracking-widest text-blue-600 animate-pulse">{aiStatus}</p>
+            <div className="flex items-center gap-4">
+              <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+              <p className="text-[11px] font-black uppercase tracking-widest text-blue-600">{aiStatus}</p>
             </div>
           ) : (
             <>
-              <div className="w-16 h-16 bg-blue-600/10 text-blue-600 rounded-full flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
-                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+              <div className="w-12 h-12 bg-blue-600 text-white rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
               </div>
-              <div className="text-center">
-                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-1">Analizar Documento</span>
-                <p className="text-[9px] text-slate-400 italic">Extracción instantánea de características técnicas.</p>
-              </div>
-              <div className="px-10 py-4 bg-blue-600 text-white rounded-2xl font-black uppercase text-[11px] shadow-2xl shadow-blue-600/20 hover:bg-blue-700 transition-all active:scale-95">
-                EXTRAER DATOS TURBO
+              <div className="text-left">
+                <span className="text-[11px] font-black uppercase tracking-widest text-slate-900 block">Sincronizar con IA Gemini</span>
+                <p className="text-[9px] text-slate-400 font-bold uppercase tracking-tight italic">Extraer datos automáticamente de PDF o Foto</p>
               </div>
             </>
           )}
-          <input 
-            type="file" 
-            className="hidden" 
-            accept=".pdf,image/*" 
-            disabled={aiLoading}
-            onChange={(e) => {
-              if (e.target.files && e.target.files[0]) {
-                handleAiExtract(e.target.files[0]);
-                e.currentTarget.value = "";
-              }
-            }} 
-          />
+          <input type="file" className="hidden" accept=".pdf,image/*" disabled={aiLoading} onChange={(e) => e.target.files?.[0] && handleAiExtract(e.target.files[0])} />
         </label>
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        <div className="space-y-6">
-          <section className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm">
-            <h4 className="text-[10px] font-black uppercase text-slate-400 mb-6 tracking-widest flex items-center gap-2">
-              <span className="w-1.5 h-1.5 bg-blue-500 rounded-full"></span> Información General
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+        <div className="lg:col-span-2 space-y-8">
+          
+          {/* INFORMACIÓN BÁSICA Y MULTIMEDIA */}
+          <section className="bg-white p-10 rounded-[2.5rem] border border-slate-100 shadow-sm">
+            <h4 className="text-[10px] font-black uppercase text-slate-400 mb-8 tracking-widest flex items-center gap-2">
+              <span className="w-1.5 h-1.5 bg-blue-500 rounded-full"></span> Información y Multimedia
             </h4>
-            <div className="space-y-4">
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10">
+              {/* IMAGEN DE MARCA */}
+              <div className="space-y-3">
+                <label className="text-[9px] font-black uppercase text-slate-400 ml-1">Logo de Marca</label>
+                <div 
+                  onClick={() => brandLogoRef.current?.click()}
+                  className="h-32 rounded-3xl border-2 border-dashed border-slate-100 bg-slate-50 flex items-center justify-center cursor-pointer group relative overflow-hidden transition-all hover:bg-slate-100"
+                >
+                  {productData.brand_logo_url ? (
+                    <img src={productData.brand_logo_url} className="w-full h-full object-contain p-4" alt="Brand Logo" />
+                  ) : (
+                    <div className="text-center opacity-30">
+                      <svg className="w-8 h-8 mx-auto mb-1 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                      <span className="text-[8px] font-black uppercase">Subir Logo</span>
+                    </div>
+                  )}
+                  <input type="file" ref={brandLogoRef} className="hidden" onChange={async (e) => { if(e.target.files?.[0]) { const url = await uploadFile(e.target.files[0], 'brands'); setProductData({...productData, brand_logo_url: url}); }}} />
+                </div>
+              </div>
+
+              {/* IMAGEN DE PRODUCTO */}
+              <div className="space-y-3">
+                <label className="text-[9px] font-black uppercase text-slate-400 ml-1">Imagen del Producto</label>
+                <div 
+                  onClick={() => productImgRef.current?.click()}
+                  className="h-32 rounded-3xl border-2 border-dashed border-slate-100 bg-slate-50 flex items-center justify-center cursor-pointer group relative overflow-hidden transition-all hover:bg-slate-100"
+                >
+                  {productData.image_url ? (
+                    <img src={productData.image_url} className="w-full h-full object-contain p-2" alt="Product" />
+                  ) : (
+                    <div className="text-center opacity-30">
+                      <svg className="w-8 h-8 mx-auto mb-1 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                      <span className="text-[8px] font-black uppercase">Subir Foto</span>
+                    </div>
+                  )}
+                  <input type="file" ref={productImgRef} className="hidden" onChange={async (e) => { if(e.target.files?.[0]) { const url = await uploadFile(e.target.files[0], 'products'); setProductData({...productData, image_url: url}); }}} />
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <Input label="Marca" value={productData.brand} onChange={(e:any) => setProductData({...productData, brand: e.target.value})} />
               <Input label="Modelo" value={productData.model} onChange={(e:any) => setProductData({...productData, model: e.target.value})} />
-              <div>
+              <div className="md:col-span-2">
                 <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1">Tipo de Equipo</label>
                 <select 
                   value={productData.type} 
                   onChange={(e) => setProductData({...productData, type: e.target.value})}
-                  className="w-full px-4 py-3 border border-slate-100 rounded-xl bg-slate-50 text-sm font-bold focus:ring-2 focus:ring-blue-500 outline-none appearance-none"
+                  className="w-full px-6 py-4 border border-slate-100 rounded-2xl bg-slate-50 text-sm font-bold focus:ring-2 focus:ring-blue-500 outline-none appearance-none"
                 >
                   <option value="aire_acondicionado">Aire Acondicionado</option>
                   <option value="aerotermia">Aerotermia</option>
@@ -191,51 +239,154 @@ export const ProductEditor = () => {
             </div>
           </section>
 
-          <section className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm">
-            <h4 className="text-[10px] font-black uppercase text-slate-400 mb-6 tracking-widest flex items-center gap-2">
-              <span className="w-1.5 h-1.5 bg-green-500 rounded-full"></span> Precios y Costes
+          {/* DESCRIPCIÓN BILINGÜE */}
+          <section className="bg-white p-10 rounded-[2.5rem] border border-slate-100 shadow-sm">
+            <h4 className="text-[10px] font-black uppercase text-slate-400 mb-8 tracking-widest flex items-center gap-2">
+              <span className="w-1.5 h-1.5 bg-orange-500 rounded-full"></span> Descripción de Producto
             </h4>
-            <div className="space-y-3 max-h-[350px] overflow-y-auto pr-2 custom-scrollbar">
+            <div className="space-y-6">
+              <div>
+                <div className="flex items-center gap-2 mb-2 ml-1">
+                  <span className="bg-slate-900 text-white text-[8px] font-black px-1.5 py-0.5 rounded">ES</span>
+                  <label className="text-[9px] font-black uppercase text-slate-400">Español</label>
+                </div>
+                <textarea 
+                  value={productData.description?.es || ''} 
+                  onChange={(e) => setProductData({...productData, description: {...productData.description, es: e.target.value}})}
+                  className="w-full px-6 py-4 border border-slate-100 rounded-2xl bg-slate-50 text-sm font-medium h-24 resize-none focus:ring-2 focus:ring-blue-500 outline-none"
+                  placeholder="Descripción en castellano..."
+                />
+              </div>
+              <div>
+                <div className="flex items-center gap-2 mb-2 ml-1">
+                  <span className="bg-blue-600 text-white text-[8px] font-black px-1.5 py-0.5 rounded">CA</span>
+                  <label className="text-[9px] font-black uppercase text-slate-400">Catalán</label>
+                </div>
+                <textarea 
+                  value={productData.description?.ca || ''} 
+                  onChange={(e) => setProductData({...productData, description: {...productData.description, ca: e.target.value}})}
+                  className="w-full px-6 py-4 border border-slate-100 rounded-2xl bg-slate-50 text-sm font-medium h-24 resize-none focus:ring-2 focus:ring-blue-500 outline-none"
+                  placeholder="Descripció en català..."
+                />
+              </div>
+            </div>
+          </section>
+
+          {/* VARIANTES DE PRECIO BILINGÜES */}
+          <section className="bg-white p-10 rounded-[2.5rem] border border-slate-100 shadow-sm">
+            <h4 className="text-[10px] font-black uppercase text-slate-400 mb-8 tracking-widest flex items-center gap-2">
+              <span className="w-1.5 h-1.5 bg-green-500 rounded-full"></span> Variantes y Precios
+            </h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {productData.pricing.map((p: any, i: number) => (
-                <div key={i} className="p-5 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-blue-200 transition-colors">
-                  <div className="flex justify-between items-start mb-3">
-                    <div className="space-y-1">
-                      <div className="text-[11px] font-black text-slate-900 uppercase italic leading-none">{p.name?.es}</div>
-                      <div className="text-[10px] font-bold text-slate-400 italic leading-none">{p.name?.ca}</div>
+                <div key={i} className="p-6 bg-slate-50 rounded-3xl border border-slate-100 relative group">
+                  <button 
+                    onClick={() => setProductData({...productData, pricing: productData.pricing.filter((_:any,idx:number)=>idx!==i)})}
+                    className="absolute top-4 right-4 w-6 h-6 flex items-center justify-center bg-white text-red-400 border border-slate-100 rounded-full text-sm font-black shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    ×
+                  </button>
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <span className="text-[8px] font-black text-slate-400 uppercase ml-1">Nombre (ES)</span>
+                        <input value={p.name?.es} onChange={(e) => { const cp = [...productData.pricing]; cp[i].name.es = e.target.value; setProductData({...productData, pricing: cp}); }} className="w-full px-3 py-2 bg-white border border-slate-100 rounded-xl text-[11px] font-bold" />
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-[8px] font-black text-slate-400 uppercase ml-1">Nombre (CA)</span>
+                        <input value={p.name?.ca} onChange={(e) => { const cp = [...productData.pricing]; cp[i].name.ca = e.target.value; setProductData({...productData, pricing: cp}); }} className="w-full px-3 py-2 bg-white border border-slate-100 rounded-xl text-[11px] font-bold" />
+                      </div>
                     </div>
-                    <button onClick={() => setProductData({...productData, pricing: productData.pricing.filter((_:any,idx:number)=>idx!==i)})} className="text-red-300 hover:text-red-500 text-[14px]">×</button>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="text-blue-600 font-black text-sm">{p.price} € <span className="text-[9px] uppercase block text-slate-400 font-bold">Venta</span></div>
-                    <div className="text-slate-900 font-black text-sm">{p.cost} € <span className="text-[9px] uppercase block text-slate-400 font-bold">Coste</span></div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <span className="text-[8px] font-black text-slate-400 uppercase ml-1">PVP (Venta)</span>
+                        <input type="number" value={p.price} onChange={(e) => { const cp = [...productData.pricing]; cp[i].price = parseFloat(e.target.value); setProductData({...productData, pricing: cp}); }} className="w-full px-3 py-2 bg-white border border-slate-100 rounded-xl text-[13px] font-black text-blue-600" />
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-[8px] font-black text-slate-400 uppercase ml-1">Coste</span>
+                        <input type="number" value={p.cost} onChange={(e) => { const cp = [...productData.pricing]; cp[i].cost = parseFloat(e.target.value); setProductData({...productData, pricing: cp}); }} className="w-full px-3 py-2 bg-white border border-slate-100 rounded-xl text-[13px] font-black text-slate-900" />
+                      </div>
+                    </div>
                   </div>
                 </div>
               ))}
-              <button onClick={() => setProductData({...productData, pricing: [...productData.pricing, { name: {es:'',ca:''}, price: 0, cost: 0 }]})} className="w-full py-4 border-2 border-dashed border-slate-100 rounded-2xl text-[9px] font-black uppercase text-slate-400 hover:text-blue-600">+ Añadir Variante</button>
+              <button 
+                onClick={() => setProductData({...productData, pricing: [...productData.pricing, { name: {es:'Variante',ca:'Variant'}, price: 0, cost: 0 }]})}
+                className="h-full min-h-[140px] flex flex-col items-center justify-center border-2 border-dashed border-slate-100 rounded-3xl text-slate-300 hover:text-blue-500 hover:border-blue-200 transition-all group"
+              >
+                <span className="text-2xl mb-1 group-hover:scale-125 transition-transform">+</span>
+                <span className="text-[9px] font-black uppercase tracking-widest">Añadir Variante</span>
+              </button>
             </div>
           </section>
         </div>
 
-        <div className="space-y-6">
-          <section className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm">
+        {/* SIDEBAR COL - FINANCIACIÓN Y SPECS */}
+        <aside className="space-y-8">
+          
+          <section className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm">
             <h4 className="text-[10px] font-black uppercase text-slate-400 mb-6 tracking-widest flex items-center gap-2">
-              <span className="w-1.5 h-1.5 bg-amber-500 rounded-full"></span> Características Técnicas
+              <span className="w-1.5 h-1.5 bg-purple-500 rounded-full"></span> Financiación
             </h4>
-            <div className="space-y-2 max-h-[500px] overflow-y-auto pr-2">
-              {techSpecs.length > 0 ? techSpecs.map((s: any, i: number) => (
-                <div key={i} className="flex justify-between items-center border-b border-slate-50 py-3 group">
-                  <div className="flex flex-col">
-                    <span className="text-[9px] font-black uppercase text-slate-400 tracking-tighter">{s.title}</span>
-                    <span className="text-[11px] font-bold text-slate-800 italic">{s.description}</span>
+            <div className="space-y-3">
+              {financing.map((f: any, i: number) => (
+                <div key={i} className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-[10px] font-black text-slate-800 italic">{f.label?.es}</span>
+                    <button onClick={() => setFinancing(financing.filter((_: any, idx: number) => idx !== i))} className="text-red-300 text-lg">×</button>
                   </div>
-                  <button onClick={() => setTechSpecs(techSpecs.filter((_: any, idx: number) => idx !== i))} className="opacity-0 group-hover:opacity-100 text-red-300 hover:text-red-500 transition-opacity">×</button>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="text-center bg-white p-2 rounded-xl border border-slate-100">
+                      <span className="block text-[7px] font-black text-slate-400 uppercase">Meses</span>
+                      <span className="text-[11px] font-bold">{f.months}</span>
+                    </div>
+                    <div className="text-center bg-white p-2 rounded-xl border border-slate-100">
+                      <span className="block text-[7px] font-black text-slate-400 uppercase">Comis.</span>
+                      <span className="text-[11px] font-bold text-blue-600">{f.commission}%</span>
+                    </div>
+                    <div className="text-center bg-white p-2 rounded-xl border border-slate-100">
+                      <span className="block text-[7px] font-black text-slate-400 uppercase">Coef.</span>
+                      <span className="text-[11px] font-bold">{f.coefficient}</span>
+                    </div>
+                  </div>
                 </div>
-              )) : (
-                <div className="py-10 text-center text-slate-300 text-[10px] font-black uppercase italic tracking-widest opacity-40">Esperando análisis...</div>
-              )}
+              ))}
             </div>
           </section>
-        </div>
+
+          <section className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm">
+            <h4 className="text-[10px] font-black uppercase text-slate-400 mb-6 tracking-widest flex items-center gap-2">
+              <span className="w-1.5 h-1.5 bg-amber-500 rounded-full"></span> Ficha Técnica
+            </h4>
+            <div className="space-y-4">
+              {techSpecs.map((s: any, i: number) => (
+                <div key={i} className="group border-b border-slate-50 pb-3">
+                  <div className="flex justify-between items-start">
+                    <div className="space-y-0.5">
+                      <input 
+                        value={s.title} 
+                        onChange={(e) => { const cs = [...techSpecs]; cs[i].title = e.target.value; setTechSpecs(cs); }}
+                        className="bg-transparent border-none p-0 text-[9px] font-black uppercase text-slate-400 outline-none w-full" 
+                      />
+                      <input 
+                        value={s.description} 
+                        onChange={(e) => { const cs = [...techSpecs]; cs[i].description = e.target.value; setTechSpecs(cs); }}
+                        className="bg-transparent border-none p-0 text-[11px] font-bold text-slate-800 outline-none w-full" 
+                      />
+                    </div>
+                    <button onClick={() => setTechSpecs(techSpecs.filter((_: any, idx: number) => idx !== i))} className="text-slate-200 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100">×</button>
+                  </div>
+                </div>
+              ))}
+              <button 
+                onClick={() => setTechSpecs([...techSpecs, { title: 'Dato', description: '-' }])}
+                className="w-full py-3 border-2 border-dashed border-slate-100 rounded-2xl text-[8px] font-black uppercase text-slate-300 hover:text-blue-500 transition-colors"
+              >
+                + Añadir Dato Técnico
+              </button>
+            </div>
+          </section>
+        </aside>
       </div>
     </div>
   );

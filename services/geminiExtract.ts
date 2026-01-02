@@ -49,7 +49,6 @@ const normType = (t: any): string => {
 };
 
 export async function extractProductWithGemini(file: File): Promise<any> {
-  // Detección de API Key inyectada por el entorno
   const API_KEY = (import.meta as any).env?.VITE_GEMINI_API_KEY || (globalThis as any)?.process?.env?.API_KEY;
 
   if (!API_KEY) throw new Error("API Key no configurada.");
@@ -57,8 +56,16 @@ export async function extractProductWithGemini(file: File): Promise<any> {
   const ai = new GoogleGenAI({ apiKey: API_KEY });
   const base64Data = await fileToBase64(file);
 
-  // Prompt simplificado para máxima velocidad de respuesta
-  const systemInstruction = `Extract technical HVAC data to JSON. Languages: es/ca. Only numbers for prices.`;
+  // Instrucciones reforzadas para búsqueda de financiación
+  const systemInstruction = `
+    Extract HVAC technical data and FINANCING terms. 
+    Languages: es/ca. 
+    Look for: 
+    - Financing tables (months: 12, 24, 36, etc.).
+    - Opening commissions (%) and interest coefficients.
+    - Product prices and costs.
+    Return only valid JSON.
+  `.trim();
 
   const response = await ai.models.generateContent({
     model: "gemini-3-flash-preview",
@@ -69,7 +76,6 @@ export async function extractProductWithGemini(file: File): Promise<any> {
       ],
     },
     config: {
-      // OPTIMIZACIÓN DE LATENCIA: Desactivar presupuesto de pensamiento para extracción directa
       thinkingConfig: { thinkingBudget: 0 },
       responseMimeType: "application/json",
       responseSchema: {
@@ -168,8 +174,9 @@ export async function extractProductWithGemini(file: File): Promise<any> {
       name: normI18n(e.name, "Soportes"),
       price: toNum(e.price)
     })),
-    financing: ensureArray(raw.financing).map(f => ({
-      label: normI18n(f.label, "Financiación"),
+    financing: ensureArray(raw.financing).map((f, i) => ({
+      id: `f${i + 1}`,
+      label: normI18n(f.label, `${f.months || 12} meses`),
       months: toNum(f.months) || 12,
       commission: toNum(f.commission),
       coefficient: toNum(f.coefficient) || 0.087
@@ -178,7 +185,7 @@ export async function extractProductWithGemini(file: File): Promise<any> {
       title: String(t.title || "").trim(),
       description: String(t.value || "").trim()
     })).filter(x => x.title),
-    __version: "frontend-gemini-v4-turbo",
+    __version: "frontend-gemini-v5-finance-ready",
     __extracted_at: new Date().toISOString()
   };
 
