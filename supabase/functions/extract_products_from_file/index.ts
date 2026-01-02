@@ -281,6 +281,9 @@ Devuelve SOLO JSON. Sin texto adicional.
             ],
     };
 
+    // ✅ PONLO AQUÍ (firma de versión)
+    (clean as any).__version = "v2-i18n-es-ca";
+
     // Alias para compatibilidad con frontend
     clean.installation_kits = clean.installationKits;
 
