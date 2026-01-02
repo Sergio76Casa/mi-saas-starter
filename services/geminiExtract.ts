@@ -40,12 +40,16 @@ const toNum = (v: any): number => {
   return Number.isFinite(n) ? n : 0;
 };
 
+/**
+ * Normaliza el tipo de producto a uno de los valores permitidos por el sistema.
+ */
 const normType = (t: any): string => {
   const str = String(t || "").toLowerCase();
-  if (str.includes("aerotermia")) return "aerotermia";
   if (str.includes("caldera")) return "caldera";
-  if (str.includes("termo")) return "termo_electrico";
-  return "aire_acondicionado";
+  if (str.includes("termo") || str.includes("calentador")) return "termo_electrico";
+  if (str.includes("aire") || str.includes("split") || str.includes("clima")) return "aire_acondicionado";
+  if (str.includes("aerotermia")) return "aerotermia";
+  return "aire_acondicionado"; // Valor por defecto
 };
 
 export async function extractProductWithGemini(file: File): Promise<any> {
@@ -56,14 +60,13 @@ export async function extractProductWithGemini(file: File): Promise<any> {
   const ai = new GoogleGenAI({ apiKey: API_KEY });
   const base64Data = await fileToBase64(file);
 
-  // Instrucciones reforzadas para búsqueda de financiación
   const systemInstruction = `
-    Extract HVAC technical data and FINANCING terms. 
+    Extract HVAC technical data, FINANCING, and STOCK. 
     Languages: es/ca. 
-    Look for: 
-    - Financing tables (months: 12, 24, 36, etc.).
-    - Opening commissions (%) and interest coefficients.
-    - Product prices and costs.
+    IMPORTANT: The field 'type' MUST be exactly one of these: 'aire_acondicionado', 'caldera', 'termo_electrico'.
+    - If it's an air conditioner or heat pump, use 'aire_acondicionado'.
+    - If it's a gas/oil boiler, use 'caldera'.
+    - If it's an electric water heater or thermo, use 'termo_electrico'.
     Return only valid JSON.
   `.trim();
 
@@ -85,6 +88,8 @@ export async function extractProductWithGemini(file: File): Promise<any> {
           model: { type: Type.STRING },
           reference: { type: Type.STRING },
           type: { type: Type.STRING },
+          status: { type: Type.STRING },
+          stock: { type: Type.INTEGER },
           description: { 
             type: Type.OBJECT, 
             properties: { es: { type: Type.STRING }, ca: { type: Type.STRING } } 
@@ -94,32 +99,9 @@ export async function extractProductWithGemini(file: File): Promise<any> {
             items: {
               type: Type.OBJECT,
               properties: {
-                id: { type: Type.STRING },
                 name: { type: Type.OBJECT, properties: { es: { type: Type.STRING }, ca: { type: Type.STRING } } },
                 price: { type: Type.NUMBER },
                 cost: { type: Type.NUMBER }
-              }
-            }
-          },
-          installationKits: {
-            type: Type.ARRAY,
-            items: {
-              type: Type.OBJECT,
-              properties: {
-                id: { type: Type.STRING },
-                name: { type: Type.OBJECT, properties: { es: { type: Type.STRING }, ca: { type: Type.STRING } } },
-                price: { type: Type.NUMBER }
-              }
-            }
-          },
-          extras: {
-            type: Type.ARRAY,
-            items: {
-              type: Type.OBJECT,
-              properties: {
-                id: { type: Type.STRING },
-                name: { type: Type.OBJECT, properties: { es: { type: Type.STRING }, ca: { type: Type.STRING } } },
-                price: { type: Type.NUMBER }
               }
             }
           },
@@ -157,23 +139,17 @@ export async function extractProductWithGemini(file: File): Promise<any> {
     model: String(raw.model || "Desconocido"),
     reference: String(raw.reference || ""),
     type: normType(raw.type),
+    status: (['active', 'draft', 'inactive'].includes(raw.status) ? raw.status : 'active'),
+    stock: toNum(raw.stock) || 0,
     description: normI18n(raw.description, "Descripción no disponible"),
     pricing: ensureArray(raw.pricing).map((p, i) => ({
-      id: p.id || `p${i + 1}`,
+      id: `p${i + 1}`,
       name: normI18n(p.name, "Precio Base"),
       price: toNum(p.price),
       cost: toNum(p.cost)
     })),
-    installationKits: ensureArray(raw.installationKits).map((k, i) => ({
-      id: k.id || `k${i + 1}`,
-      name: normI18n(k.name, "Instalación Básica"),
-      price: toNum(k.price)
-    })),
-    extras: ensureArray(raw.extras).map((e, i) => ({
-      id: e.id || `e${i + 1}`,
-      name: normI18n(e.name, "Soportes"),
-      price: toNum(e.price)
-    })),
+    installationKits: [],
+    extras: [],
     financing: ensureArray(raw.financing).map((f, i) => ({
       id: `f${i + 1}`,
       label: normI18n(f.label, `${f.months || 12} meses`),
@@ -185,7 +161,7 @@ export async function extractProductWithGemini(file: File): Promise<any> {
       title: String(t.title || "").trim(),
       description: String(t.value || "").trim()
     })).filter(x => x.title),
-    __version: "frontend-gemini-v5-finance-ready",
+    __version: "frontend-gemini-v7-fixed-types",
     __extracted_at: new Date().toISOString()
   };
 

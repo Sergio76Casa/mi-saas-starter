@@ -80,6 +80,8 @@ export const ProductEditor = () => {
         brand: normalized.brand || prev.brand,
         model: normalized.model || prev.model,
         type: normalized.type || prev.type,
+        status: normalized.status || prev.status,
+        stock: normalized.stock || prev.stock,
         description: normalized.description || prev.description,
         pricing: normalized.pricing,
         installation_kits: normalized.installationKits,
@@ -111,7 +113,7 @@ export const ProductEditor = () => {
         pricing: productData.pricing,
         installation_kits: productData.installation_kits,
         extras: productData.extras,
-        stock: productData.stock,
+        stock: parseInt(productData.stock) || 0,
         image_url: productData.image_url,
         brand_logo_url: productData.brand_logo_url,
         features: JSON.stringify({ techSpecs, financing }),
@@ -223,6 +225,22 @@ export const ProductEditor = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <Input label="Marca" value={productData.brand} onChange={(e:any) => setProductData({...productData, brand: e.target.value})} />
               <Input label="Modelo" value={productData.model} onChange={(e:any) => setProductData({...productData, model: e.target.value})} />
+              
+              {/* NUEVOS CAMPOS: STOCK Y ESTADO */}
+              <Input label="Stock Disponible" type="number" value={productData.stock} onChange={(e:any) => setProductData({...productData, stock: e.target.value})} />
+              <div>
+                <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1">Estado</label>
+                <select 
+                  value={productData.status} 
+                  onChange={(e) => setProductData({...productData, status: e.target.value})}
+                  className="w-full px-6 py-4 border border-slate-100 rounded-2xl bg-slate-50 text-sm font-bold focus:ring-2 focus:ring-blue-500 outline-none appearance-none"
+                >
+                  <option value="active">Activo</option>
+                  <option value="draft">Borrador</option>
+                  <option value="inactive">Inactivo</option>
+                </select>
+              </div>
+
               <div className="md:col-span-2">
                 <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1">Tipo de Equipo</label>
                 <select 
