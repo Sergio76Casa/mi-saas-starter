@@ -50,7 +50,12 @@ export const ProductEditor = () => {
         .single();
 
       if (data && !error) {
-        setProductData(data);
+        setProductData({
+          ...data,
+          pricing: data.pricing || [],
+          installation_kits: data.installation_kits || [],
+          extras: data.extras || []
+        });
         try {
           if (data.features) {
             const parsed = typeof data.features === 'string' ? JSON.parse(data.features) : data.features;
@@ -100,9 +105,9 @@ export const ProductEditor = () => {
         status: normalized.status || prev.status,
         stock: normalized.stock || prev.stock,
         description: normalized.description || prev.description,
-        pricing: normalized.pricing,
-        installation_kits: normalized.installationKits,
-        extras: normalized.extras,
+        pricing: normalized.pricing || [],
+        installation_kits: normalized.installationKits || [],
+        extras: normalized.extras || [],
         pdf_url: uploadedUrl 
       }));
 
@@ -120,6 +125,11 @@ export const ProductEditor = () => {
   };
 
   const handleSave = async () => {
+    if (!productData.brand || !productData.model) {
+      alert("Marca y Modelo son obligatorios.");
+      return;
+    }
+
     setSaving(true);
     try {
       // payload con tenant_id forzado desde el contexto actual
@@ -129,15 +139,15 @@ export const ProductEditor = () => {
         model: productData.model,
         type: productData.type,
         status: productData.status || 'active',
-        pricing: productData.pricing,
-        installation_kits: productData.installation_kits,
-        extras: productData.extras,
+        pricing: Array.isArray(productData.pricing) ? productData.pricing : [],
+        installation_kits: Array.isArray(productData.installation_kits) ? productData.installation_kits : [],
+        extras: Array.isArray(productData.extras) ? productData.extras : [],
         stock: parseInt(productData.stock) || 0,
-        image_url: productData.image_url,
-        brand_logo_url: productData.brand_logo_url,
-        pdf_url: productData.pdf_url,
+        image_url: productData.image_url || '',
+        brand_logo_url: productData.brand_logo_url || '',
+        pdf_url: productData.pdf_url || '',
         features: JSON.stringify({ techSpecs, financing }),
-        is_deleted: false
+        is_deleted: false // Forzamos false para asegurar visibilidad
       };
 
       const { error } = id === 'new' 
@@ -310,7 +320,7 @@ export const ProductEditor = () => {
               <span className="w-1.5 h-1.5 bg-green-500 rounded-full"></span> Precios y Costes de Empresa
             </h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {productData.pricing.map((p: any, i: number) => (
+              {productData.pricing && Array.isArray(productData.pricing) && productData.pricing.map((p: any, i: number) => (
                 <div key={i} className="p-6 bg-slate-50 rounded-3xl border border-slate-100 relative group">
                   <button 
                     onClick={() => setProductData({...productData, pricing: productData.pricing.filter((_:any,idx:number)=>idx!==i)})}
@@ -343,7 +353,7 @@ export const ProductEditor = () => {
                 </div>
               ))}
               <button 
-                onClick={() => setProductData({...productData, pricing: [...productData.pricing, { name: {es:'Estándar',ca:'Estàndard'}, price: 0, cost: 0 }]})}
+                onClick={() => setProductData({...productData, pricing: [...(Array.isArray(productData.pricing) ? productData.pricing : []), { name: {es:'Estándar',ca:'Estàndard'}, price: 0, cost: 0 }]})}
                 className="h-full min-h-[140px] flex flex-col items-center justify-center border-2 border-dashed border-slate-100 rounded-3xl text-slate-300 hover:text-blue-500 hover:border-blue-200 transition-all group"
               >
                 <span className="text-2xl mb-1 group-hover:scale-125 transition-transform">+</span>

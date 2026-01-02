@@ -34,17 +34,22 @@ export const TenantProducts = () => {
     }
     setLoading(true);
     try {
+        // Mejoramos la consulta: eq('is_deleted', false) es más fiable que neq('is_deleted', true) 
+        // cuando hay valores NULL en la columna.
         const { data, error } = await supabase
           .from('products')
           .select('*')
           .eq('tenant_id', tenant.id)
-          .neq('is_deleted', true)
+          .eq('is_deleted', false)
           .order('brand', { ascending: true });
         
-        if (error) console.error(error.message);
-        else setProducts(data as Product[] || []);
+        if (error) {
+          console.error("Supabase error:", error.message);
+        } else {
+          setProducts((data as Product[]) || []);
+        }
     } catch (err: any) {
-        console.error("Error fetching products");
+        console.error("Error fetching products:", err);
     } finally {
         setLoading(false);
     }
@@ -56,10 +61,16 @@ export const TenantProducts = () => {
 
   const filteredProducts = useMemo(() => {
     return products.filter(p => {
+      // Añadimos protecciones contra nulos en brand y model para evitar crashes al usar .toLowerCase()
+      const brand = p.brand || '';
+      const model = p.model || '';
+      
       const matchesSearch = searchTerm === '' || 
-        p.brand.toLowerCase().includes(searchTerm.toLowerCase()) || 
-        p.model.toLowerCase().includes(searchTerm.toLowerCase());
+        brand.toLowerCase().includes(searchTerm.toLowerCase()) || 
+        model.toLowerCase().includes(searchTerm.toLowerCase());
+      
       const matchesType = filterType === 'all' || p.type === filterType;
+      
       return matchesSearch && matchesType;
     });
   }, [products, searchTerm, filterType]);
@@ -69,8 +80,14 @@ export const TenantProducts = () => {
     const { error } = await supabase
       .from('products')
       .update({ is_deleted: true })
-      .eq('id', id);
-    if (!error) fetchProducts();
+      .eq('id', id)
+      .eq('tenant_id', tenant.id);
+    
+    if (!error) {
+      fetchProducts();
+    } else {
+      alert("Error al eliminar: " + error.message);
+    }
   };
 
   return (
@@ -132,26 +149,30 @@ export const TenantProducts = () => {
                       </div>
                       <div className="flex flex-col">
                         <div className="flex items-center gap-2">
-                          <span className="text-[14px] font-black text-slate-900 leading-tight tracking-tight uppercase italic">{p.brand}</span>
+                          <span className="text-[14px] font-black text-slate-900 leading-tight tracking-tight uppercase italic">{p.brand || 'S/M'}</span>
                           <span className={`w-2 h-2 rounded-full ${STATUS_MAP[p.status || 'active'].color}`} title={STATUS_MAP[p.status || 'active'].label}></span>
                         </div>
-                        <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">{p.model}</span>
+                        <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">{p.model || 'S/M'}</span>
                       </div>
                     </div>
                   </td>
                   <td className="px-6 py-8">
                     <span className="inline-flex px-3 py-1 bg-slate-100 text-slate-500 text-[9px] font-black uppercase rounded-lg border border-slate-200/50">
-                      {TYPES.find(t => t.id === p.type)?.label || p.type}
+                      {TYPES.find(t => t.id === p.type)?.label || p.type || 'S/T'}
                     </span>
                   </td>
                   <td className="px-6 py-8">
                     <div className="space-y-2 max-w-[240px]">
-                      {p.pricing?.map((v: any, idx) => (
+                      {p.pricing && Array.isArray(p.pricing) && p.pricing.length > 0 ? p.pricing.map((v: any, idx) => (
                         <div key={idx} className="flex justify-between items-center bg-white/50 border border-slate-100 px-3 py-2 rounded-xl text-[10px] font-medium">
-                          <span className="text-slate-500 font-bold truncate max-w-[120px]">{typeof v.name === 'object' ? (v.name[language] || v.name.es) : v.variant || p.model}</span>
+                          <span className="text-slate-500 font-bold truncate max-w-[120px]">
+                            {v.name && typeof v.name === 'object' ? (v.name[language] || v.name.es) : v.variant || p.model}
+                          </span>
                           <span className="font-black text-blue-600 shrink-0">{formatCurrency(v.price, language)}</span>
                         </div>
-                      ))}
+                      )) : (
+                        <span className="text-[10px] font-black text-slate-300 uppercase italic">Sin Precios</span>
+                      )}
                     </div>
                   </td>
                   <td className="px-6 py-8">
