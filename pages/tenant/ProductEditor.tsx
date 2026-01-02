@@ -66,29 +66,26 @@ export const ProductEditor = () => {
       pricing: Array.isArray(normalized.pricing) ? normalized.pricing : [],
       installation_kits: Array.isArray(normalized.installationKits) ? normalized.installationKits : [],
       extras: Array.isArray(normalized.extras) ? normalized.extras : [],
-      stock: normalized.stock || prev.stock || 0,
+      stock: normalized.stock || prev.stock || 0
     }));
 
-    if (normalized.technical && typeof normalized.technical === "object") {
-      const specs = Object.entries(normalized.technical)
-        .filter(([_, v]) => v !== undefined && v !== null && v !== "")
-        .map(([k, v]) => ({
-          title: k.replace(/([A-Z])/g, " $1").trim(),
-          description: String(v),
-        }));
-      setTechSpecs(specs);
+    // ✅ AHORA VIENE DIRECTO
+    if (Array.isArray(normalized.techSpecs)) {
+      setTechSpecs(normalized.techSpecs);
     }
 
     setFinancing(Array.isArray(normalized.financing) ? normalized.financing : []);
+
     alert("✨ Extracción completada con éxito.");
   } catch (err: any) {
     console.error("DIAGNOSTIC ERROR:", err);
-    alert("Error en la extracción: " + (err?.message || "desconocido"));
+    alert("Error en la extracción: " + (err?.message || "Error desconocido"));
   } finally {
     setAiLoading(false);
     console.log("--- END FRONTEND GEMINI EXTRACTION ---");
   }
 };
+
 
 
   const handleSave = async () => {
