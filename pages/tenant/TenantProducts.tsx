@@ -29,27 +29,32 @@ export const TenantProducts = () => {
 
   const fetchProducts = async () => {
     if (!tenant?.id) {
+        console.warn("No se puede cargar el inventario: ID de empresa ausente.");
         setLoading(false);
         return;
     }
     setLoading(true);
+    
+    console.log(`Cargando inventario para la empresa: ${tenant.name} (ID: ${tenant.id})`);
+
     try {
-        // Mejoramos la consulta: eq('is_deleted', false) es más fiable que neq('is_deleted', true) 
-        // cuando hay valores NULL en la columna.
+        // Consultamos productos que NO estén borrados. 
+        // Usamos una consulta que cubra tanto false como null para mayor seguridad.
         const { data, error } = await supabase
           .from('products')
           .select('*')
           .eq('tenant_id', tenant.id)
-          .eq('is_deleted', false)
+          .or('is_deleted.eq.false,is_deleted.is.null')
           .order('brand', { ascending: true });
         
         if (error) {
-          console.error("Supabase error:", error.message);
+          console.error("Error de Supabase al recuperar productos:", error.message);
         } else {
+          console.log(`Se han encontrado ${data?.length || 0} productos para esta empresa.`);
           setProducts((data as Product[]) || []);
         }
     } catch (err: any) {
-        console.error("Error fetching products:", err);
+        console.error("Error crítico en fetchProducts:", err);
     } finally {
         setLoading(false);
     }
@@ -61,22 +66,21 @@ export const TenantProducts = () => {
 
   const filteredProducts = useMemo(() => {
     return products.filter(p => {
-      // Añadimos protecciones contra nulos en brand y model para evitar crashes al usar .toLowerCase()
       const brand = p.brand || '';
       const model = p.model || '';
-      
       const matchesSearch = searchTerm === '' || 
         brand.toLowerCase().includes(searchTerm.toLowerCase()) || 
         model.toLowerCase().includes(searchTerm.toLowerCase());
-      
       const matchesType = filterType === 'all' || p.type === filterType;
-      
       return matchesSearch && matchesType;
     });
   }, [products, searchTerm, filterType]);
 
   const handleDelete = async (id: string) => {
     if (!window.confirm("¿Seguro que deseas eliminar este producto?")) return;
+    
+    console.log(`Eliminando producto ${id} de la empresa ${tenant.id}`);
+    
     const { error } = await supabase
       .from('products')
       .update({ is_deleted: true })
@@ -93,7 +97,10 @@ export const TenantProducts = () => {
   return (
     <div className="space-y-6 animate-in fade-in duration-500 pb-20 text-left">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 px-1">
-        <h3 className="text-xl font-bold text-slate-800 tracking-tight uppercase italic">Administración · Inventario</h3>
+        <div>
+           <h3 className="text-xl font-bold text-slate-800 tracking-tight uppercase italic">Administración · Inventario</h3>
+           <p className="text-[10px] text-slate-400 font-bold uppercase mt-1 italic">Viendo productos de: {tenant.name}</p>
+        </div>
         <button 
           onClick={() => navigate(`/t/${slug}/products/new/edit`)}
           className="w-full md:w-auto flex items-center justify-center gap-2 px-6 py-2.5 bg-blue-600 text-white text-[11px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-blue-600/20 hover:scale-105 transition-all"
@@ -220,7 +227,7 @@ export const TenantProducts = () => {
               ))}
               {!loading && filteredProducts.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="py-24 text-center text-slate-300 font-black uppercase tracking-[0.2em] text-xs italic">No hay productos en el inventario</td>
+                  <td colSpan={6} className="py-24 text-center text-slate-300 font-black uppercase tracking-[0.2em] text-xs italic">No hay productos en el inventario de {tenant.name}</td>
                 </tr>
               )}
             </tbody>
