@@ -12,7 +12,6 @@ export interface Tenant {
   id: string;
   name: string;
   slug: string;
-  owner_id?: string;
   plan: 'free' | 'pro' | 'enterprise';
   status?: 'active' | 'inactive';
   logo_url?: string;

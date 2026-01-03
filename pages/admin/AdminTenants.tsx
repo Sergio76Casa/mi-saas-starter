@@ -80,18 +80,17 @@ export const AdminTenants = () => {
       });
 
       if (authError) throw authError;
-      if (!authData.user) throw new Error("No se pudo crear el usuario administrador.");
+      if (!authData.user) throw new Error("No se pudo crear el usuario.");
 
       const newUserId = authData.user.id;
 
-      // 2. Crear el Tenant con el owner_id (sin campo email redundante)
+      // 2. Crear el Tenant SIN campos redundantes (email u owner_id) que no existen en la tabla
       const { data: tenant, error: tError } = await supabase
         .from('tenants')
         .insert([{ 
           name: newTenant.name, 
           slug: newTenant.slug, 
-          owner_id: newUserId,
-          plan: newTenant.plan,
+          plan: (newTenant.plan as any),
           status: 'active', 
           is_deleted: false 
         }])
@@ -101,7 +100,8 @@ export const AdminTenants = () => {
       if (tError) throw tError;
 
       if (tenant) {
-        // 3. Crear membresía oficial para el nuevo Dueño (Owner)
+        // 3. Crear membresía oficial para el nuevo usuario con rol 'owner'
+        // Esto define quién es el dueño real de la empresa
         const { error: mOwnerError } = await supabase
           .from('memberships')
           .insert([{ 
@@ -112,7 +112,7 @@ export const AdminTenants = () => {
         
         if (mOwnerError) console.error("Error al vincular dueño:", mOwnerError.message);
 
-        // 4. Vincular también al SuperAdmin actual como admin para acceso inmediato
+        // 4. Vincular también al SuperAdmin actual como admin para acceso inmediato (opcional pero recomendado)
         if (session?.user?.id) {
           await supabase
             .from('memberships')
@@ -128,7 +128,7 @@ export const AdminTenants = () => {
       setNewTenant({ name: '', slug: '', plan: 'free', ownerName: '', email: '', password: '' }); 
       await refreshProfile(); 
       fetchTenants(); 
-      alert("Empresa y usuario creados correctamente.");
+      alert("Empresa y usuario creados correctamente. El usuario ha sido asignado como 'owner'.");
     } catch (err: any) {
       alert("Error en el proceso: " + err.message);
     }
@@ -194,7 +194,7 @@ export const AdminTenants = () => {
                  </div>
                  
                  <div className="space-y-1 pt-4 border-t border-white/5">
-                   <label className="text-[10px] font-black uppercase text-slate-500 ml-1">Datos del Dueño</label>
+                   <label className="text-[10px] font-black uppercase text-slate-500 ml-1">Datos del Dueño (Owner)</label>
                    <input placeholder="Nombre Completo" className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white text-sm outline-none focus:ring-2 focus:ring-brand-500 mb-2" value={newTenant.ownerName} onChange={e => setNewTenant({...newTenant, ownerName: e.target.value})} />
                    <input placeholder="Email del Dueño" type="email" className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white text-sm outline-none focus:ring-2 focus:ring-brand-500 mb-2" value={newTenant.email} onChange={e => setNewTenant({...newTenant, email: e.target.value})} />
                    <input placeholder="Contraseña Inicial" type="password" className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white text-sm outline-none focus:ring-2 focus:ring-brand-500" value={newTenant.password} onChange={e => setNewTenant({...newTenant, password: e.target.value})} />
@@ -226,10 +226,16 @@ export const AdminTenants = () => {
               const status = t.status || 'active';
               const productCount = t.products?.[0]?.count || 0;
               
-              // RESOLUCIÓN DE EMAIL USANDO OWNER_ID O MEMBRESÍA OWNER
-              const ownerMembership = t.memberships?.find(m => m.user_id === t.owner_id || m.role === 'owner');
-              const displayEmail = ownerMembership?.profiles?.email || '—';
-              const displayName = ownerMembership?.profiles?.full_name || 'Dueño no vinculado';
+              // RESOLUCIÓN DE EMAIL USANDO EL ROL 'OWNER' EN MEMBERSHIPS
+              // Buscamos la membresía que tiene el rol de dueño
+              const ownerMembership = t.memberships?.find(m => m.role === 'owner');
+              
+              // Si no hay owner (por ejemplo, legacy data), buscamos un admin que no sea el actual superadmin
+              const adminMembership = t.memberships?.find(m => m.role === 'admin' && m.user_id !== session?.user?.id);
+              
+              const targetMember = ownerMembership || adminMembership;
+              const displayEmail = targetMember?.profiles?.email || '—';
+              const displayName = targetMember?.profiles?.full_name || 'Dueño no definido';
               
               return (
                 <tr key={t.id} className="hover:bg-white/[0.02] transition-colors group">
