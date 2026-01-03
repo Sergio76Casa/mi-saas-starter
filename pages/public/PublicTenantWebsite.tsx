@@ -23,15 +23,15 @@ type PublicCatalogResponse = {
     id: string; 
     brand: string;
     model: string;
-    description?: string | { es: string; ca: string }; 
-    features?: string;
+    description?: any; 
+    features?: any;
     price: number; 
     type?: string;
     status?: string;
     image_url?: string;
     brand_logo_url?: string;
     pdf_url?: string;
-    pricing?: Array<{ variant: string; price: number }>;
+    pricing?: any;
   }>; 
 };
 
@@ -59,42 +59,8 @@ const LOCAL_I18N = {
     filter_all_brands: 'Todas las marcas',
     no_products_filter: 'No hay productos disponibles en este catálogo',
     wizard_models_available: 'Models disponibles',
-    wizard_kit_title: 'Kit de Instalación',
-    wizard_extras_title: 'Materiales Extras',
-    wizard_data_title: 'Datos de Facturación',
-    wizard_fullname: 'Nombre Completo',
-    wizard_email: 'Correo Electrónico',
-    wizard_phone: 'Teléfono',
-    wizard_address: 'Dirección',
-    wizard_cp: 'CP',
-    wizard_wo: 'WO',
-    wizard_sign_title: 'Validar Presupuesto',
-    wizard_sign_desc: 'Firme en el recuadro inferior para emitir el presupuesto oficial.',
-    wizard_clear_sign: 'Limpiar Firma',
-    wizard_btn_back: 'Atrás',
-    wizard_btn_continue: 'Continuar',
-    wizard_btn_finish: 'Finalizar Presupuesto',
-    contact_title: 'Contacto',
-    contact_phone: 'Teléfono',
-    contact_message: 'Mensaje *',
-    contact_success: '¡Enviado!',
-    contact_btn_send: 'Enviar',
-    contact_sending: 'Enviando...',
-    val_name_req: 'Nombre requerido',
-    val_email_inv: 'Email inválido',
-    val_phone_min: 'Mínimo 9 dígitos',
-    val_cp_len: 'CP: 5 dígitos',
-    val_wo_len: 'WO: 8 dígitos',
-    val_addr_req: 'Dirección requerida',
-    alert_sign_req: 'Firma obligatoria',
-    alert_unit_req: 'Selecciona unidad',
-    alert_kit_req: 'Selecciona kit',
-    alert_success: '¡Presupuesto generado con éxito!',
-    footer_copy: 'EcoQuote AI · Smart Installation Solution',
     cat_all: 'Todas',
-    cat_ac: 'Aire Acondicionado',
-    cat_boiler: 'Calderas',
-    cat_thermo: 'Termos elèctrics'
+    footer_copy: 'EcoQuote AI · Smart Installation Solution'
   },
   ca: {
     nav_home: 'Inici',
@@ -119,42 +85,8 @@ const LOCAL_I18N = {
     filter_all_brands: 'Totes les marques',
     no_products_filter: 'No hi ha productes disponibles en aquest catàleg',
     wizard_models_available: 'Models disponibles',
-    wizard_kit_title: 'Kit d’Instal·lació',
-    wizard_extras_title: 'Materials Extras',
-    wizard_data_title: 'Dades de Facturació',
-    wizard_fullname: 'Nom Complet',
-    wizard_email: 'Correu Electrònic',
-    wizard_phone: 'Telèfon',
-    wizard_address: 'Adreça',
-    wizard_cp: 'CP',
-    wizard_wo: 'WO',
-    wizard_sign_title: 'Validar Pressupost',
-    wizard_sign_desc: 'Signi en el requadre inferior per emetre el pressupost oficial.',
-    wizard_clear_sign: 'Netejar Firma',
-    wizard_btn_back: 'Enrere',
-    wizard_btn_continue: 'Continuar',
-    wizard_btn_finish: 'Finalitzar Pressupost',
-    contact_title: 'Contacte',
-    contact_phone: 'Telèfon',
-    contact_message: 'Missatge *',
-    contact_success: 'Enviat!',
-    contact_btn_send: 'Enviar',
-    contact_sending: 'Enviant...',
-    val_name_req: 'Nom requerit',
-    val_email_inv: 'Email invàlid',
-    val_phone_min: 'Mínimo 9 dígitos',
-    val_cp_len: 'CP: 5 dígitos',
-    val_wo_len: 'WO: 8 dígitos',
-    val_addr_req: 'Adreça requerida',
-    alert_sign_req: 'Firma obligatòria',
-    alert_unit_req: 'Selecciona unitat',
-    alert_kit_req: 'Selecciona kit',
-    alert_success: 'Pressupost generat amb èxit!',
-    footer_copy: 'EcoQuote AI · Smart Installation Solution',
     cat_all: 'Totes',
-    cat_ac: 'Aire Condicionat',
-    cat_boiler: 'Calderes',
-    cat_thermo: 'Termos elèctrics'
+    footer_copy: 'EcoQuote AI · Smart Installation Solution'
   }
 } as const;
 
@@ -180,75 +112,70 @@ export const PublicTenantWebsite = () => {
   const [contactStatus, setContactStatus] = useState<'idle' | 'sending' | 'success'>('idle');
 
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
-  const [selectedKit, setSelectedKit] = useState<any>(null);
-  const [selectedExtras, setSelectedExtras] = useState<string[]>([]);
-  const [formData, setFormData] = useState({
-    name: '', email: '', phone: '', address: '', cp: '', wo: ''
-  });
-  const [isSigned, setIsSigned] = useState(false);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [isDrawing, setIsDrawing] = useState(false);
 
   useEffect(() => {
-    setIsDataReady(false);
-    setIsError(false);
-    setTenant(null);
-
     const fetchCatalog = async () => {
       if (!isConfigured || dbHealthy === null) return;
       
+      setIsDataReady(false);
+      setIsError(false);
+
       try {
-        const { data: rpcData, error: rpcError } = await supabase.rpc('get_public_catalog', { p_slug: slug });
+        console.log(`Iniciando carga pública para slug: ${slug}`);
         
-        let rawProducts: any[] = [];
-        let finalTenant: any = null;
+        // Intentamos obtener el Tenant primero
+        const { data: tData, error: tError } = await supabase
+          .from('tenants')
+          .select('*')
+          .eq('slug', slug)
+          .eq('is_deleted', false)
+          .single();
 
-        if (!rpcError && rpcData?.tenant) {
-          if (rpcData.tenant.is_deleted) {
-            setIsError(true);
-            return;
-          }
-          finalTenant = rpcData.tenant;
-          rawProducts = Array.isArray(rpcData.products) ? rpcData.products : [];
-        } else {
-          const { data: tData, error: tError } = await supabase
-            .from('tenants')
-            .select('*')
-            .eq('slug', slug)
-            .eq('is_deleted', false)
-            .single();
+        if (tError || !tData) {
+          console.error("Empresa no encontrada o error de RLS:", tError?.message);
+          setIsError(true);
+          return;
+        }
 
-          if (tError || !tData) {
-            setIsError(true);
-            return;
-          }
-          finalTenant = tData;
+        setTenant(tData as any);
 
-          const { data: pData } = await supabase
+        // Si la empresa es activa, cargamos sus productos
+        if (tData.status === 'active') {
+          console.log(`Cargando productos para tenant_id: ${tData.id}`);
+          const { data: pData, error: pError } = await supabase
             .from('products')
             .select('*')
             .eq('tenant_id', tData.id)
             .or('is_deleted.eq.false,is_deleted.is.null')
-            .eq('status', 'active');
-          
-          rawProducts = (pData as any[]) || [];
-        }
+            .eq('status', 'active')
+            .order('brand', { ascending: true });
 
-        setTenant(finalTenant);
-        
-        // NORMALIZACIÓN DE PRODUCTOS: Extraer precio del array pricing si no existe columna price
-        const normalized = rawProducts.map(p => {
-          let price = p.price || 0;
-          if (!price && Array.isArray(p.pricing) && p.pricing.length > 0) {
-            price = p.pricing[0].price;
+          if (pError) {
+            console.error("Error cargando productos (posible RLS):", pError.message);
+            setDbProducts([]);
+          } else {
+            // Normalización: Asegurar que el precio se extraiga del campo pricing si la columna price es 0 o null
+            const normalized = (pData || []).map(p => {
+              let price = p.price || 0;
+              let pricingArr = p.pricing;
+              
+              // Si pricing viene como string, lo parseamos
+              if (typeof pricingArr === 'string') {
+                try { pricingArr = JSON.parse(pricingArr); } catch(e) { pricingArr = []; }
+              }
+
+              if ((!price || price === 0) && Array.isArray(pricingArr) && pricingArr.length > 0) {
+                price = pricingArr[0].price || 0;
+              }
+              return { ...p, price, pricing: pricingArr };
+            });
+            
+            console.log(`Se cargaron ${normalized.length} productos correctamente.`);
+            setDbProducts(normalized);
           }
-          return { ...p, price };
-        });
-
-        setDbProducts(normalized);
-
+        }
       } catch (err) {
-        console.error("Error crítico al cargar el catálogo:", err);
+        console.error("Error crítico en fetchCatalog:", err);
         setIsError(true);
       } finally {
         setIsDataReady(true);
@@ -258,10 +185,8 @@ export const PublicTenantWebsite = () => {
     fetchCatalog();
   }, [slug, dbHealthy]);
 
-  useEffect(() => { if (view === 'wizard') window.scrollTo({ top: 0, behavior: 'smooth' }); }, [view, step]);
-
   const brandGroups = useMemo(() => {
-    const groups: Record<string, { brand: string, minPrice: number, products: any[], features: string[] }> = {};
+    const groups: Record<string, { brand: string, minPrice: number, products: any[] }> = {};
     
     dbProducts.forEach(p => {
       const matchesCategory = categoryFilter === 'all' || p.type === categoryFilter;
@@ -272,15 +197,13 @@ export const PublicTenantWebsite = () => {
         if (!groups[p.brand]) {
           groups[p.brand] = { 
             brand: p.brand, 
-            minPrice: p.price || 999999, 
-            products: [], 
-            features: [] 
+            minPrice: p.price || 0, 
+            products: []
           };
         }
         groups[p.brand].products.push(p);
-        const currentPrice = p.price || 0;
-        if (currentPrice > 0 && currentPrice < groups[p.brand].minPrice) {
-          groups[p.brand].minPrice = currentPrice;
+        if (p.price > 0 && (p.price < groups[p.brand].minPrice || groups[p.brand].minPrice === 0)) {
+          groups[p.brand].minPrice = p.price;
         }
       }
     });
@@ -304,20 +227,6 @@ export const PublicTenantWebsite = () => {
     }
   };
 
-  const handleContactSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setContactStatus('sending');
-    setTimeout(() => { setContactStatus('success'); setTimeout(() => { setIsContactModalOpen(false); setContactStatus('idle'); setContactForm({ name: '', email: '', phone: '', message: '' }); }, 2000); }, 1000);
-  };
-
-  const getPos = (e: React.MouseEvent | React.TouchEvent) => {
-    const rect = canvasRef.current?.getBoundingClientRect();
-    if (!rect) return { x: 0, y: 0 };
-    const clientX = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
-    const clientY = 'touches' in e ? e.touches[0].clientY : (e as React.MouseEvent).clientY;
-    return { x: clientX - rect.left, y: clientY - rect.top };
-  };
-
   if (!isDataReady) return <LoadingSpinner />;
   
   if (isError || !tenant) return (
@@ -331,69 +240,39 @@ export const PublicTenantWebsite = () => {
   );
 
   if (tenant.status === 'inactive') return (
-    <div className="min-h-screen bg-[#050505] flex items-center justify-center p-6 relative overflow-hidden selection:bg-brand-500/30">
-       <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-brand-500/5 blur-[120px] rounded-full"></div>
-       <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-blue-500/5 blur-[120px] rounded-full"></div>
-       <div className="max-w-2xl w-full text-center relative z-10 animate-in slide-in-from-bottom-12 duration-1000">
-         <div className="mb-12 flex justify-center opacity-40">
-            {tenant.use_logo_on_web && tenant.logo_url ? (
-               <img src={tenant.logo_url} className="h-10 grayscale brightness-200" alt={tenant.name} />
-            ) : (
-               <span className="text-2xl font-black italic tracking-tighter uppercase text-white">{tenant.name}</span>
-            )}
-         </div>
-         <div className="w-24 h-24 bg-white/[0.03] border border-white/10 rounded-[2.5rem] flex items-center justify-center mx-auto mb-10 shadow-2xl relative group">
-           <div className="absolute inset-0 bg-white/5 blur-xl rounded-full group-hover:bg-brand-500/20 transition-all duration-700"></div>
-           <svg className="w-10 h-10 text-slate-400 relative z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 00-2 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
-           </svg>
-         </div>
-         <h2 className="text-4xl md:text-6xl font-black text-white tracking-tighter uppercase italic mb-8 leading-[0.95]">{tt('inactive_title')}</h2>
-         <div className="space-y-6 max-w-lg mx-auto">
-            <p className="text-slate-400 font-medium italic text-sm md:text-base leading-relaxed">{tt('inactive_msg')}</p>
-            <p className="text-slate-600 text-[10px] font-black uppercase tracking-[0.2em] leading-relaxed">{tt('inactive_contact')}</p>
-         </div>
-         <div className="mt-16 flex flex-col items-center gap-6">
-            <div className="h-px w-24 bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
-            <Link to="/" className="px-10 py-4 bg-white text-black rounded-full text-[10px] font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-xl shadow-white/5">{tt('inactive_btn')}</Link>
-         </div>
-         <footer className="mt-24 opacity-20"><p className="text-[9px] font-black uppercase tracking-widest text-white">SYSTEM SECURITY STATUS: SUSPENDED</p></footer>
+    <div className="min-h-screen bg-[#050505] flex items-center justify-center p-6 text-center">
+       <div className="max-w-2xl">
+         <h2 className="text-5xl font-black text-white uppercase italic mb-8">{tt('inactive_title')}</h2>
+         <p className="text-slate-400 mb-10">{tt('inactive_msg')}</p>
+         <Link to="/" className="px-10 py-4 bg-white text-black rounded-full text-[10px] font-black uppercase tracking-widest">{tt('inactive_btn')}</Link>
        </div>
     </div>
   );
 
   return (
     <div className="min-h-screen bg-white text-slate-900 selection:bg-blue-600/20 overflow-x-hidden animate-in fade-in duration-700">
-      <nav className="fixed top-0 left-0 right-0 h-16 md:h-20 bg-white/80 backdrop-blur-md z-[100] border-b border-gray-100 transition-all duration-300">
+      <nav className="fixed top-0 left-0 right-0 h-16 md:h-20 bg-white/80 backdrop-blur-md z-[100] border-b border-gray-100">
         <div className="max-w-7xl mx-auto h-full flex items-center justify-between px-6 md:px-10">
-          <button onClick={navigateToHome} className="flex items-center gap-3 group shrink-0">
+          <button onClick={navigateToHome} className="flex items-center gap-3">
             {tenant.use_logo_on_web && tenant.logo_url ? (
-              <img src={tenant.logo_url} className="h-8 md:h-10 w-auto object-contain transition-transform group-hover:scale-105" alt={tenant.name} />
+              <img src={tenant.logo_url} className="h-8 md:h-10 w-auto object-contain" alt={tenant.name} />
             ) : (
-              <div className="flex flex-col items-start">
-                <span className="text-lg md:text-xl font-black italic tracking-tighter uppercase text-slate-900 leading-none">{tenant.name}</span>
-                <span className="text-[7px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Instal·lacions integrals</span>
-              </div>
+              <span className="text-lg md:text-xl font-black italic tracking-tighter uppercase text-slate-900">{tenant.name}</span>
             )}
           </button>
           
           <div className="hidden lg:flex items-center gap-2">
-            <button onClick={navigateToHome} className={`px-5 py-2.5 rounded-xl text-[13px] font-bold tracking-tight transition-all ${view === 'landing' ? 'bg-[#f0f5ff] text-[#2563eb]' : 'text-slate-500 hover:text-slate-900'}`}>{tt('nav_home')}</button>
-            <button onClick={navigateToCatalog} className="px-5 py-2.5 rounded-xl text-[13px] font-bold tracking-tight text-slate-500 hover:text-slate-900 transition-all">{tt('nav_products')}</button>
-            <button onClick={() => setIsContactModalOpen(true)} className="px-5 py-2.5 rounded-xl text-[13px] font-bold tracking-tight text-slate-500 hover:text-slate-900 transition-all">{tt('nav_contact')}</button>
+            <button onClick={navigateToHome} className={`px-5 py-2.5 rounded-xl text-[13px] font-bold ${view === 'landing' ? 'bg-[#f0f5ff] text-[#2563eb]' : 'text-slate-500'}`}>{tt('nav_home')}</button>
+            <button onClick={navigateToCatalog} className="px-5 py-2.5 rounded-xl text-[13px] font-bold text-slate-500">{tt('nav_products')}</button>
+            <button onClick={() => setIsContactModalOpen(true)} className="px-5 py-2.5 rounded-xl text-[13px] font-bold text-slate-500">{tt('nav_contact')}</button>
           </div>
 
           <div className="flex items-center gap-4">
-              <div className="hidden lg:block w-px h-6 bg-slate-200"></div>
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-slate-50 cursor-pointer group transition-colors">
-                <svg className="w-4 h-4 text-slate-400 group-hover:text-blue-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/></svg>
-                <select value={language} onChange={(e) => setLanguage(e.target.value as any)} className="bg-transparent text-[11px] font-black uppercase text-slate-600 outline-none cursor-pointer appearance-none">
-                   <option value="es">ES</option>
-                   <option value="ca">CA</option>
-                </select>
-                <svg className="w-2.5 h-2.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7"/></svg>
-              </div>
-              <button onClick={handleAdminClick} className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-slate-900 transition-all bg-white hover:bg-slate-50 rounded-xl">
+              <select value={language} onChange={(e) => setLanguage(e.target.value as any)} className="bg-transparent text-[11px] font-black uppercase text-slate-600 outline-none cursor-pointer">
+                 <option value="es">ES</option>
+                 <option value="ca">CA</option>
+              </select>
+              <button onClick={handleAdminClick} className="w-10 h-10 flex items-center justify-center text-slate-400 bg-white hover:bg-slate-50 rounded-xl">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
               </button>
           </div>
@@ -401,43 +280,51 @@ export const PublicTenantWebsite = () => {
       </nav>
 
       {view === 'landing' ? (
-        <main className="animate-in fade-in duration-1000 pb-20 pt-16 md:pt-20">
-          <div className="px-4 md:px-8 pt-4 md:pt-8">
-            <section className="max-w-7xl mx-auto relative rounded-[2rem] md:rounded-[3.5rem] h-[400px] md:h-[550px] overflow-hidden group shadow-2xl flex items-center text-left">
-              <img src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?q=80&w=2070&auto=format&fit=crop" className="absolute inset-0 w-full h-full object-cover" alt="Modern Home" />
-              <div className="absolute inset-0 bg-gradient-to-r from-slate-900/90 via-slate-900/40 to-transparent w-[100%] md:w-[60%]"></div>
-              <div className="relative px-8 md:px-20 max-w-4xl">
+        <main className="pb-20 pt-20">
+          <div className="px-4 md:px-8 pt-8">
+            <section className="max-w-7xl mx-auto relative rounded-[2rem] h-[400px] md:h-[550px] overflow-hidden flex items-center text-left bg-slate-900 shadow-2xl">
+              <img src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?q=80&w=2070&auto=format&fit=crop" className="absolute inset-0 w-full h-full object-cover opacity-60" alt="Modern Home" />
+              <div className="relative px-8 md:px-20 max-w-4xl z-10">
                 <h1 className="text-4xl md:text-7xl font-black text-white leading-[1.1] tracking-tighter mb-6 uppercase italic">
                   {tt('hero_title_1')} <br/>
                   <span className="text-blue-500">{tt('hero_title_2')}</span>
                 </h1>
-                <p className="text-sm md:text-lg text-white/80 max-w-xl font-medium mb-10 italic leading-relaxed">{tt('hero_desc')}</p>
-                <div className="flex flex-col sm:flex-row gap-4">
-                  <button onClick={navigateToCatalog} className="w-full sm:w-auto px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black uppercase text-[11px] tracking-widest shadow-xl">{tt('hero_cta_catalog')}</button>
-                  <button onClick={() => { setView('wizard'); setStep(1); }} className="w-full sm:w-auto px-8 py-4 bg-white/10 border border-white/40 hover:bg-white/20 text-white rounded-2xl font-black uppercase text-[11px] tracking-widest backdrop-blur-md">{tt('hero_cta_wizard')}</button>
+                <p className="text-sm md:text-lg text-white/80 max-w-xl font-medium mb-10 italic">{tt('hero_desc')}</p>
+                <div className="flex gap-4">
+                  <button onClick={navigateToCatalog} className="px-8 py-4 bg-blue-600 text-white rounded-2xl font-black uppercase text-[11px] tracking-widest">{tt('hero_cta_catalog')}</button>
                 </div>
               </div>
             </section>
           </div>
 
-          <section id="catalog" className="py-20 md:py-24 px-4 md:px-8 scroll-mt-24">
+          <section id="catalog" className="py-20 px-4 md:px-8 scroll-mt-24">
              <div className="max-w-7xl mx-auto">
                <div className="text-left mb-12">
                   <h2 className="text-3xl md:text-4xl font-black tracking-tighter uppercase italic mb-2">{tt('catalog_title')}</h2>
                   <p className="text-slate-400 font-bold text-xs italic">{tt('catalog_subtitle')}</p>
                </div>
                
-               {brandGroups.length === 0 ? (<div className="py-20 text-center text-slate-300 font-black uppercase italic">{tt('no_products_filter')}</div>) : (
+               {brandGroups.length === 0 ? (
+                 <div className="py-20 text-center text-slate-300 font-black uppercase italic">{tt('no_products_filter')}</div>
+               ) : (
                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 md:gap-12">
                     {brandGroups.map(group => (
-                      <div key={group.brand} className="bg-white rounded-[2rem] p-8 border border-slate-100 shadow-sm flex flex-col text-left">
-                         <div className="h-48 bg-slate-50 rounded-[1.5rem] mb-6 flex items-center justify-center relative overflow-hidden">
-                            {group.products[0]?.image_url ? <img src={group.products[0].image_url} className="w-full h-full object-contain p-4" alt={group.brand} /> : <div className="text-blue-200 uppercase font-black text-xs italic">IMG</div>}
+                      <div key={group.brand} className="bg-white rounded-[2rem] p-8 border border-slate-100 shadow-sm flex flex-col text-left hover:shadow-xl transition-all">
+                         <div className="h-48 bg-slate-50 rounded-[1.5rem] mb-6 flex items-center justify-center overflow-hidden">
+                            {group.products[0]?.image_url ? (
+                              <img src={group.products[0].image_url} className="w-full h-full object-contain p-4" alt={group.brand} />
+                            ) : (
+                              <div className="text-blue-200 uppercase font-black text-xs italic">IMG</div>
+                            )}
                          </div>
                          <h3 className="text-3xl font-black mb-6 uppercase italic tracking-tighter">{group.brand}</h3>
                          <div className="flex items-center justify-between border-t border-slate-50 pt-6 mt-auto">
-                            <p className="text-2xl font-black text-slate-900 tracking-tighter">{formatCurrency(group.minPrice, language)}</p>
-                            <button onClick={() => { setSelectedProduct(group.products[0]); setView('wizard'); setStep(1); }} className="w-12 h-12 bg-blue-600 text-white rounded-xl flex items-center justify-center shadow-lg"><svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 4v16m8-8H4"/></svg></button>
+                            <p className="text-2xl font-black text-slate-900 tracking-tighter">
+                              {group.minPrice > 0 ? formatCurrency(group.minPrice, language) : '—'}
+                            </p>
+                            <button onClick={() => { setSelectedProduct(group.products[0]); setView('wizard'); setStep(1); }} className="w-12 h-12 bg-blue-600 text-white rounded-xl flex items-center justify-center shadow-lg hover:bg-blue-700">
+                              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 4v16m8-8H4"/></svg>
+                            </button>
                          </div>
                       </div>
                     ))}
@@ -447,32 +334,26 @@ export const PublicTenantWebsite = () => {
           </section>
         </main>
       ) : (
-        <div className="max-w-5xl mx-auto py-10 md:py-24 px-4 md:px-8 animate-in slide-in-from-bottom-12 duration-700 mt-16 text-left">
-           <div className="bg-white p-6 md:p-20 rounded-[2rem] md:rounded-[4.5rem] border border-slate-100 shadow-2xl relative">
-              {step === 1 && (
-                <div className="animate-in fade-in flex-1">
-                   <h2 className="text-3xl font-black tracking-tighter mb-8 italic uppercase">{tt('wizard_models_available')}</h2>
-                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {dbProducts.filter((p: any) => !selectedProduct || p.brand === selectedProduct.brand).map((p: any) => (
-                        <button key={p.id} onClick={() => setSelectedProduct(p)} className={`p-6 rounded-[2rem] border-2 text-left transition-all ${selectedProduct?.id === p.id ? 'border-blue-600 bg-blue-50' : 'border-slate-100 bg-white'}`}>
-                           <h3 className="font-black text-xl text-slate-900 uppercase italic mb-2">{p.brand} {p.model}</h3>
-                           <p className="text-2xl font-black text-blue-600 tracking-tighter">{formatCurrency(p.price, language)}</p>
-                        </button>
-                      ))}
-                   </div>
-                </div>
-              )}
-              <div className="flex flex-col md:flex-row gap-3 mt-12 pt-8 border-t border-slate-50">
-                {step > 1 && <button onClick={() => setStep(step - 1)} className="px-10 py-5 border-2 border-slate-100 rounded-xl font-black uppercase text-[10px] text-slate-400">{tt('wizard_btn_back')}</button>}
-                <button onClick={() => { setStep(step + 1); if(step === 6) setView('landing'); }} className="flex-1 py-5 bg-slate-900 text-white rounded-xl font-black uppercase text-[11px] tracking-widest shadow-xl">
-                   {step === 5 ? tt('wizard_btn_finish') : tt('wizard_btn_continue')}
-                </button>
+        <div className="max-w-5xl mx-auto py-24 px-4 text-left animate-in slide-in-from-bottom-8">
+           <div className="bg-white p-6 md:p-20 rounded-[2rem] border border-slate-100 shadow-2xl">
+              <h2 className="text-3xl font-black tracking-tighter mb-8 italic uppercase">{tt('wizard_models_available')}</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {dbProducts.filter(p => !selectedProduct || p.brand === selectedProduct.brand).map(p => (
+                    <button key={p.id} onClick={() => setSelectedProduct(p)} className={`p-6 rounded-[2rem] border-2 text-left transition-all ${selectedProduct?.id === p.id ? 'border-blue-600 bg-blue-50' : 'border-slate-100 bg-white'}`}>
+                        <h3 className="font-black text-xl text-slate-900 uppercase italic mb-2">{p.brand} {p.model}</h3>
+                        <p className="text-2xl font-black text-blue-600 tracking-tighter">{formatCurrency(p.price, language)}</p>
+                    </button>
+                  ))}
+              </div>
+              <div className="flex gap-4 mt-12 pt-8 border-t border-slate-50">
+                <button onClick={() => setView('landing')} className="px-10 py-5 border-2 border-slate-100 rounded-xl font-black uppercase text-[10px] text-slate-400">Volver</button>
+                <button onClick={() => setView('landing')} className="flex-1 py-5 bg-slate-900 text-white rounded-xl font-black uppercase text-[11px] tracking-widest shadow-xl">Confirmar</button>
               </div>
            </div>
         </div>
       )}
 
-      <footer className="py-20 border-t border-slate-100 text-center bg-white mt-20">
+      <footer className="py-20 border-t border-slate-100 text-center bg-white">
          <div className="text-[9px] font-black uppercase tracking-[0.3em] text-slate-400 italic">© 2025 · {tt('footer_copy')}</div>
       </footer>
     </div>
