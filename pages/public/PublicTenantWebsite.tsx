@@ -17,6 +17,7 @@ type PublicCatalogResponse = {
     status?: string;
     logo_url?: string;
     use_logo_on_web?: boolean;
+    is_deleted?: boolean;
   }; 
   products: Array<{ 
     id: string; 
@@ -197,20 +198,51 @@ export const PublicTenantWebsite = () => {
       if (!isConfigured || dbHealthy === null) return;
       
       try {
-        const { data, error } = await supabase.rpc('get_public_catalog', { p_slug: slug });
+        // --- MÉTODO 1: RPC (Optimizado) ---
+        // Intentamos usar el RPC si existe.
+        const { data: rpcData, error: rpcError } = await supabase.rpc('get_public_catalog', { p_slug: slug });
         
-        if (error || !data) { 
-          setIsError(true);
-        } else {
-          const payload = data as PublicCatalogResponse;
-          if (payload.tenant) {
-            setTenant(payload.tenant as any);
-            setDbProducts(Array.isArray(payload.products) ? payload.products : []);
-          } else {
+        if (!rpcError && rpcData?.tenant) {
+          // Si el RPC funcionó, validamos que la empresa no esté borrada.
+          if (rpcData.tenant.is_deleted) {
             setIsError(true);
+          } else {
+            setTenant(rpcData.tenant as any);
+            setDbProducts(Array.isArray(rpcData.products) ? rpcData.products : []);
+          }
+        } else {
+          // --- MÉTODO 2: CONSULTA DIRECTA (Fallback) ---
+          // Si el RPC falló o no existe, consultamos las tablas directamente.
+          // Esto garantiza acceso si las políticas RLS de lectura pública están activas.
+          const { data: tData, error: tError } = await supabase
+            .from('tenants')
+            .select('*')
+            .eq('slug', slug)
+            .eq('is_deleted', false)
+            .single();
+
+          if (tError || !tData) {
+            console.warn("Empresa no encontrada mediante consulta directa:", tError?.message);
+            setIsError(true);
+            return;
+          }
+
+          setTenant(tData as any);
+
+          // Cargar productos solo si el tenant es válido y está activo
+          if (tData.status === 'active') {
+            const { data: pData } = await supabase
+              .from('products')
+              .select('*')
+              .eq('tenant_id', tData.id)
+              .or('is_deleted.eq.false,is_deleted.is.null')
+              .eq('status', 'active');
+            
+            setDbProducts((pData as any[]) || []);
           }
         }
       } catch (err) {
+        console.error("Error crítico al cargar el catálogo público:", err);
         setIsError(true);
       } finally {
         setIsDataReady(true);
