@@ -1,12 +1,10 @@
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { supabase, isConfigured } from '../../supabaseClient';
 import { Tenant } from '../../types';
 import { formatCurrency } from '../../i18n';
 import { useApp } from '../../AppProvider';
-import { PDF_KITS, PDF_EXTRAS } from '../../data/pdfCatalog';
-import { Input } from '../../components/common/Input';
 import { LoadingSpinner } from '../../components/common/LoadingSpinner';
 
 type PublicCatalogResponse = { 
@@ -52,7 +50,6 @@ const LOCAL_I18N = {
     catalog_title: 'Catálogo Destacado',
     catalog_subtitle: 'Nuestra selección de equipos profesionales.',
     no_products_filter: 'No hay productos disponibles actualmente.',
-    // Added missing translation key
     wizard_models_available: 'Modelos Disponibles',
     footer_copy: 'EcoQuote AI · Smart Installation Solution'
   },
@@ -72,7 +69,6 @@ const LOCAL_I18N = {
     catalog_title: 'Catàleg Destacat',
     catalog_subtitle: 'La nostra selecció d’equips professionals.',
     no_products_filter: 'No hi ha productes disponibles actualment.',
-    // Added missing translation key
     wizard_models_available: 'Models Disponibles',
     footer_copy: 'EcoQuote AI · Smart Installation Solution'
   }
@@ -80,11 +76,12 @@ const LOCAL_I18N = {
 
 export const PublicTenantWebsite = () => {
   const { slug } = useParams();
-  const { language, setLanguage, session, memberships, profile } = useApp();
+  const { language, setLanguage, session } = useApp();
   const [tenant, setTenant] = useState<Tenant | null>(null);
   const [dbProducts, setDbProducts] = useState<PublicCatalogResponse['products']>([]);
   const [isDataReady, setIsDataReady] = useState(false);
   const [isError, setIsError] = useState(false);
+  const [rlsError, setRlsError] = useState(false);
   const navigate = useNavigate();
 
   const tt = (key: keyof typeof LOCAL_I18N['es']) => LOCAL_I18N[language]?.[key] ?? LOCAL_I18N.es[key];
@@ -92,45 +89,40 @@ export const PublicTenantWebsite = () => {
   const [view, setView] = useState<'landing' | 'wizard'>('landing');
   const [brandFilter, setBrandFilter] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
-  const [maxPrice, setMaxPrice] = useState(50000); 
 
-  const [isContactModalOpen, setIsContactModalOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
 
   useEffect(() => {
     const fetchCatalog = async () => {
-      // Ignoramos dbHealthy para la web pública porque suele dar falso negativo si no hay sesión
       if (!isConfigured) return;
       
       setIsDataReady(false);
       setIsError(false);
+      setRlsError(false);
 
       try {
-        console.log(`[PublicWeb] Buscando empresa: ${slug}`);
+        console.log(`[PublicWeb] Iniciando carga para: ${slug}`);
         
-        // 1. Obtener la empresa por slug
+        // 1. Obtener la empresa por slug (Acceso Público)
         const { data: tData, error: tError } = await supabase
           .from('tenants')
           .select('*')
           .eq('slug', slug)
+          .eq('is_deleted', false)
           .single();
 
         if (tError || !tData) {
-          console.error("[PublicWeb] Empresa no encontrada:", tError?.message || "Sin datos");
-          setIsError(true);
-          return;
-        }
-
-        if (tData.is_deleted) {
+          console.error("[PublicWeb] Error cargando empresa:", tError?.message);
           setIsError(true);
           return;
         }
 
         setTenant(tData as any);
 
-        // 2. Obtener los productos si la empresa está activa
+        // 2. Obtener los productos (Acceso Público)
         if (tData.status === 'active') {
-          console.log(`[PublicWeb] Buscando productos para ID: ${tData.id}`);
+          console.log(`[PublicWeb] Empresa encontrada (ID: ${tData.id}). Cargando productos...`);
+          
           const { data: pData, error: pError } = await supabase
             .from('products')
             .select('*')
@@ -138,32 +130,33 @@ export const PublicTenantWebsite = () => {
             .eq('status', 'active');
 
           if (pError) {
-            console.error("[PublicWeb] Error RLS en productos. Ejecuta las políticas SQL en Supabase:", pError.message);
+            console.error("[PublicWeb] Error 401/403 detectado:", pError.message);
+            if (pError.message.includes('permission denied') || pError.code === '42501' || pError.message.includes('Unauthorized')) {
+              setRlsError(true);
+            }
             setDbProducts([]);
           } else if (pData) {
-            // Normalizar precios desde el campo pricing (JSONB)
+            // Normalizar precios desde el campo pricing (JSONB) que es el que usa el editor
             const normalized = pData.map(p => {
-              let price = 0;
+              let price = p.price || 0;
               let pricingArr = p.pricing;
               
               if (typeof pricingArr === 'string') {
                 try { pricingArr = JSON.parse(pricingArr); } catch(e) { pricingArr = []; }
               }
 
-              if (Array.isArray(pricingArr) && pricingArr.length > 0) {
+              if ((!price || price === 0) && Array.isArray(pricingArr) && pricingArr.length > 0) {
                 price = pricingArr[0].price || 0;
-              } else if (p.price) {
-                price = p.price;
               }
               
               return { ...p, price, pricing: pricingArr };
             });
-            console.log(`[PublicWeb] ${normalized.length} productos cargados.`);
+            console.log(`[PublicWeb] Éxito: ${normalized.length} productos listos.`);
             setDbProducts(normalized);
           }
         }
       } catch (err) {
-        console.error("[PublicWeb] Error fatal:", err);
+        console.error("[PublicWeb] Error inesperado:", err);
         setIsError(true);
       } finally {
         setIsDataReady(true);
@@ -182,11 +175,7 @@ export const PublicTenantWebsite = () => {
 
       if (matchesCategory && matchesBrand) {
         if (!groups[p.brand]) {
-          groups[p.brand] = { 
-            brand: p.brand, 
-            minPrice: p.price || 0, 
-            products: []
-          };
+          groups[p.brand] = { brand: p.brand, minPrice: p.price || 0, products: [] };
         }
         groups[p.brand].products.push(p);
         if (p.price > 0 && (p.price < groups[p.brand].minPrice || groups[p.brand].minPrice === 0)) {
@@ -247,7 +236,6 @@ export const PublicTenantWebsite = () => {
           <div className="hidden lg:flex items-center gap-2">
             <button onClick={navigateToHome} className={`px-5 py-2.5 rounded-xl text-[13px] font-bold ${view === 'landing' ? 'bg-blue-50 text-blue-600' : 'text-slate-500'}`}>{tt('nav_home')}</button>
             <button onClick={navigateToCatalog} className="px-5 py-2.5 rounded-xl text-[13px] font-bold text-slate-500">{tt('nav_products')}</button>
-            <button onClick={() => setIsContactModalOpen(true)} className="px-5 py-2.5 rounded-xl text-[13px] font-bold text-slate-500">{tt('nav_contact')}</button>
           </div>
 
           <div className="flex items-center gap-4">
@@ -287,10 +275,16 @@ export const PublicTenantWebsite = () => {
                   <p className="text-slate-400 font-bold text-xs italic">{tt('catalog_subtitle')}</p>
                </div>
                
-               {brandGroups.length === 0 ? (
+               {rlsError ? (
+                 <div className="py-20 text-center border-2 border-dashed border-red-100 bg-red-50/30 rounded-[2rem]">
+                   <p className="text-red-400 font-black uppercase italic text-sm">Error de Permisos (Supabase RLS)</p>
+                   <p className="text-[10px] text-red-500/60 mt-2 max-w-md mx-auto">
+                     El servidor ha denegado el acceso (401/403). Debes ejecutar el script SQL de "Políticas Públicas" en el Editor SQL de tu panel de Supabase para que los productos sean visibles sin estar logueado.
+                   </p>
+                 </div>
+               ) : brandGroups.length === 0 ? (
                  <div className="py-20 text-center border-2 border-dashed border-slate-100 rounded-[2rem]">
                    <p className="text-slate-300 font-black uppercase italic text-sm">{tt('no_products_filter')}</p>
-                   <p className="text-[10px] text-slate-400 mt-2">Si eres administrador, asegúrate de añadir productos y activar las políticas RLS de Supabase.</p>
                  </div>
                ) : (
                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 md:gap-12">
@@ -304,7 +298,7 @@ export const PublicTenantWebsite = () => {
                             )}
                          </div>
                          <h3 className="text-3xl font-black mb-2 uppercase italic tracking-tighter">{group.brand}</h3>
-                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-6">Equipos disponibles: {group.products.length}</p>
+                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-6">Equipos: {group.products.length}</p>
                          <div className="flex items-center justify-between border-t border-slate-50 pt-6 mt-auto">
                             <p className="text-2xl font-black text-slate-900 tracking-tighter">
                               {group.minPrice > 0 ? formatCurrency(group.minPrice, language) : 'Consultar'}
