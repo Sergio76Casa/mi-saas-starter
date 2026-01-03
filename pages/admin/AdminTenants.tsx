@@ -4,9 +4,13 @@ import { supabase } from '../../supabaseClient';
 import { Tenant } from '../../types';
 import { useApp } from '../../AppProvider';
 
-// Extendemos el tipo localmente para incluir el conteo de productos
+// Extendemos el tipo localmente para incluir el conteo de productos y los emails de miembros
 interface TenantWithStats extends Tenant {
   products: { count: number }[];
+  memberships: {
+    role: string;
+    profiles: { email: string } | null;
+  }[];
 }
 
 export const AdminTenants = () => {
@@ -19,9 +23,17 @@ export const AdminTenants = () => {
   const fetchTenants = async () => {
     if (!dbHealthy) return;
     try {
+      // Modificamos la consulta para traer el email desde profiles a través de memberships
       const { data, error } = await supabase
         .from('tenants')
-        .select('*, products:products(count)')
+        .select(`
+          *, 
+          products:products(count),
+          memberships(
+            role,
+            profiles(email)
+          )
+        `)
         .order('created_at', { ascending: false });
       
       if (error) throw error;
@@ -156,6 +168,9 @@ export const AdminTenants = () => {
               const status = t.status || 'active';
               const productCount = t.products?.[0]?.count || 0;
               
+              // Intentamos obtener el email del campo Tenant, o del primer miembro que encontremos (Owner/Admin)
+              const displayEmail = t.email || t.memberships?.find(m => m.role === 'owner' || m.role === 'admin')?.profiles?.email || '—';
+              
               return (
                 <tr key={t.id} className="hover:bg-white/[0.02] transition-colors group">
                   <td className="px-10 py-6">
@@ -163,7 +178,7 @@ export const AdminTenants = () => {
                     <div className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">ID: {t.id.slice(0, 8)}</div>
                   </td>
                   <td className="px-6 py-6">
-                    <div className="text-slate-400 text-xs truncate max-w-[200px]">{t.email || '—'}</div>
+                    <div className="text-slate-400 text-xs truncate max-w-[200px]" title={displayEmail}>{displayEmail}</div>
                   </td>
                   <td className="px-6 py-6 text-center">
                     <div className="flex flex-col items-center">
