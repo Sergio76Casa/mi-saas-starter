@@ -101,9 +101,9 @@ export const PublicTenantWebsite = () => {
       setRlsError(false);
 
       try {
-        console.log(`[PublicWeb] Iniciando carga para: ${slug}`);
+        console.log(`[PublicWeb] Iniciando carga para slug: ${slug}`);
         
-        // 1. Obtener la empresa por slug (Acceso Público)
+        // 1. Obtener la empresa por slug
         const { data: tData, error: tError } = await supabase
           .from('tenants')
           .select('*')
@@ -112,16 +112,16 @@ export const PublicTenantWebsite = () => {
           .single();
 
         if (tError || !tData) {
-          console.error("[PublicWeb] Error cargando empresa:", tError?.message);
+          console.error("[PublicWeb] Error cargando empresa:", tError?.message || 'Empresa no encontrada');
           setIsError(true);
           return;
         }
 
         setTenant(tData as any);
 
-        // 2. Obtener los productos (Acceso Público)
+        // 2. Obtener los productos si la empresa está activa
         if (tData.status === 'active') {
-          console.log(`[PublicWeb] Empresa encontrada (ID: ${tData.id}). Cargando productos...`);
+          console.log(`[PublicWeb] Buscando productos para tenant_id: ${tData.id}`);
           
           const { data: pData, error: pError } = await supabase
             .from('products')
@@ -130,33 +130,36 @@ export const PublicTenantWebsite = () => {
             .eq('status', 'active');
 
           if (pError) {
-            console.error("[PublicWeb] Error 401/403 detectado:", pError.message);
-            if (pError.message.includes('permission denied') || pError.code === '42501' || pError.message.includes('Unauthorized')) {
+            console.error("[PublicWeb] Error de Supabase:", pError.message);
+            // Si el error es de permisos (401 o mensaje de denied), activamos aviso visual
+            if (pError.message.toLowerCase().includes('permission denied') || pError.code === '42501' || pError.message.includes('Unauthorized')) {
               setRlsError(true);
             }
             setDbProducts([]);
           } else if (pData) {
-            // Normalizar precios desde el campo pricing (JSONB) que es el que usa el editor
+            // Normalizar precios desde el campo pricing (JSONB)
             const normalized = pData.map(p => {
-              let price = p.price || 0;
+              let price = 0;
               let pricingArr = p.pricing;
               
               if (typeof pricingArr === 'string') {
                 try { pricingArr = JSON.parse(pricingArr); } catch(e) { pricingArr = []; }
               }
 
-              if ((!price || price === 0) && Array.isArray(pricingArr) && pricingArr.length > 0) {
+              if (Array.isArray(pricingArr) && pricingArr.length > 0) {
                 price = pricingArr[0].price || 0;
+              } else if (p.price) {
+                price = p.price;
               }
               
               return { ...p, price, pricing: pricingArr };
             });
-            console.log(`[PublicWeb] Éxito: ${normalized.length} productos listos.`);
+            console.log(`[PublicWeb] Se cargaron ${normalized.length} productos.`);
             setDbProducts(normalized);
           }
         }
       } catch (err) {
-        console.error("[PublicWeb] Error inesperado:", err);
+        console.error("[PublicWeb] Error inesperado en el fetch:", err);
         setIsError(true);
       } finally {
         setIsDataReady(true);
@@ -276,15 +279,21 @@ export const PublicTenantWebsite = () => {
                </div>
                
                {rlsError ? (
-                 <div className="py-20 text-center border-2 border-dashed border-red-100 bg-red-50/30 rounded-[2rem]">
-                   <p className="text-red-400 font-black uppercase italic text-sm">Error de Permisos (Supabase RLS)</p>
-                   <p className="text-[10px] text-red-500/60 mt-2 max-w-md mx-auto">
-                     El servidor ha denegado el acceso (401/403). Debes ejecutar el script SQL de "Políticas Públicas" en el Editor SQL de tu panel de Supabase para que los productos sean visibles sin estar logueado.
+                 <div className="py-20 text-center border-2 border-dashed border-red-200 bg-red-50/50 rounded-[2rem] px-8">
+                   <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-6">
+                      <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m0-6V9m0 12a9 9 0 110-18 9 9 0 010 18z"/></svg>
+                   </div>
+                   <p className="text-red-700 font-black uppercase italic text-sm mb-2">Error de Permisos en Base de Datos (401)</p>
+                   <p className="text-[11px] text-red-600/70 max-w-md mx-auto leading-relaxed">
+                     Supabase ha denegado el acceso a la tabla 'products'. <br/>
+                     <strong>Solución:</strong> Ve al SQL Editor de Supabase y ejecuta: <br/>
+                     <code className="bg-red-100 px-2 py-1 rounded mt-2 block font-mono text-[10px]">GRANT SELECT ON public.products TO anon;</code>
                    </p>
                  </div>
                ) : brandGroups.length === 0 ? (
                  <div className="py-20 text-center border-2 border-dashed border-slate-100 rounded-[2rem]">
                    <p className="text-slate-300 font-black uppercase italic text-sm">{tt('no_products_filter')}</p>
+                   <p className="text-[10px] text-slate-400 mt-2">Asegúrate de que haya productos con estado 'active' en el panel de gestión.</p>
                  </div>
                ) : (
                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 md:gap-12">
@@ -298,7 +307,7 @@ export const PublicTenantWebsite = () => {
                             )}
                          </div>
                          <h3 className="text-3xl font-black mb-2 uppercase italic tracking-tighter">{group.brand}</h3>
-                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-6">Equipos: {group.products.length}</p>
+                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-6">Equipos disponibles: {group.products.length}</p>
                          <div className="flex items-center justify-between border-t border-slate-50 pt-6 mt-auto">
                             <p className="text-2xl font-black text-slate-900 tracking-tighter">
                               {group.minPrice > 0 ? formatCurrency(group.minPrice, language) : 'Consultar'}
