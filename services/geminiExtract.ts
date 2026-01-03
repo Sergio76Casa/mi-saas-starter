@@ -2,6 +2,19 @@
 import { GoogleGenAI, Type } from "@google/genai";
 
 /**
+ * Obtiene la API KEY de forma segura intentando varias rutas comunes en el navegador.
+ * Se prioriza VITE_GEMINI_API_KEY que es el nombre configurado en Vercel por el usuario.
+ */
+const getApiKey = (): string => {
+  const env = (import.meta as any).env?.VITE_GEMINI_API_KEY || 
+              (globalThis as any).process?.env?.API_KEY || 
+              (import.meta as any).env?.VITE_API_KEY || 
+              (import.meta as any).env?.API_KEY || 
+              "";
+  return env;
+};
+
+/**
  * Convierte un archivo File en una cadena Base64 pura.
  */
 const fileToBase64 = (file: File): Promise<string> =>
@@ -53,14 +66,13 @@ const normType = (t: any): string => {
  * Extrae datos del producto usando el modelo Gemini.
  */
 export async function extractProductWithGemini(file: File): Promise<any> {
-  // Siguiendo estrictamente la instrucción: obtener exclusivamente de process.env.API_KEY
-  // Usar la referencia directa facilita que Vite realice el reemplazo estático en Vercel.
-  const apiKey = process.env.API_KEY;
+  const apiKey = getApiKey();
 
-  if (!apiKey) {
-    throw new Error("La API_KEY de Gemini no está llegando al navegador. Verifica que esté configurada en las Environment Variables de Vercel.");
+  if (!apiKey || apiKey === "") {
+    throw new Error("Configuración incompleta: La variable VITE_GEMINI_API_KEY no está disponible en el navegador. En Vercel, asegúrate de haber redeplegado el proyecto tras añadir la variable.");
   }
 
+  // Inicialización siguiendo el estándar de la API
   const ai = new GoogleGenAI({ apiKey });
   const base64Data = await fileToBase64(file);
 
@@ -71,95 +83,103 @@ export async function extractProductWithGemini(file: File): Promise<any> {
     Return only valid JSON.
   `.trim();
 
-  const response = await ai.models.generateContent({
-    model: "gemini-3-flash-preview",
-    contents: {
-      parts: [
-        { text: systemInstruction },
-        { inlineData: { data: base64Data, mimeType: file.type || "application/pdf" } },
-      ],
-    },
-    config: {
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: Type.OBJECT,
-        properties: {
-          brand: { type: Type.STRING },
-          model: { type: Type.STRING },
-          reference: { type: Type.STRING },
-          type: { type: Type.STRING },
-          status: { type: Type.STRING },
-          stock: { type: Type.INTEGER },
-          description: { 
-            type: Type.OBJECT, 
-            properties: { es: { type: Type.STRING }, ca: { type: Type.STRING } } 
-          },
-          pricing: {
-            type: Type.ARRAY,
-            items: {
-              type: Type.OBJECT,
-              properties: {
-                name: { type: Type.OBJECT, properties: { es: { type: Type.STRING }, ca: { type: Type.STRING } } },
-                price: { type: Type.NUMBER },
-                cost: { type: Type.NUMBER }
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: {
+        parts: [
+          { text: systemInstruction },
+          { inlineData: { data: base64Data, mimeType: file.type || "application/pdf" } },
+        ],
+      },
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            brand: { type: Type.STRING },
+            model: { type: Type.STRING },
+            reference: { type: Type.STRING },
+            type: { type: Type.STRING },
+            status: { type: Type.STRING },
+            stock: { type: Type.INTEGER },
+            description: { 
+              type: Type.OBJECT, 
+              properties: { es: { type: Type.STRING }, ca: { type: Type.STRING } } 
+            },
+            pricing: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  name: { type: Type.OBJECT, properties: { es: { type: Type.STRING }, ca: { type: Type.STRING } } },
+                  price: { type: Type.NUMBER },
+                  cost: { type: Type.NUMBER }
+                }
               }
-            }
-          },
-          financing: {
-            type: Type.ARRAY,
-            items: {
-              type: Type.OBJECT,
-              properties: {
-                label: { type: Type.OBJECT, properties: { es: { type: Type.STRING }, ca: { type: Type.STRING } } },
-                months: { type: Type.NUMBER },
-                commission: { type: Type.NUMBER },
-                coefficient: { type: Type.NUMBER }
+            },
+            financing: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  label: { type: Type.OBJECT, properties: { es: { type: Type.STRING }, ca: { type: Type.STRING } } },
+                  months: { type: Type.NUMBER },
+                  commission: { type: Type.NUMBER },
+                  coefficient: { type: Type.NUMBER }
+                }
               }
-            }
-          },
-          techSpecs: {
-            type: Type.ARRAY,
-            items: {
-              type: Type.OBJECT,
-              properties: {
-                title: { type: Type.STRING },
-                value: { type: Type.STRING }
+            },
+            techSpecs: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  title: { type: Type.STRING },
+                  value: { type: Type.STRING }
+                }
               }
             }
           }
         }
-      }
-    },
-  });
+      },
+    });
 
-  const raw = JSON.parse(stripMarkdownJson(response.text || "{}"));
+    const raw = JSON.parse(stripMarkdownJson(response.text || "{}"));
 
-  return {
-    brand: String(raw.brand || "Desconocida"),
-    model: String(raw.model || "Desconocido"),
-    reference: String(raw.reference || ""),
-    type: normType(raw.type),
-    status: (['active', 'draft', 'inactive'].includes(raw.status) ? raw.status : 'active'),
-    stock: toNum(raw.stock) || 0,
-    description: normI18n(raw.description, "Descripción no disponible"),
-    pricing: ensureArray(raw.pricing).map((p: any, i: number) => ({
-      id: `p${i + 1}`,
-      name: normI18n(p.name, "Precio Base"),
-      price: toNum(p.price),
-      cost: toNum(p.cost)
-    })),
-    financing: ensureArray(raw.financing).map((f: any, i: number) => ({
-      id: `f${i + 1}`,
-      label: normI18n(f.label, `${f.months || 12} meses`),
-      months: toNum(f.months) || 12,
-      commission: toNum(f.commission),
-      coefficient: toNum(f.coefficient) || 0.087
-    })),
-    techSpecs: ensureArray(raw.techSpecs).map((t: any) => ({
-      title: String(t.title || "").trim(),
-      description: String(t.value || "").trim()
-    })).filter((x: any) => x.title),
-    __version: "v9-static-rebound",
-    __extracted_at: new Date().toISOString()
-  };
+    return {
+      brand: String(raw.brand || "Desconocida"),
+      model: String(raw.model || "Desconocido"),
+      reference: String(raw.reference || ""),
+      type: normType(raw.type),
+      status: (['active', 'draft', 'inactive'].includes(raw.status) ? raw.status : 'active'),
+      stock: toNum(raw.stock) || 0,
+      description: normI18n(raw.description, "Descripción no disponible"),
+      pricing: ensureArray(raw.pricing).map((p: any, i: number) => ({
+        id: `p${i + 1}`,
+        name: normI18n(p.name, "Precio Base"),
+        price: toNum(p.price),
+        cost: toNum(p.cost)
+      })),
+      financing: ensureArray(raw.financing).map((f: any, i: number) => ({
+        id: `f${i + 1}`,
+        label: normI18n(f.label, `${f.months || 12} meses`),
+        months: toNum(f.months) || 12,
+        commission: toNum(f.commission),
+        coefficient: toNum(f.coefficient) || 0.087
+      })),
+      techSpecs: ensureArray(raw.techSpecs).map((t: any) => ({
+        title: String(t.title || "").trim(),
+        description: String(t.value || "").trim()
+      })).filter((x: any) => x.title),
+      __version: "v11-fixed-key-name",
+      __extracted_at: new Date().toISOString()
+    };
+  } catch (apiError: any) {
+    console.error("Gemini API Error:", apiError);
+    if (apiError.message?.includes("429") || apiError.message?.includes("quota")) {
+      throw new Error("Límite de cuota alcanzado en Gemini. Por favor, espera un momento o revisa tu facturación en Google Cloud.");
+    }
+    throw apiError;
+  }
 }
