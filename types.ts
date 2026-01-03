@@ -12,6 +12,7 @@ export interface Tenant {
   id: string;
   name: string;
   slug: string;
+  email?: string;
   plan: 'free' | 'pro' | 'enterprise';
   status?: 'active' | 'inactive';
   logo_url?: string;

@@ -143,6 +143,7 @@ export const AdminTenants = () => {
           <thead className="bg-white/5 text-slate-500 text-[10px] font-black uppercase tracking-widest">
             <tr>
               <th className="px-10 py-6">Empresa</th>
+              <th className="px-6 py-6">Email</th>
               <th className="px-6 py-6 text-center">Catálogo</th>
               <th className="px-6 py-6 text-center">Web Pública</th>
               <th className="px-6 py-6">Licencia</th>
@@ -160,6 +161,9 @@ export const AdminTenants = () => {
                   <td className="px-10 py-6">
                     <div className="font-black text-white">{t.name}</div>
                     <div className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">ID: {t.id.slice(0, 8)}</div>
+                  </td>
+                  <td className="px-6 py-6">
+                    <div className="text-slate-400 text-xs truncate max-w-[200px]">{t.email || '—'}</div>
                   </td>
                   <td className="px-6 py-6 text-center">
                     <div className="flex flex-col items-center">
