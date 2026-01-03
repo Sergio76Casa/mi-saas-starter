@@ -9,8 +9,9 @@ import { useApp } from '../../AppProvider';
 interface TenantWithStats extends Tenant {
   products: { count: number }[];
   memberships: {
+    user_id: string;
     role: string;
-    profiles: { email: string } | null;
+    profiles: { email: string; full_name?: string } | null;
   }[];
 }
 
@@ -22,6 +23,7 @@ export const AdminTenants = () => {
     name: '', 
     slug: '', 
     plan: 'free',
+    ownerName: '',
     email: '',
     password: ''
   });
@@ -30,15 +32,15 @@ export const AdminTenants = () => {
   const fetchTenants = async () => {
     if (!dbHealthy) return;
     try {
-      // Modificamos la consulta para traer el email desde profiles a través de memberships
       const { data, error } = await supabase
         .from('tenants')
         .select(`
           *, 
           products:products(count),
           memberships(
+            user_id,
             role,
-            profiles(email)
+            profiles(email, full_name)
           )
         `)
         .order('created_at', { ascending: false });
@@ -57,18 +59,38 @@ export const AdminTenants = () => {
   );
 
   const handleCreateTenant = async () => {
-    if (!newTenant.name || !newTenant.slug || !newTenant.email || !newTenant.password) {
-      return alert("Todos los campos (nombre, slug, email y contraseña) son obligatorios.");
+    if (!newTenant.name || !newTenant.slug || !newTenant.email || !newTenant.password || !newTenant.ownerName) {
+      return alert("Todos los campos son obligatorios.");
     }
     
     try {
-      // 1. Crear el Tenant incluyendo el email en el registro
+      // 1. Crear el Usuario de Auth usando un cliente temporal para no perder la sesión del Admin
+      const tempAuthClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+        auth: { persistSession: false }
+      });
+
+      const { data: authData, error: authError } = await tempAuthClient.auth.signUp({
+        email: newTenant.email,
+        password: newTenant.password,
+        options: {
+          data: { 
+            full_name: newTenant.ownerName
+          }
+        }
+      });
+
+      if (authError) throw authError;
+      if (!authData.user) throw new Error("No se pudo crear el usuario administrador.");
+
+      const newUserId = authData.user.id;
+
+      // 2. Crear el Tenant con el owner_id (sin campo email redundante)
       const { data: tenant, error: tError } = await supabase
         .from('tenants')
         .insert([{ 
           name: newTenant.name, 
           slug: newTenant.slug, 
-          email: newTenant.email,
+          owner_id: newUserId,
           plan: newTenant.plan,
           status: 'active', 
           is_deleted: false 
@@ -79,37 +101,18 @@ export const AdminTenants = () => {
       if (tError) throw tError;
 
       if (tenant) {
-        // 2. Crear el Usuario de Auth sin cerrar la sesión del Super Admin actual
-        // Usamos un cliente temporal con persistencia desactivada
-        const tempAuthClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-          auth: { persistSession: false }
-        });
+        // 3. Crear membresía oficial para el nuevo Dueño (Owner)
+        const { error: mOwnerError } = await supabase
+          .from('memberships')
+          .insert([{ 
+            user_id: newUserId, 
+            tenant_id: tenant.id, 
+            role: 'owner' 
+          }]);
+        
+        if (mOwnerError) console.error("Error al vincular dueño:", mOwnerError.message);
 
-        const { data: authData, error: authError } = await tempAuthClient.auth.signUp({
-          email: newTenant.email,
-          password: newTenant.password,
-          options: {
-            data: { full_name: `Admin ${newTenant.name}` }
-          }
-        });
-
-        if (authError) {
-          console.error("Error al crear usuario auth:", authError.message);
-          alert(`Empresa creada, pero no se pudo crear el usuario: ${authError.message}`);
-        } else if (authData.user) {
-          // 3. Crear membresía para el NUEVO usuario (Owner)
-          const { error: mOwnerError } = await supabase
-            .from('memberships')
-            .insert([{ 
-              user_id: authData.user.id, 
-              tenant_id: tenant.id, 
-              role: 'owner' 
-            }]);
-          
-          if (mOwnerError) console.error("Error al vincular dueño:", mOwnerError.message);
-        }
-
-        // 4. Vincular también al SuperAdmin actual como admin para que tenga acceso inmediato
+        // 4. Vincular también al SuperAdmin actual como admin para acceso inmediato
         if (session?.user?.id) {
           await supabase
             .from('memberships')
@@ -122,12 +125,12 @@ export const AdminTenants = () => {
       }
 
       setIsCreating(false); 
-      setNewTenant({ name: '', slug: '', plan: 'free', email: '', password: '' }); 
-      await refreshProfile(); // Actualizar membresías en el estado global
+      setNewTenant({ name: '', slug: '', plan: 'free', ownerName: '', email: '', password: '' }); 
+      await refreshProfile(); 
       fetchTenants(); 
-      alert("Empresa registrada y usuario principal configurado con éxito.");
+      alert("Empresa y usuario creados correctamente.");
     } catch (err: any) {
-      alert("Error al crear: " + err.message);
+      alert("Error en el proceso: " + err.message);
     }
   };
 
@@ -187,17 +190,18 @@ export const AdminTenants = () => {
                  <div className="space-y-1">
                    <label className="text-[10px] font-black uppercase text-slate-500 ml-1">Datos Empresa</label>
                    <input placeholder="Nombre de Empresa" className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white text-sm outline-none focus:ring-2 focus:ring-brand-500" value={newTenant.name} onChange={e => setNewTenant({...newTenant, name: e.target.value})} />
-                   <input placeholder="url-personalizada" className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white text-sm outline-none focus:ring-2 focus:ring-brand-500" value={newTenant.slug} onChange={e => setNewTenant({...newTenant, slug: e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, '-')})} />
+                   <input placeholder="url-personalizada (slug)" className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white text-sm outline-none focus:ring-2 focus:ring-brand-500" value={newTenant.slug} onChange={e => setNewTenant({...newTenant, slug: e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, '-')})} />
                  </div>
                  
                  <div className="space-y-1 pt-4 border-t border-white/5">
-                   <label className="text-[10px] font-black uppercase text-slate-500 ml-1">Acceso Dueño</label>
-                   <input placeholder="Email del Dueño" type="email" className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white text-sm outline-none focus:ring-2 focus:ring-brand-500" value={newTenant.email} onChange={e => setNewTenant({...newTenant, email: e.target.value})} />
+                   <label className="text-[10px] font-black uppercase text-slate-500 ml-1">Datos del Dueño</label>
+                   <input placeholder="Nombre Completo" className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white text-sm outline-none focus:ring-2 focus:ring-brand-500 mb-2" value={newTenant.ownerName} onChange={e => setNewTenant({...newTenant, ownerName: e.target.value})} />
+                   <input placeholder="Email del Dueño" type="email" className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white text-sm outline-none focus:ring-2 focus:ring-brand-500 mb-2" value={newTenant.email} onChange={e => setNewTenant({...newTenant, email: e.target.value})} />
                    <input placeholder="Contraseña Inicial" type="password" className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white text-sm outline-none focus:ring-2 focus:ring-brand-500" value={newTenant.password} onChange={e => setNewTenant({...newTenant, password: e.target.value})} />
                  </div>
               </div>
               <div className="flex gap-4 mt-10">
-                <button onClick={handleCreateTenant} className="flex-1 py-4 bg-brand-500 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-brand-600 transition-all">Crear Registro</button>
+                <button onClick={handleCreateTenant} className="flex-1 py-4 bg-brand-500 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-brand-600 transition-all">Crear Empresa y Dueño</button>
                 <button onClick={() => setIsCreating(false)} className="px-8 py-4 text-slate-400 font-black text-[10px] uppercase tracking-widest hover:text-white transition-colors">Cancelar</button>
               </div>
            </div>
@@ -209,7 +213,7 @@ export const AdminTenants = () => {
           <thead className="bg-white/5 text-slate-500 text-[10px] font-black uppercase tracking-widest">
             <tr>
               <th className="px-10 py-6">Empresa</th>
-              <th className="px-6 py-6">Email</th>
+              <th className="px-6 py-6">Dueño / Email</th>
               <th className="px-6 py-6 text-center">Catálogo</th>
               <th className="px-6 py-6 text-center">Web Pública</th>
               <th className="px-6 py-6">Licencia</th>
@@ -222,26 +226,20 @@ export const AdminTenants = () => {
               const status = t.status || 'active';
               const productCount = t.products?.[0]?.count || 0;
               
-              // LÓGICA DE PRIORIDAD PARA EL EMAIL:
-              // 1. El email directo del tenant (si existe)
-              // 2. El email del Miembro con rol 'owner' (el dueño real)
-              // 3. El email de un 'admin' que NO sea el superadmin actual (si hay otros administradores)
-              // 4. Cualquier admin (último recurso)
-              
-              const owner = t.memberships?.find(m => m.role === 'owner')?.profiles?.email;
-              const otherAdmin = t.memberships?.find(m => m.role === 'admin' && m.profiles?.email !== session?.user?.email)?.profiles?.email;
-              const anyAdmin = t.memberships?.find(m => m.role === 'admin')?.profiles?.email;
-
-              const displayEmail = t.email || owner || otherAdmin || anyAdmin || '—';
+              // RESOLUCIÓN DE EMAIL USANDO OWNER_ID O MEMBRESÍA OWNER
+              const ownerMembership = t.memberships?.find(m => m.user_id === t.owner_id || m.role === 'owner');
+              const displayEmail = ownerMembership?.profiles?.email || '—';
+              const displayName = ownerMembership?.profiles?.full_name || 'Dueño no vinculado';
               
               return (
                 <tr key={t.id} className="hover:bg-white/[0.02] transition-colors group">
                   <td className="px-10 py-6">
                     <div className="font-black text-white">{t.name}</div>
-                    <div className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">ID: {t.id.slice(0, 8)}</div>
+                    <div className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">slug: {t.slug}</div>
                   </td>
                   <td className="px-6 py-6">
-                    <div className="text-slate-400 text-xs truncate max-w-[200px]" title={displayEmail}>{displayEmail}</div>
+                    <div className="text-white text-xs font-bold mb-1">{displayName}</div>
+                    <div className="text-slate-400 text-[10px] font-medium truncate max-w-[200px]" title={displayEmail}>{displayEmail}</div>
                   </td>
                   <td className="px-6 py-6 text-center">
                     <div className="flex flex-col items-center">
@@ -290,6 +288,11 @@ export const AdminTenants = () => {
                 </tr>
               );
             })}
+            {filteredTenants.length === 0 && !isCreating && (
+              <tr>
+                <td colSpan={7} className="px-10 py-20 text-center text-slate-500 font-black uppercase text-[10px] italic tracking-widest">No hay empresas registradas en esta sección.</td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>

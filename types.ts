@@ -12,7 +12,7 @@ export interface Tenant {
   id: string;
   name: string;
   slug: string;
-  email?: string;
+  owner_id?: string;
   plan: 'free' | 'pro' | 'enterprise';
   status?: 'active' | 'inactive';
   logo_url?: string;
@@ -27,6 +27,7 @@ export interface Membership {
   tenant_id: string;
   role: 'owner' | 'admin' | 'staff' | 'viewer';
   tenant?: Tenant; 
+  profiles?: Profile;
 }
 
 export interface Product {
