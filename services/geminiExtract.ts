@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
 
 /**
@@ -53,11 +54,8 @@ const normType = (t: any): string => {
 };
 
 export async function extractProductWithGemini(file: File): Promise<any> {
-  const API_KEY = (import.meta as any).env?.VITE_GEMINI_API_KEY || (globalThis as any)?.process?.env?.API_KEY;
-
-  if (!API_KEY) throw new Error("API Key no configurada.");
-
-  const ai = new GoogleGenAI({ apiKey: API_KEY });
+  // Always use new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const base64Data = await fileToBase64(file);
 
   const systemInstruction = `
@@ -132,6 +130,7 @@ export async function extractProductWithGemini(file: File): Promise<any> {
     },
   });
 
+  // Directly access the text property from the response object
   const raw = JSON.parse(stripMarkdownJson(response.text || "{}"));
 
   const clean = {

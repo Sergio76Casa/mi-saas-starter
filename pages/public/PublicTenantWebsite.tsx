@@ -40,59 +40,47 @@ const LOCAL_I18N = {
     nav_home: 'Inicio',
     nav_products: 'Productos',
     nav_contact: 'Contacto',
-    nav_admin: 'Admin',
-    nav_admin_btn: 'ADMIN',
     error_404_msg: 'Error: Empresa no encontrada',
     error_404_btn: 'Volver',
-    inactive_title: 'Servicio Temporalmente Suspendido',
-    inactive_msg: 'Este espacio digital se encuentra en mantenimiento o ha sido desactivado por el administrador.',
-    inactive_contact: 'Si necesitas asistencia inmediata o eres el propietario de esta cuenta, por favor contacta con nuestro equipo de soporte técnico.',
-    inactive_btn: 'Volver a la plataforma principal',
-    hero_badge: 'TECNOLOGÍA INVERTER 2024',
+    inactive_title: 'Servicio Suspendido',
+    inactive_msg: 'Este espacio digital está desactivado temporalmente.',
+    inactive_btn: 'Volver al inicio',
     hero_title_1: 'Clima perfecto,',
     hero_title_2: 'Ahorro real.',
-    hero_desc: 'Transforma tu hogar con nuestras soluciones de climatización de alta eficiencia. Instalación profesional, financiación a medida y las mejores marcas del mercado.',
+    hero_desc: 'Soluciones de climatización de alta eficiencia para tu hogar.',
     hero_cta_catalog: 'Ver Catálogo',
-    hero_cta_wizard: 'Pedir Presupuesto',
     catalog_title: 'Catálogo Destacado',
-    catalog_subtitle: 'Soluciones integrales de climatización profesional.',
-    filter_all_brands: 'Todas las marcas',
-    no_products_filter: 'No hay productos disponibles en este catálogo',
-    wizard_models_available: 'Models disponibles',
-    cat_all: 'Todas',
+    catalog_subtitle: 'Nuestra selección de equipos profesionales.',
+    no_products_filter: 'No hay productos disponibles actualmente.',
+    // Added missing translation key
+    wizard_models_available: 'Modelos Disponibles',
     footer_copy: 'EcoQuote AI · Smart Installation Solution'
   },
   ca: {
     nav_home: 'Inici',
     nav_products: 'Productes',
     nav_contact: 'Contacte',
-    nav_admin: 'Admin',
-    nav_admin_btn: 'ADMIN',
     error_404_msg: 'Error: Empresa no trobada',
     error_404_btn: 'Tornar',
-    inactive_title: 'Servei Temporalment Suspès',
-    inactive_msg: 'Aquest espai digital es troba en manteniment o ha estat desactivat per l’administrador.',
-    inactive_contact: 'Si necessites assistència immediata o ets el propietari d’aquest compte, si us plau contacta amb el nostre equip de suport tècnic.',
-    inactive_btn: 'Tornar a la plataforma principal',
-    hero_badge: 'TECNOLOGIA INVERTER 2024',
+    inactive_title: 'Servei Suspès',
+    inactive_msg: 'Aquest espai digital està desactivat temporalment.',
+    inactive_btn: 'Tornar a l\'inici',
     hero_title_1: 'Clima perfecte,',
     hero_title_2: 'Estalvi real.',
-    hero_desc: 'Transforma la teva llar amb les nostres solucions de climatització d’alta eficiència. Instal·lació profesional, finançament a mida i les millors marques del mercat.',
+    hero_desc: 'Solucions de climatització d’alta eficiència per a la teva llar.',
     hero_cta_catalog: 'Veure Catàleg',
-    hero_cta_wizard: 'Demanar Pressupost',
     catalog_title: 'Catàleg Destacat',
-    catalog_subtitle: 'Solucions integrals de climatització profesional.',
-    filter_all_brands: 'Totes les marques',
-    no_products_filter: 'No hi ha productes disponibles en aquest catàleg',
-    wizard_models_available: 'Models disponibles',
-    cat_all: 'Totes',
+    catalog_subtitle: 'La nostra selecció d’equips professionals.',
+    no_products_filter: 'No hi ha productes disponibles actualment.',
+    // Added missing translation key
+    wizard_models_available: 'Models Disponibles',
     footer_copy: 'EcoQuote AI · Smart Installation Solution'
   }
 } as const;
 
 export const PublicTenantWebsite = () => {
   const { slug } = useParams();
-  const { dbHealthy, language, setLanguage, session, memberships, profile } = useApp();
+  const { language, setLanguage, session, memberships, profile } = useApp();
   const [tenant, setTenant] = useState<Tenant | null>(null);
   const [dbProducts, setDbProducts] = useState<PublicCatalogResponse['products']>([]);
   const [isDataReady, setIsDataReady] = useState(false);
@@ -102,80 +90,80 @@ export const PublicTenantWebsite = () => {
   const tt = (key: keyof typeof LOCAL_I18N['es']) => LOCAL_I18N[language]?.[key] ?? LOCAL_I18N.es[key];
 
   const [view, setView] = useState<'landing' | 'wizard'>('landing');
-  const [step, setStep] = useState(1);
   const [brandFilter, setBrandFilter] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
-  const [maxPrice, setMaxPrice] = useState(10000); 
+  const [maxPrice, setMaxPrice] = useState(50000); 
 
   const [isContactModalOpen, setIsContactModalOpen] = useState(false);
-  const [contactForm, setContactForm] = useState({ name: '', email: '', phone: '', message: '' });
-  const [contactStatus, setContactStatus] = useState<'idle' | 'sending' | 'success'>('idle');
-
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
 
   useEffect(() => {
     const fetchCatalog = async () => {
-      if (!isConfigured || dbHealthy === null) return;
+      // Ignoramos dbHealthy para la web pública porque suele dar falso negativo si no hay sesión
+      if (!isConfigured) return;
       
       setIsDataReady(false);
       setIsError(false);
 
       try {
-        console.log(`Iniciando carga pública para slug: ${slug}`);
+        console.log(`[PublicWeb] Buscando empresa: ${slug}`);
         
-        // Intentamos obtener el Tenant primero
+        // 1. Obtener la empresa por slug
         const { data: tData, error: tError } = await supabase
           .from('tenants')
           .select('*')
           .eq('slug', slug)
-          .eq('is_deleted', false)
           .single();
 
         if (tError || !tData) {
-          console.error("Empresa no encontrada o error de RLS:", tError?.message);
+          console.error("[PublicWeb] Empresa no encontrada:", tError?.message || "Sin datos");
+          setIsError(true);
+          return;
+        }
+
+        if (tData.is_deleted) {
           setIsError(true);
           return;
         }
 
         setTenant(tData as any);
 
-        // Si la empresa es activa, cargamos sus productos
+        // 2. Obtener los productos si la empresa está activa
         if (tData.status === 'active') {
-          console.log(`Cargando productos para tenant_id: ${tData.id}`);
+          console.log(`[PublicWeb] Buscando productos para ID: ${tData.id}`);
           const { data: pData, error: pError } = await supabase
             .from('products')
             .select('*')
             .eq('tenant_id', tData.id)
-            .or('is_deleted.eq.false,is_deleted.is.null')
-            .eq('status', 'active')
-            .order('brand', { ascending: true });
+            .eq('status', 'active');
 
           if (pError) {
-            console.error("Error cargando productos (posible RLS):", pError.message);
+            console.error("[PublicWeb] Error RLS en productos. Ejecuta las políticas SQL en Supabase:", pError.message);
             setDbProducts([]);
-          } else {
-            // Normalización: Asegurar que el precio se extraiga del campo pricing si la columna price es 0 o null
-            const normalized = (pData || []).map(p => {
-              let price = p.price || 0;
+          } else if (pData) {
+            // Normalizar precios desde el campo pricing (JSONB)
+            const normalized = pData.map(p => {
+              let price = 0;
               let pricingArr = p.pricing;
               
-              // Si pricing viene como string, lo parseamos
               if (typeof pricingArr === 'string') {
                 try { pricingArr = JSON.parse(pricingArr); } catch(e) { pricingArr = []; }
               }
 
-              if ((!price || price === 0) && Array.isArray(pricingArr) && pricingArr.length > 0) {
+              if (Array.isArray(pricingArr) && pricingArr.length > 0) {
                 price = pricingArr[0].price || 0;
+              } else if (p.price) {
+                price = p.price;
               }
+              
               return { ...p, price, pricing: pricingArr };
             });
-            
-            console.log(`Se cargaron ${normalized.length} productos correctamente.`);
+            console.log(`[PublicWeb] ${normalized.length} productos cargados.`);
             setDbProducts(normalized);
           }
         }
       } catch (err) {
-        console.error("Error crítico en fetchCatalog:", err);
+        console.error("[PublicWeb] Error fatal:", err);
         setIsError(true);
       } finally {
         setIsDataReady(true);
@@ -183,17 +171,16 @@ export const PublicTenantWebsite = () => {
     };
     
     fetchCatalog();
-  }, [slug, dbHealthy]);
+  }, [slug]);
 
   const brandGroups = useMemo(() => {
     const groups: Record<string, { brand: string, minPrice: number, products: any[] }> = {};
     
     dbProducts.forEach(p => {
       const matchesCategory = categoryFilter === 'all' || p.type === categoryFilter;
-      const matchesPrice = (p.price || 0) <= maxPrice;
       const matchesBrand = !brandFilter || p.brand === brandFilter;
 
-      if (matchesCategory && matchesPrice && matchesBrand) {
+      if (matchesCategory && matchesBrand) {
         if (!groups[p.brand]) {
           groups[p.brand] = { 
             brand: p.brand, 
@@ -208,29 +195,25 @@ export const PublicTenantWebsite = () => {
       }
     });
     return Object.values(groups);
-  }, [dbProducts, brandFilter, maxPrice, categoryFilter]);
+  }, [dbProducts, brandFilter, categoryFilter]);
 
   const navigateToHome = () => { setView('landing'); window.scrollTo({ top: 0, behavior: 'smooth' }); };
   const navigateToCatalog = () => {
-    const scrollToCatalog = () => { const el = document.getElementById('catalog'); if (el) el.scrollIntoView({ behavior: 'smooth' }); };
-    if (view !== 'landing') { setView('landing'); setTimeout(scrollToCatalog, 100); } 
-    else scrollToCatalog();
+    const el = document.getElementById('catalog');
+    if (el) el.scrollIntoView({ behavior: 'smooth' });
+    else setView('landing');
   };
 
   const handleAdminClick = () => {
     const adminUrl = `/t/${slug}/dashboard`;
     if (!session) navigate(`/login?returnTo=${encodeURIComponent(adminUrl)}`);
-    else {
-      const isMember = memberships.some(m => m.tenant?.slug === slug);
-      if (isMember || profile?.is_superadmin) navigate(adminUrl);
-      else alert("No tienes permisos para esta empresa.");
-    }
+    else navigate(adminUrl);
   };
 
   if (!isDataReady) return <LoadingSpinner />;
   
   if (isError || !tenant) return (
-    <div className="min-h-screen flex items-center justify-center bg-white p-6 text-center animate-in fade-in duration-500">
+    <div className="min-h-screen flex items-center justify-center bg-white p-6 text-center">
        <div>
          <h1 className="text-9xl font-black text-slate-100 mb-4 italic uppercase">404</h1>
          <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">{tt('error_404_msg')}</p>
@@ -250,7 +233,7 @@ export const PublicTenantWebsite = () => {
   );
 
   return (
-    <div className="min-h-screen bg-white text-slate-900 selection:bg-blue-600/20 overflow-x-hidden animate-in fade-in duration-700">
+    <div className="min-h-screen bg-white text-slate-900 selection:bg-blue-600/20 overflow-x-hidden">
       <nav className="fixed top-0 left-0 right-0 h-16 md:h-20 bg-white/80 backdrop-blur-md z-[100] border-b border-gray-100">
         <div className="max-w-7xl mx-auto h-full flex items-center justify-between px-6 md:px-10">
           <button onClick={navigateToHome} className="flex items-center gap-3">
@@ -262,7 +245,7 @@ export const PublicTenantWebsite = () => {
           </button>
           
           <div className="hidden lg:flex items-center gap-2">
-            <button onClick={navigateToHome} className={`px-5 py-2.5 rounded-xl text-[13px] font-bold ${view === 'landing' ? 'bg-[#f0f5ff] text-[#2563eb]' : 'text-slate-500'}`}>{tt('nav_home')}</button>
+            <button onClick={navigateToHome} className={`px-5 py-2.5 rounded-xl text-[13px] font-bold ${view === 'landing' ? 'bg-blue-50 text-blue-600' : 'text-slate-500'}`}>{tt('nav_home')}</button>
             <button onClick={navigateToCatalog} className="px-5 py-2.5 rounded-xl text-[13px] font-bold text-slate-500">{tt('nav_products')}</button>
             <button onClick={() => setIsContactModalOpen(true)} className="px-5 py-2.5 rounded-xl text-[13px] font-bold text-slate-500">{tt('nav_contact')}</button>
           </div>
@@ -283,7 +266,7 @@ export const PublicTenantWebsite = () => {
         <main className="pb-20 pt-20">
           <div className="px-4 md:px-8 pt-8">
             <section className="max-w-7xl mx-auto relative rounded-[2rem] h-[400px] md:h-[550px] overflow-hidden flex items-center text-left bg-slate-900 shadow-2xl">
-              <img src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?q=80&w=2070&auto=format&fit=crop" className="absolute inset-0 w-full h-full object-cover opacity-60" alt="Modern Home" />
+              <img src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?q=80&w=2070&auto=format&fit=crop" className="absolute inset-0 w-full h-full object-cover opacity-60" alt="Home" />
               <div className="relative px-8 md:px-20 max-w-4xl z-10">
                 <h1 className="text-4xl md:text-7xl font-black text-white leading-[1.1] tracking-tighter mb-6 uppercase italic">
                   {tt('hero_title_1')} <br/>
@@ -305,7 +288,10 @@ export const PublicTenantWebsite = () => {
                </div>
                
                {brandGroups.length === 0 ? (
-                 <div className="py-20 text-center text-slate-300 font-black uppercase italic">{tt('no_products_filter')}</div>
+                 <div className="py-20 text-center border-2 border-dashed border-slate-100 rounded-[2rem]">
+                   <p className="text-slate-300 font-black uppercase italic text-sm">{tt('no_products_filter')}</p>
+                   <p className="text-[10px] text-slate-400 mt-2">Si eres administrador, asegúrate de añadir productos y activar las políticas RLS de Supabase.</p>
+                 </div>
                ) : (
                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 md:gap-12">
                     {brandGroups.map(group => (
@@ -317,12 +303,13 @@ export const PublicTenantWebsite = () => {
                               <div className="text-blue-200 uppercase font-black text-xs italic">IMG</div>
                             )}
                          </div>
-                         <h3 className="text-3xl font-black mb-6 uppercase italic tracking-tighter">{group.brand}</h3>
+                         <h3 className="text-3xl font-black mb-2 uppercase italic tracking-tighter">{group.brand}</h3>
+                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-6">Equipos disponibles: {group.products.length}</p>
                          <div className="flex items-center justify-between border-t border-slate-50 pt-6 mt-auto">
                             <p className="text-2xl font-black text-slate-900 tracking-tighter">
-                              {group.minPrice > 0 ? formatCurrency(group.minPrice, language) : '—'}
+                              {group.minPrice > 0 ? formatCurrency(group.minPrice, language) : 'Consultar'}
                             </p>
-                            <button onClick={() => { setSelectedProduct(group.products[0]); setView('wizard'); setStep(1); }} className="w-12 h-12 bg-blue-600 text-white rounded-xl flex items-center justify-center shadow-lg hover:bg-blue-700">
+                            <button onClick={() => { setSelectedProduct(group.products[0]); setView('wizard'); }} className="w-12 h-12 bg-blue-600 text-white rounded-xl flex items-center justify-center shadow-lg hover:bg-blue-700 transition-colors">
                               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 4v16m8-8H4"/></svg>
                             </button>
                          </div>
@@ -346,8 +333,8 @@ export const PublicTenantWebsite = () => {
                   ))}
               </div>
               <div className="flex gap-4 mt-12 pt-8 border-t border-slate-50">
-                <button onClick={() => setView('landing')} className="px-10 py-5 border-2 border-slate-100 rounded-xl font-black uppercase text-[10px] text-slate-400">Volver</button>
-                <button onClick={() => setView('landing')} className="flex-1 py-5 bg-slate-900 text-white rounded-xl font-black uppercase text-[11px] tracking-widest shadow-xl">Confirmar</button>
+                <button onClick={() => setView('landing')} className="px-10 py-5 border-2 border-slate-100 rounded-xl font-black uppercase text-[10px] text-slate-400 hover:bg-slate-50 transition-colors">Volver</button>
+                <button onClick={() => setView('landing')} className="flex-1 py-5 bg-slate-900 text-white rounded-xl font-black uppercase text-[11px] tracking-widest shadow-xl hover:bg-black transition-all">Confirmar</button>
               </div>
            </div>
         </div>
