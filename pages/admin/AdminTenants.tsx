@@ -168,8 +168,17 @@ export const AdminTenants = () => {
               const status = t.status || 'active';
               const productCount = t.products?.[0]?.count || 0;
               
-              // Intentamos obtener el email del campo Tenant, o del primer miembro que encontremos (Owner/Admin)
-              const displayEmail = t.email || t.memberships?.find(m => m.role === 'owner' || m.role === 'admin')?.profiles?.email || '—';
+              // LÓGICA DE PRIORIDAD PARA EL EMAIL:
+              // 1. El email directo del tenant (si existe)
+              // 2. El email del Miembro con rol 'owner' (el dueño real)
+              // 3. El email de un 'admin' que NO sea el superadmin actual (si hay otros administradores)
+              // 4. Cualquier admin (último recurso)
+              
+              const owner = t.memberships?.find(m => m.role === 'owner')?.profiles?.email;
+              const otherAdmin = t.memberships?.find(m => m.role === 'admin' && m.profiles?.email !== session?.user?.email)?.profiles?.email;
+              const anyAdmin = t.memberships?.find(m => m.role === 'admin')?.profiles?.email;
+
+              const displayEmail = t.email || owner || otherAdmin || anyAdmin || '—';
               
               return (
                 <tr key={t.id} className="hover:bg-white/[0.02] transition-colors group">
