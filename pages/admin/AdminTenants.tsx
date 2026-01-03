@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { supabase } from '../../supabaseClient';
+import { createClient } from '@supabase/supabase-js';
+import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from '../../supabaseClient';
 import { Tenant } from '../../types';
 import { useApp } from '../../AppProvider';
 
@@ -17,7 +18,13 @@ export const AdminTenants = () => {
   const [tenants, setTenants] = useState<TenantWithStats[]>([]);
   const [activeTab, setActiveTab] = useState<'directory' | 'trash'>('directory');
   const [isCreating, setIsCreating] = useState(false);
-  const [newTenant, setNewTenant] = useState({ name: '', slug: '', plan: 'free' });
+  const [newTenant, setNewTenant] = useState({ 
+    name: '', 
+    slug: '', 
+    plan: 'free',
+    email: '',
+    password: ''
+  });
   const { dbHealthy, session, refreshProfile } = useApp();
 
   const fetchTenants = async () => {
@@ -50,37 +57,75 @@ export const AdminTenants = () => {
   );
 
   const handleCreateTenant = async () => {
-    if (!newTenant.name || !newTenant.slug) return alert("Rellena nombre y slug");
+    if (!newTenant.name || !newTenant.slug || !newTenant.email || !newTenant.password) {
+      return alert("Todos los campos (nombre, slug, email y contraseña) son obligatorios.");
+    }
     
     try {
-      // 1. Crear el Tenant
+      // 1. Crear el Tenant incluyendo el email en el registro
       const { data: tenant, error: tError } = await supabase
         .from('tenants')
-        .insert([{ ...newTenant, status: 'active', is_deleted: false }])
+        .insert([{ 
+          name: newTenant.name, 
+          slug: newTenant.slug, 
+          email: newTenant.email,
+          plan: newTenant.plan,
+          status: 'active', 
+          is_deleted: false 
+        }])
         .select()
         .single();
 
       if (tError) throw tError;
 
-      // 2. IMPORTANTE: Crear membresía para el admin actual
-      // Sin esto, el RLS bloqueará cualquier inserción de productos en esta nueva empresa
-      if (tenant && session?.user?.id) {
-        const { error: mError } = await supabase
-          .from('memberships')
-          .insert([{ 
-            user_id: session.user.id, 
-            tenant_id: tenant.id, 
-            role: 'admin' 
-          }]);
-        
-        if (mError) console.error("Error al crear membresía administrativa:", mError.message);
+      if (tenant) {
+        // 2. Crear el Usuario de Auth sin cerrar la sesión del Super Admin actual
+        // Usamos un cliente temporal con persistencia desactivada
+        const tempAuthClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+          auth: { persistSession: false }
+        });
+
+        const { data: authData, error: authError } = await tempAuthClient.auth.signUp({
+          email: newTenant.email,
+          password: newTenant.password,
+          options: {
+            data: { full_name: `Admin ${newTenant.name}` }
+          }
+        });
+
+        if (authError) {
+          console.error("Error al crear usuario auth:", authError.message);
+          alert(`Empresa creada, pero no se pudo crear el usuario: ${authError.message}`);
+        } else if (authData.user) {
+          // 3. Crear membresía para el NUEVO usuario (Owner)
+          const { error: mOwnerError } = await supabase
+            .from('memberships')
+            .insert([{ 
+              user_id: authData.user.id, 
+              tenant_id: tenant.id, 
+              role: 'owner' 
+            }]);
+          
+          if (mOwnerError) console.error("Error al vincular dueño:", mOwnerError.message);
+        }
+
+        // 4. Vincular también al SuperAdmin actual como admin para que tenga acceso inmediato
+        if (session?.user?.id) {
+          await supabase
+            .from('memberships')
+            .insert([{ 
+              user_id: session.user.id, 
+              tenant_id: tenant.id, 
+              role: 'admin' 
+            }]);
+        }
       }
 
       setIsCreating(false); 
-      setNewTenant({ name: '', slug: '', plan: 'free' }); 
+      setNewTenant({ name: '', slug: '', plan: 'free', email: '', password: '' }); 
       await refreshProfile(); // Actualizar membresías en el estado global
       fetchTenants(); 
-      alert("Empresa registrada y vinculada correctamente.");
+      alert("Empresa registrada y usuario principal configurado con éxito.");
     } catch (err: any) {
       alert("Error al crear: " + err.message);
     }
@@ -136,11 +181,20 @@ export const AdminTenants = () => {
 
       {isCreating && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-xl z-[100] flex items-center justify-center p-6 animate-in fade-in duration-300">
-           <div className="bg-slate-900 border border-white/10 p-8 md:p-10 rounded-[2rem] w-full max-w-md shadow-2xl">
+           <div className="bg-slate-900 border border-white/10 p-8 md:p-10 rounded-[2rem] w-full max-w-md shadow-2xl overflow-y-auto max-h-[90vh]">
               <h4 className="text-xl font-black text-white mb-6 uppercase italic">Nuevo Registro</h4>
               <div className="space-y-4">
-                 <input placeholder="Nombre de Empresa" className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white text-sm outline-none focus:ring-2 focus:ring-brand-500" value={newTenant.name} onChange={e => setNewTenant({...newTenant, name: e.target.value})} />
-                 <input placeholder="url-personalizada" className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white text-sm outline-none focus:ring-2 focus:ring-brand-500" value={newTenant.slug} onChange={e => setNewTenant({...newTenant, slug: e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, '-')})} />
+                 <div className="space-y-1">
+                   <label className="text-[10px] font-black uppercase text-slate-500 ml-1">Datos Empresa</label>
+                   <input placeholder="Nombre de Empresa" className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white text-sm outline-none focus:ring-2 focus:ring-brand-500" value={newTenant.name} onChange={e => setNewTenant({...newTenant, name: e.target.value})} />
+                   <input placeholder="url-personalizada" className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white text-sm outline-none focus:ring-2 focus:ring-brand-500" value={newTenant.slug} onChange={e => setNewTenant({...newTenant, slug: e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, '-')})} />
+                 </div>
+                 
+                 <div className="space-y-1 pt-4 border-t border-white/5">
+                   <label className="text-[10px] font-black uppercase text-slate-500 ml-1">Acceso Dueño</label>
+                   <input placeholder="Email del Dueño" type="email" className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white text-sm outline-none focus:ring-2 focus:ring-brand-500" value={newTenant.email} onChange={e => setNewTenant({...newTenant, email: e.target.value})} />
+                   <input placeholder="Contraseña Inicial" type="password" className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white text-sm outline-none focus:ring-2 focus:ring-brand-500" value={newTenant.password} onChange={e => setNewTenant({...newTenant, password: e.target.value})} />
+                 </div>
               </div>
               <div className="flex gap-4 mt-10">
                 <button onClick={handleCreateTenant} className="flex-1 py-4 bg-brand-500 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-brand-600 transition-all">Crear Registro</button>
