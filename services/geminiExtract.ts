@@ -41,30 +41,33 @@ const toNum = (v: any): number => {
   return Number.isFinite(n) ? n : 0;
 };
 
-/**
- * Normaliza el tipo de producto a uno de los valores permitidos por el sistema.
- */
 const normType = (t: any): string => {
   const str = String(t || "").toLowerCase();
   if (str.includes("caldera")) return "caldera";
   if (str.includes("termo") || str.includes("calentador")) return "termo_electrico";
   if (str.includes("aire") || str.includes("split") || str.includes("clima")) return "aire_acondicionado";
-  if (str.includes("aerotermia")) return "aerotermia";
-  return "aire_acondicionado"; // Valor por defecto
+  return "aire_acondicionado"; 
 };
 
+/**
+ * Extrae datos del producto usando el modelo Gemini.
+ */
 export async function extractProductWithGemini(file: File): Promise<any> {
-  // Always use new GoogleGenAI({ apiKey: process.env.API_KEY });
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  // Siguiendo estrictamente la instrucción: obtener exclusivamente de process.env.API_KEY
+  // Usar la referencia directa facilita que Vite realice el reemplazo estático en Vercel.
+  const apiKey = process.env.API_KEY;
+
+  if (!apiKey) {
+    throw new Error("La API_KEY de Gemini no está llegando al navegador. Verifica que esté configurada en las Environment Variables de Vercel.");
+  }
+
+  const ai = new GoogleGenAI({ apiKey });
   const base64Data = await fileToBase64(file);
 
   const systemInstruction = `
     Extract HVAC technical data, FINANCING, and STOCK. 
     Languages: es/ca. 
     IMPORTANT: The field 'type' MUST be exactly one of these: 'aire_acondicionado', 'caldera', 'termo_electrico'.
-    - If it's an air conditioner or heat pump, use 'aire_acondicionado'.
-    - If it's a gas/oil boiler, use 'caldera'.
-    - If it's an electric water heater or thermo, use 'termo_electrico'.
     Return only valid JSON.
   `.trim();
 
@@ -77,7 +80,6 @@ export async function extractProductWithGemini(file: File): Promise<any> {
       ],
     },
     config: {
-      thinkingConfig: { thinkingBudget: 0 },
       responseMimeType: "application/json",
       responseSchema: {
         type: Type.OBJECT,
@@ -130,10 +132,9 @@ export async function extractProductWithGemini(file: File): Promise<any> {
     },
   });
 
-  // Directly access the text property from the response object
   const raw = JSON.parse(stripMarkdownJson(response.text || "{}"));
 
-  const clean = {
+  return {
     brand: String(raw.brand || "Desconocida"),
     model: String(raw.model || "Desconocido"),
     reference: String(raw.reference || ""),
@@ -141,29 +142,24 @@ export async function extractProductWithGemini(file: File): Promise<any> {
     status: (['active', 'draft', 'inactive'].includes(raw.status) ? raw.status : 'active'),
     stock: toNum(raw.stock) || 0,
     description: normI18n(raw.description, "Descripción no disponible"),
-    pricing: ensureArray(raw.pricing).map((p, i) => ({
+    pricing: ensureArray(raw.pricing).map((p: any, i: number) => ({
       id: `p${i + 1}`,
       name: normI18n(p.name, "Precio Base"),
       price: toNum(p.price),
       cost: toNum(p.cost)
     })),
-    installationKits: [],
-    extras: [],
-    financing: ensureArray(raw.financing).map((f, i) => ({
+    financing: ensureArray(raw.financing).map((f: any, i: number) => ({
       id: `f${i + 1}`,
       label: normI18n(f.label, `${f.months || 12} meses`),
       months: toNum(f.months) || 12,
       commission: toNum(f.commission),
       coefficient: toNum(f.coefficient) || 0.087
     })),
-    techSpecs: ensureArray(raw.techSpecs).map(t => ({
+    techSpecs: ensureArray(raw.techSpecs).map((t: any) => ({
       title: String(t.title || "").trim(),
       description: String(t.value || "").trim()
-    })).filter(x => x.title),
-    __version: "frontend-gemini-v7-fixed-types",
+    })).filter((x: any) => x.title),
+    __version: "v9-static-rebound",
     __extracted_at: new Date().toISOString()
   };
-
-  if (clean.pricing.length === 0) clean.pricing = [{ id: "p1", name: { es: "Precio Base", ca: "Preu Base" }, price: 0, cost: 0 }];
-  return clean;
 }
