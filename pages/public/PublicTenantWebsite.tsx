@@ -23,7 +23,7 @@ type PublicCatalogResponse = {
     id: string; 
     brand: string;
     model: string;
-    description?: string; 
+    description?: string | { es: string; ca: string }; 
     features?: string;
     price: number; 
     type?: string;
@@ -57,7 +57,7 @@ const LOCAL_I18N = {
     catalog_title: 'Catálogo Destacado',
     catalog_subtitle: 'Soluciones integrales de climatización profesional.',
     filter_all_brands: 'Todas las marcas',
-    no_products_filter: 'No hay productos disponibles con estos filtros',
+    no_products_filter: 'No hay productos disponibles en este catálogo',
     wizard_models_available: 'Models disponibles',
     wizard_kit_title: 'Kit de Instalación',
     wizard_extras_title: 'Materiales Extras',
@@ -117,7 +117,7 @@ const LOCAL_I18N = {
     catalog_title: 'Catàleg Destacat',
     catalog_subtitle: 'Solucions integrals de climatització profesional.',
     filter_all_brands: 'Totes les marques',
-    no_products_filter: 'No hi ha productes disponibles amb aquests filtres',
+    no_products_filter: 'No hi ha productes disponibles en aquest catàleg',
     wizard_models_available: 'Models disponibles',
     wizard_kit_title: 'Kit d’Instal·lació',
     wizard_extras_title: 'Materials Extras',
@@ -198,22 +198,19 @@ export const PublicTenantWebsite = () => {
       if (!isConfigured || dbHealthy === null) return;
       
       try {
-        // --- MÉTODO 1: RPC (Optimizado) ---
-        // Intentamos usar el RPC si existe.
         const { data: rpcData, error: rpcError } = await supabase.rpc('get_public_catalog', { p_slug: slug });
         
+        let rawProducts: any[] = [];
+        let finalTenant: any = null;
+
         if (!rpcError && rpcData?.tenant) {
-          // Si el RPC funcionó, validamos que la empresa no esté borrada.
           if (rpcData.tenant.is_deleted) {
             setIsError(true);
-          } else {
-            setTenant(rpcData.tenant as any);
-            setDbProducts(Array.isArray(rpcData.products) ? rpcData.products : []);
+            return;
           }
+          finalTenant = rpcData.tenant;
+          rawProducts = Array.isArray(rpcData.products) ? rpcData.products : [];
         } else {
-          // --- MÉTODO 2: CONSULTA DIRECTA (Fallback) ---
-          // Si el RPC falló o no existe, consultamos las tablas directamente.
-          // Esto garantiza acceso si las políticas RLS de lectura pública están activas.
           const { data: tData, error: tError } = await supabase
             .from('tenants')
             .select('*')
@@ -222,27 +219,36 @@ export const PublicTenantWebsite = () => {
             .single();
 
           if (tError || !tData) {
-            console.warn("Empresa no encontrada mediante consulta directa:", tError?.message);
             setIsError(true);
             return;
           }
+          finalTenant = tData;
 
-          setTenant(tData as any);
-
-          // Cargar productos solo si el tenant es válido y está activo
-          if (tData.status === 'active') {
-            const { data: pData } = await supabase
-              .from('products')
-              .select('*')
-              .eq('tenant_id', tData.id)
-              .or('is_deleted.eq.false,is_deleted.is.null')
-              .eq('status', 'active');
-            
-            setDbProducts((pData as any[]) || []);
-          }
+          const { data: pData } = await supabase
+            .from('products')
+            .select('*')
+            .eq('tenant_id', tData.id)
+            .or('is_deleted.eq.false,is_deleted.is.null')
+            .eq('status', 'active');
+          
+          rawProducts = (pData as any[]) || [];
         }
+
+        setTenant(finalTenant);
+        
+        // NORMALIZACIÓN DE PRODUCTOS: Extraer precio del array pricing si no existe columna price
+        const normalized = rawProducts.map(p => {
+          let price = p.price || 0;
+          if (!price && Array.isArray(p.pricing) && p.pricing.length > 0) {
+            price = p.pricing[0].price;
+          }
+          return { ...p, price };
+        });
+
+        setDbProducts(normalized);
+
       } catch (err) {
-        console.error("Error crítico al cargar el catálogo público:", err);
+        console.error("Error crítico al cargar el catálogo:", err);
         setIsError(true);
       } finally {
         setIsDataReady(true);
@@ -256,15 +262,26 @@ export const PublicTenantWebsite = () => {
 
   const brandGroups = useMemo(() => {
     const groups: Record<string, { brand: string, minPrice: number, products: any[], features: string[] }> = {};
+    
     dbProducts.forEach(p => {
       const matchesCategory = categoryFilter === 'all' || p.type === categoryFilter;
       const matchesPrice = (p.price || 0) <= maxPrice;
       const matchesBrand = !brandFilter || p.brand === brandFilter;
 
       if (matchesCategory && matchesPrice && matchesBrand) {
-        if (!groups[p.brand]) groups[p.brand] = { brand: p.brand, minPrice: p.price, products: [], features: [] };
+        if (!groups[p.brand]) {
+          groups[p.brand] = { 
+            brand: p.brand, 
+            minPrice: p.price || 999999, 
+            products: [], 
+            features: [] 
+          };
+        }
         groups[p.brand].products.push(p);
-        if (p.price < groups[p.brand].minPrice) groups[p.brand].minPrice = p.price;
+        const currentPrice = p.price || 0;
+        if (currentPrice > 0 && currentPrice < groups[p.brand].minPrice) {
+          groups[p.brand].minPrice = currentPrice;
+        }
       }
     });
     return Object.values(groups);
@@ -293,29 +310,6 @@ export const PublicTenantWebsite = () => {
     setTimeout(() => { setContactStatus('success'); setTimeout(() => { setIsContactModalOpen(false); setContactStatus('idle'); setContactForm({ name: '', email: '', phone: '', message: '' }); }, 2000); }, 1000);
   };
 
-  const startDrawing = (e: React.MouseEvent | React.TouchEvent) => {
-    setIsDrawing(true);
-    const ctx = canvasRef.current?.getContext('2d');
-    if (!ctx) return;
-    const pos = getPos(e);
-    ctx.beginPath();
-    ctx.moveTo(pos.x, pos.y);
-  };
-
-  const draw = (e: React.MouseEvent | React.TouchEvent) => {
-    if (!isDrawing) return;
-    const ctx = canvasRef.current?.getContext('2d');
-    if (!ctx) return;
-    const pos = getPos(e);
-    ctx.strokeStyle = '#2563eb';
-    ctx.lineWidth = 3;
-    ctx.lineJoin = 'round';
-    ctx.lineCap = 'round';
-    ctx.lineTo(pos.x, pos.y);
-    ctx.stroke();
-    setIsSigned(true);
-  };
-
   const getPos = (e: React.MouseEvent | React.TouchEvent) => {
     const rect = canvasRef.current?.getBoundingClientRect();
     if (!rect) return { x: 0, y: 0 };
@@ -336,7 +330,6 @@ export const PublicTenantWebsite = () => {
     </div>
   );
 
-  // --- VISTA PROFESIONAL DE BAJA ---
   if (tenant.status === 'inactive') return (
     <div className="min-h-screen bg-[#050505] flex items-center justify-center p-6 relative overflow-hidden selection:bg-brand-500/30">
        <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-brand-500/5 blur-[120px] rounded-full"></div>
@@ -369,11 +362,8 @@ export const PublicTenantWebsite = () => {
     </div>
   );
 
-  const subtotal = (selectedProduct?.price || 0) + (selectedKit?.price || 0) + selectedExtras.reduce((acc, n) => acc + (PDF_EXTRAS.find(e => n === e.name)?.price || 0), 0);
-
   return (
     <div className="min-h-screen bg-white text-slate-900 selection:bg-blue-600/20 overflow-x-hidden animate-in fade-in duration-700">
-      {/* HEADER: FIXED GLASSMORPHISM NAVIGATION MATCHING THE SCREENSHOT */}
       <nav className="fixed top-0 left-0 right-0 h-16 md:h-20 bg-white/80 backdrop-blur-md z-[100] border-b border-gray-100 transition-all duration-300">
         <div className="max-w-7xl mx-auto h-full flex items-center justify-between px-6 md:px-10">
           <button onClick={navigateToHome} className="flex items-center gap-3 group shrink-0">
@@ -387,76 +377,28 @@ export const PublicTenantWebsite = () => {
             )}
           </button>
           
-          {/* NAVIGATION BUTTONS (MIDDLE) - MATCHING SCREENSHOT */}
           <div className="hidden lg:flex items-center gap-2">
-            <button 
-              onClick={navigateToHome} 
-              className={`px-5 py-2.5 rounded-xl text-[13px] font-bold tracking-tight transition-all ${view === 'landing' ? 'bg-[#f0f5ff] text-[#2563eb]' : 'text-slate-500 hover:text-slate-900'}`}
-            >
-              {tt('nav_home')}
-            </button>
-            <button 
-              onClick={navigateToCatalog} 
-              className="px-5 py-2.5 rounded-xl text-[13px] font-bold tracking-tight text-slate-500 hover:text-slate-900 transition-all"
-            >
-              {tt('nav_products')}
-            </button>
-            <button 
-              onClick={() => setIsContactModalOpen(true)} 
-              className="px-5 py-2.5 rounded-xl text-[13px] font-bold tracking-tight text-slate-500 hover:text-slate-900 transition-all"
-            >
-              {tt('nav_contact')}
-            </button>
+            <button onClick={navigateToHome} className={`px-5 py-2.5 rounded-xl text-[13px] font-bold tracking-tight transition-all ${view === 'landing' ? 'bg-[#f0f5ff] text-[#2563eb]' : 'text-slate-500 hover:text-slate-900'}`}>{tt('nav_home')}</button>
+            <button onClick={navigateToCatalog} className="px-5 py-2.5 rounded-xl text-[13px] font-bold tracking-tight text-slate-500 hover:text-slate-900 transition-all">{tt('nav_products')}</button>
+            <button onClick={() => setIsContactModalOpen(true)} className="px-5 py-2.5 rounded-xl text-[13px] font-bold tracking-tight text-slate-500 hover:text-slate-900 transition-all">{tt('nav_contact')}</button>
           </div>
 
           <div className="flex items-center gap-4">
-              {/* VERTICAL SEPARATOR AS IN SCREENSHOT */}
               <div className="hidden lg:block w-px h-6 bg-slate-200"></div>
-
-              {/* LANGUAGE SWITCHER WITH GLOBE ICON */}
               <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-slate-50 cursor-pointer group transition-colors">
                 <svg className="w-4 h-4 text-slate-400 group-hover:text-blue-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/></svg>
-                <select 
-                  value={language} 
-                  onChange={(e) => setLanguage(e.target.value as any)} 
-                  className="bg-transparent text-[11px] font-black uppercase text-slate-600 outline-none cursor-pointer appearance-none"
-                >
+                <select value={language} onChange={(e) => setLanguage(e.target.value as any)} className="bg-transparent text-[11px] font-black uppercase text-slate-600 outline-none cursor-pointer appearance-none">
                    <option value="es">ES</option>
                    <option value="ca">CA</option>
                 </select>
                 <svg className="w-2.5 h-2.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7"/></svg>
               </div>
-
-              {/* SETTINGS GEAR ICON AS IN SCREENSHOT */}
-              <button 
-                onClick={handleAdminClick} 
-                className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-slate-900 transition-all bg-white hover:bg-slate-50 rounded-xl"
-              >
+              <button onClick={handleAdminClick} className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-slate-900 transition-all bg-white hover:bg-slate-50 rounded-xl">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
               </button>
           </div>
         </div>
       </nav>
-
-      {/* CONTACT MODAL */}
-      {isContactModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[200] flex items-center justify-center p-4 animate-in fade-in duration-300">
-          <div className="bg-white rounded-[2rem] md:rounded-[3.5rem] p-8 md:p-14 w-full max-w-xl shadow-2xl relative overflow-y-auto max-h-[90vh]">
-            <button onClick={() => setIsContactModalOpen(false)} className="absolute top-6 right-6 text-slate-300 hover:text-slate-900"><svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M6 18L18 6M6 6l12 12"/></svg></button>
-            {contactStatus === 'success' ? (
-              <div className="text-center py-8"><div className="w-16 h-16 bg-green-50 text-green-500 rounded-full flex items-center justify-center mx-auto mb-6"><svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" d="M5 13l4 4L19 7"/></svg></div><h3 className="text-2xl font-black italic uppercase">{tt('contact_success')}</h3></div>
-            ) : (
-              <><h3 className="text-3xl font-black tracking-tighter uppercase italic mb-8">{tt('contact_title')}</h3>
-                <form onSubmit={handleContactSubmit} className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4"><Input label={tt('wizard_fullname')} value={contactForm.name} onChange={(e:any) => setContactForm({...contactForm, name: e.target.value})} required /><Input label={tt('wizard_email')} type="email" value={contactForm.email} onChange={(e:any) => setContactForm({...contactForm, email: e.target.value})} required /></div>
-                  <Input label={tt('contact_phone')} value={contactForm.phone} onChange={(e:any) => setContactForm({...contactForm, phone: e.target.value})} />
-                  <textarea className="w-full px-4 py-3 border border-gray-100 rounded-xl shadow-sm bg-gray-50/50 h-24 resize-none text-sm outline-none focus:ring-2 focus:ring-blue-500" placeholder={tt('contact_message')} value={contactForm.message} onChange={(e) => setContactForm({...contactForm, message: e.target.value})} required />
-                  <button type="submit" className="w-full py-4 bg-blue-600 text-white rounded-xl font-black uppercase text-[12px] tracking-widest shadow-xl shadow-blue-600/30">{contactStatus === 'sending' ? tt('contact_sending') : tt('contact_btn_send')}</button>
-                </form></>
-            )}
-          </div>
-        </div>
-      )}
 
       {view === 'landing' ? (
         <main className="animate-in fade-in duration-1000 pb-20 pt-16 md:pt-20">
@@ -522,7 +464,7 @@ export const PublicTenantWebsite = () => {
               )}
               <div className="flex flex-col md:flex-row gap-3 mt-12 pt-8 border-t border-slate-50">
                 {step > 1 && <button onClick={() => setStep(step - 1)} className="px-10 py-5 border-2 border-slate-100 rounded-xl font-black uppercase text-[10px] text-slate-400">{tt('wizard_btn_back')}</button>}
-                <button onClick={() => { setStep(step + 1); if(step === 5) setView('landing'); }} className="flex-1 py-5 bg-slate-900 text-white rounded-xl font-black uppercase text-[11px] tracking-widest shadow-xl">
+                <button onClick={() => { setStep(step + 1); if(step === 6) setView('landing'); }} className="flex-1 py-5 bg-slate-900 text-white rounded-xl font-black uppercase text-[11px] tracking-widest shadow-xl">
                    {step === 5 ? tt('wizard_btn_finish') : tt('wizard_btn_continue')}
                 </button>
               </div>
