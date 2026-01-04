@@ -1,30 +1,26 @@
 
-import { supabase } from '../supabaseClient';
-
 /**
- * Servicio de extracción que delega la lógica pesada y sensible a una Edge Function en Supabase.
- * Esto evita exponer la API Key en el navegador y resuelve el error de validación del SDK de Gemini.
+ * Servicio de extracción que llama a un endpoint interno del servidor (Vercel API Route).
+ * Esto asegura que la API Key nunca se exponga al cliente y que el SDK de Gemini
+ * se ejecute en un entorno de servidor compatible.
  */
 export async function extractProductWithGemini(file: File): Promise<any> {
   const formData = new FormData();
   formData.append('file', file);
 
   try {
-    // Invocamos la Edge Function 'ai-processor'
-    // El SDK de Gemini se ejecutará en el servidor de Supabase
-    const { data, error } = await supabase.functions.invoke('ai-processor', {
+    // Llamada al endpoint local de Vercel /api/extract
+    const response = await fetch('/api/extract', {
+      method: 'POST',
       body: formData,
     });
 
-    if (error) {
-      console.error("Error invoking AI function:", error);
-      throw new Error(`Error en la extracción: ${error.message || 'Error desconocido'}`);
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || `Error del servidor: ${response.status}`);
     }
 
-    if (!data) {
-      throw new Error("La función de extracción no devolvió datos válidos.");
-    }
-
+    const data = await response.json();
     return data;
   } catch (err: any) {
     console.error("AI Extraction Service Error:", err);
