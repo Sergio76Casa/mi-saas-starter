@@ -323,7 +323,7 @@ export const PublicTenantWebsite = () => {
                         <button
                           key={type.id}
                           onClick={() => { setCategoryFilter(type.id); setBrandFilter(''); }}
-                          className={`px-5 py-2.5 rounded-full text-[11px] font-black uppercase tracking-widest transition-all ${categoryFilter === type.id ? 'bg-blue-600 text-white shadow-lg' : 'bg-white text-slate-500 border border-slate-100 hover:border-blue-200'}`}
+                          className={`px-5 py-2.5 rounded-full text-[11px] font-black tracking-widest transition-all ${categoryFilter === type.id ? 'bg-blue-600 text-white shadow-lg' : 'bg-white text-slate-500 border border-slate-100 hover:border-blue-200'}`}
                         >
                           {type.label}
                         </button>
