@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { supabase, isConfigured } from '../../supabaseClient';
-import { Tenant } from '../../types';
+import { Tenant, Branch } from '../../types';
 import { formatCurrency } from '../../i18n';
 import { useApp } from '../../AppProvider';
 import { LoadingSpinner } from '../../components/common/LoadingSpinner';
@@ -16,6 +16,8 @@ type PublicCatalogResponse = {
     logo_url?: string;
     use_logo_on_web?: boolean;
     is_deleted?: boolean;
+    phone?: string;
+    email?: string;
   }; 
   products: Array<{ 
     id: string; 
@@ -186,6 +188,7 @@ export const PublicTenantWebsite = () => {
   const { language, setLanguage, session } = useApp();
   const [tenant, setTenant] = useState<Tenant | null>(null);
   const [dbProducts, setDbProducts] = useState<PublicCatalogResponse['products']>([]);
+  const [branches, setBranches] = useState<Branch[]>([]);
   const [isDataReady, setIsDataReady] = useState(false);
   const [isError, setIsError] = useState(false);
   const [rlsError, setRlsError] = useState(false);
@@ -210,8 +213,15 @@ export const PublicTenantWebsite = () => {
         const { data: tData, error: tError } = await supabase.from('tenants').select('*').eq('slug', slug).eq('is_deleted', false).single();
         if (tError || !tData) { setIsError(true); return; }
         setTenant(tData as any);
+        
         if (tData.status === 'active') {
+          // Fetch products
           const { data: pData, error: pError } = await supabase.from('products').select('*').eq('tenant_id', tData.id).eq('status', 'active').or('is_deleted.eq.false,is_deleted.is.null');
+          
+          // Fetch branches
+          const { data: bData } = await supabase.from('tenant_branches').select('*').eq('tenant_id', tData.id).eq('is_active', true).order('sort_order', { ascending: true });
+          if (bData) setBranches(bData);
+
           if (pError) {
             if (pError.message.toLowerCase().includes('permission denied')) setRlsError(true);
             setDbProducts([]);
@@ -636,27 +646,37 @@ export const PublicTenantWebsite = () => {
             <div className="space-y-8">
               <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-blue-500">{tt('footer_contact')}</h4>
               <ul className="space-y-6">
-                <li className="flex items-start gap-3">
-                  <svg className="w-5 h-5 text-blue-500 mt-1 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                  <div className="space-y-2">
-                    <p className="text-[12px] font-bold text-slate-100 leading-snug">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-1">CENTRAL MATARÓ</span>
-                      Ronda Mossen Jacint Verdaguer, 47 local 08397, Mataró (Barcelona)
-                    </p>
-                    <p className="text-[12px] font-bold text-slate-100 leading-snug pt-2">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-1">CENTRO SABADELL</span>
-                      Ronda Zamenhof, 100 08208, Sabadell (Barcelona)
-                    </p>
-                  </div>
-                </li>
-                <li className="flex items-center gap-3">
-                  <svg className="w-5 h-5 text-blue-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>
-                  <p className="text-[13px] font-black text-white tracking-widest">+34 935 361 372</p>
-                </li>
-                <li className="flex items-center gap-3">
-                  <svg className="w-5 h-5 text-blue-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
-                  <p className="text-[13px] font-bold text-slate-400 italic">info@eco-efficient.cat</p>
-                </li>
+                {branches.length > 0 ? (
+                  branches.map(branch => (
+                    <li key={branch.id} className="flex items-start gap-3">
+                      <svg className="w-5 h-5 text-blue-500 mt-1 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                      <div className="space-y-1">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-1">{branch.name}</span>
+                        <p className="text-[12px] font-bold text-slate-100 leading-snug">
+                          {branch.address}
+                        </p>
+                      </div>
+                    </li>
+                  ))
+                ) : (
+                  <li className="flex items-start gap-3 opacity-30 italic text-[10px] uppercase font-black">
+                    No hay direcciones configuradas
+                  </li>
+                )}
+
+                {tenant.phone && (
+                  <li className="flex items-center gap-3">
+                    <svg className="w-5 h-5 text-blue-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>
+                    <p className="text-[13px] font-black text-white tracking-widest">{tenant.phone}</p>
+                  </li>
+                )}
+                
+                {tenant.email && (
+                  <li className="flex items-center gap-3">
+                    <svg className="w-5 h-5 text-blue-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                    <p className="text-[13px] font-bold text-slate-400 italic">{tenant.email}</p>
+                  </li>
+                )}
               </ul>
             </div>
           </div>

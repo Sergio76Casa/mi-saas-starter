@@ -16,8 +16,20 @@ export interface Tenant {
   status?: 'active' | 'inactive';
   logo_url?: string;
   use_logo_on_web?: boolean;
+  phone?: string;
+  email?: string;
   is_deleted?: boolean;
   created_at: string;
+}
+
+export interface Branch {
+  id: string;
+  tenant_id: string;
+  name: string;
+  address: string;
+  sort_order: number;
+  is_active: boolean;
+  created_at?: string;
 }
 
 export interface Membership {
