@@ -18,6 +18,16 @@ export interface Tenant {
   use_logo_on_web?: boolean;
   phone?: string;
   email?: string;
+  footer_description_es?: string;
+  footer_description_ca?: string;
+  social_instagram?: string;
+  social_facebook?: string;
+  social_tiktok?: string;
+  social_youtube?: string;
+  social_x?: string;
+  social_linkedin?: string;
+  social_whatsapp?: string;
+  social_telegram?: string;
   is_deleted?: boolean;
   created_at: string;
 }

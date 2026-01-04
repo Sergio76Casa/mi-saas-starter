@@ -9,9 +9,26 @@ import { Input } from '../../components/common/Input';
 export const TenantSettings = () => {
   const { tenant } = useOutletContext<{ tenant: Tenant }>();
   const { t, refreshProfile } = useApp();
+  
+  // Identidad
   const [name, setName] = useState(tenant.name);
   const [phone, setPhone] = useState(tenant.phone || '');
   const [email, setEmail] = useState(tenant.email || '');
+  
+  // Footer Bilingüe
+  const [footerEs, setFooterEs] = useState(tenant.footer_description_es || '');
+  const [footerCa, setFooterCa] = useState(tenant.footer_description_ca || '');
+  
+  // Redes Sociales
+  const [socialInsta, setSocialInsta] = useState(tenant.social_instagram || '');
+  const [socialFb, setSocialFb] = useState(tenant.social_facebook || '');
+  const [socialTiktok, setSocialTiktok] = useState(tenant.social_tiktok || '');
+  const [socialYoutube, setSocialYoutube] = useState(tenant.social_youtube || '');
+  const [socialX, setSocialX] = useState(tenant.social_x || '');
+  const [socialLinkedin, setSocialLinkedin] = useState(tenant.social_linkedin || '');
+  const [socialWhatsapp, setSocialWhatsapp] = useState(tenant.social_whatsapp || '');
+  const [socialTelegram, setSocialTelegram] = useState(tenant.social_telegram || '');
+
   const [useLogo, setUseLogo] = useState(tenant.use_logo_on_web ?? false);
   const [logoPreview, setLogoPreview] = useState(tenant.logo_url || '');
   const [logoFile, setLogoFile] = useState<File | null>(null);
@@ -70,7 +87,6 @@ export const TenantSettings = () => {
   const removeBranch = async (index: number) => {
     const branch = branches[index];
     if (branch.id) {
-      // Si ya existe en DB, lo borramos directamente por simplicidad
       const { error } = await supabase.from('tenant_branches').delete().eq('id', branch.id);
       if (error) {
         alert("Error al borrar sucursal: " + error.message);
@@ -83,24 +99,31 @@ export const TenantSettings = () => {
   const handleSave = async () => {
     setSaving(true);
     try {
-      // 1. Logo
       let finalLogoUrl = tenant.logo_url;
       if (logoFile) {
         finalLogoUrl = await uploadLogo(logoFile);
       }
 
-      // 2. Tenant Data
       const { error: tenantError } = await supabase.from('tenants').update({ 
         name,
         phone,
         email,
+        footer_description_es: footerEs,
+        footer_description_ca: footerCa,
+        social_instagram: socialInsta,
+        social_facebook: socialFb,
+        social_tiktok: socialTiktok,
+        social_youtube: socialYoutube,
+        social_x: socialX,
+        social_linkedin: socialLinkedin,
+        social_whatsapp: socialWhatsapp,
+        social_telegram: socialTelegram,
         logo_url: finalLogoUrl,
         use_logo_on_web: useLogo
       }).eq('id', tenant.id);
 
       if (tenantError) throw tenantError;
 
-      // 3. Sucursales (Upsert)
       if (branches.length > 0) {
         const { error: branchesError } = await supabase.from('tenant_branches').upsert(
           branches.map(b => ({
@@ -125,6 +148,7 @@ export const TenantSettings = () => {
       <h3 className="text-3xl font-black text-gray-900 tracking-tighter mb-10 uppercase italic">{t('settings')}</h3>
       
       <div className="space-y-8">
+        {/* EMPRESA */}
         <div className="bg-white p-6 md:p-10 rounded-[1.5rem] md:rounded-[2.8rem] border border-gray-100 shadow-sm space-y-8">
           <h4 className="text-[10px] font-black uppercase text-gray-400 tracking-[0.2em] italic">Datos de la Empresa</h4>
           <Input label="Nombre de la Empresa" value={name} onChange={(e:any) => setName(e.target.value)} />
@@ -138,7 +162,7 @@ export const TenantSettings = () => {
           </div>
         </div>
 
-        {/* SECCIÓN CONTACTO */}
+        {/* CONTACTO */}
         <div className="bg-white p-6 md:p-10 rounded-[1.5rem] md:rounded-[2.8rem] border border-gray-100 shadow-sm space-y-8">
           <h4 className="text-[10px] font-black uppercase text-gray-400 tracking-[0.2em] italic">Información de Contacto</h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -191,6 +215,54 @@ export const TenantSettings = () => {
           </div>
         </div>
 
+        {/* FOOTER Y REDES SOCIALES */}
+        <div className="bg-white p-6 md:p-10 rounded-[1.5rem] md:rounded-[2.8rem] border border-gray-100 shadow-sm space-y-8">
+          <h4 className="text-[10px] font-black uppercase text-gray-400 tracking-[0.2em] italic">Footer y Redes Sociales</h4>
+          
+          <div className="space-y-6">
+             <div className="space-y-1.5">
+               <div className="flex items-center gap-2 mb-2 ml-1">
+                  <span className="bg-slate-900 text-white text-[8px] font-black px-1.5 py-0.5 rounded">ES</span>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Texto del Footer</label>
+               </div>
+               <textarea 
+                 value={footerEs} 
+                 onChange={(e) => setFooterEs(e.target.value)}
+                 className="w-full px-6 py-4 border border-gray-100 rounded-2xl bg-gray-50 text-sm font-medium h-24 resize-none focus:ring-2 focus:ring-brand-500 outline-none transition-all"
+                 placeholder="Expertos en climatización..."
+               />
+             </div>
+
+             <div className="space-y-1.5">
+               <div className="flex items-center gap-2 mb-2 ml-1">
+                  <span className="bg-blue-600 text-white text-[8px] font-black px-1.5 py-0.5 rounded">CA</span>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Text del Footer</label>
+               </div>
+               <textarea 
+                 value={footerCa} 
+                 onChange={(e) => setFooterCa(e.target.value)}
+                 className="w-full px-6 py-4 border border-gray-100 rounded-2xl bg-gray-50 text-sm font-medium h-24 resize-none focus:ring-2 focus:ring-brand-500 outline-none transition-all"
+                 placeholder="Experts en climatització..."
+               />
+             </div>
+          </div>
+
+          <div className="pt-8 border-t border-gray-50">
+            <h5 className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-6">Enlaces a Redes Sociales</h5>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2">
+              <Input label="Instagram" value={socialInsta} onChange={(e:any) => setSocialInsta(e.target.value)} placeholder="https://..." />
+              <Input label="Facebook" value={socialFb} onChange={(e:any) => setSocialFb(e.target.value)} placeholder="https://..." />
+              <Input label="TikTok" value={socialTiktok} onChange={(e:any) => setSocialTiktok(e.target.value)} placeholder="https://..." />
+              <Input label="YouTube" value={socialYoutube} onChange={(e:any) => setSocialYoutube(e.target.value)} placeholder="https://..." />
+              <Input label="X (Twitter)" value={socialX} onChange={(e:any) => setSocialX(e.target.value)} placeholder="https://..." />
+              <Input label="LinkedIn" value={socialLinkedin} onChange={(e:any) => setSocialLinkedin(e.target.value)} placeholder="https://..." />
+              <Input label="WhatsApp (Enlace)" value={socialWhatsapp} onChange={(e:any) => setSocialWhatsapp(e.target.value)} placeholder="https://wa.me/..." />
+              <Input label="Telegram" value={socialTelegram} onChange={(e:any) => setSocialTelegram(e.target.value)} placeholder="https://t.me/..." />
+            </div>
+          </div>
+        </div>
+
+        {/* IDENTIDAD VISUAL */}
         <div className="bg-white p-6 md:p-10 rounded-[1.5rem] md:rounded-[2.8rem] border border-gray-100 shadow-sm space-y-8">
           <h4 className="text-[10px] font-black uppercase text-gray-400 tracking-[0.2em] italic">Identidad Visual</h4>
           
