@@ -49,9 +49,14 @@ const LOCAL_I18N = {
     hero_cta_catalog: 'Ver Catálogo',
     catalog_title: 'Catálogo Destacado',
     catalog_subtitle: 'Nuestra selección de equipos profesionales.',
-    no_products_filter: 'No hay productos disponibles actualmente.',
+    no_products_filter: 'No hay productos que coincidan con los filtros.',
     wizard_models_available: 'Modelos Disponibles',
-    footer_copy: 'EcoQuote AI · Smart Installation Solution'
+    footer_copy: 'EcoQuote AI · Smart Installation Solution',
+    filter_type: 'Tipo de equipo',
+    filter_brand: 'Marca',
+    filter_price: 'Precio Máximo',
+    all_brands: 'Todas las marcas',
+    all_types: 'Todos'
   },
   ca: {
     nav_home: 'Inici',
@@ -68,9 +73,14 @@ const LOCAL_I18N = {
     hero_cta_catalog: 'Veure Catàleg',
     catalog_title: 'Catàleg Destacat',
     catalog_subtitle: 'La nostra selecció d’equips professionals.',
-    no_products_filter: 'No hi ha productes disponibles actualment.',
+    no_products_filter: 'No hi ha productes que coincideixin amb els filtres.',
     wizard_models_available: 'Models Disponibles',
-    footer_copy: 'EcoQuote AI · Smart Installation Solution'
+    footer_copy: 'EcoQuote AI · Smart Installation Solution',
+    filter_type: 'Tipus d\'equip',
+    filter_brand: 'Marca',
+    filter_price: 'Preu Màxim',
+    all_brands: 'Totes les marques',
+    all_types: 'Tots'
   }
 } as const;
 
@@ -87,8 +97,11 @@ export const PublicTenantWebsite = () => {
   const tt = (key: keyof typeof LOCAL_I18N['es']) => LOCAL_I18N[language]?.[key] ?? LOCAL_I18N.es[key];
 
   const [view, setView] = useState<'landing' | 'wizard'>('landing');
-  const [brandFilter, setBrandFilter] = useState('');
+  
+  // Estados de Filtros
   const [categoryFilter, setCategoryFilter] = useState('all');
+  const [brandFilter, setBrandFilter] = useState('');
+  const [maxPriceFilter, setMaxPriceFilter] = useState<number>(0);
 
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
 
@@ -101,9 +114,6 @@ export const PublicTenantWebsite = () => {
       setRlsError(false);
 
       try {
-        console.log(`[PublicWeb] Iniciando carga para slug: ${slug}`);
-        
-        // 1. Obtener la empresa por slug
         const { data: tData, error: tError } = await supabase
           .from('tenants')
           .select('*')
@@ -112,17 +122,13 @@ export const PublicTenantWebsite = () => {
           .single();
 
         if (tError || !tData) {
-          console.error("[PublicWeb] Error cargando empresa:", tError?.message || 'Empresa no encontrada');
           setIsError(true);
           return;
         }
 
         setTenant(tData as any);
 
-        // 2. Obtener los productos si la empresa está activa
         if (tData.status === 'active') {
-          console.log(`[PublicWeb] Buscando productos para tenant_id: ${tData.id}`);
-          
           const { data: pData, error: pError } = await supabase
             .from('products')
             .select('*')
@@ -130,14 +136,11 @@ export const PublicTenantWebsite = () => {
             .eq('status', 'active');
 
           if (pError) {
-            console.error("[PublicWeb] Error de Supabase:", pError.message);
-            // Si el error es de permisos (401 o mensaje de denied), activamos aviso visual
             if (pError.message.toLowerCase().includes('permission denied') || pError.code === '42501' || pError.message.includes('Unauthorized')) {
               setRlsError(true);
             }
             setDbProducts([]);
           } else if (pData) {
-            // Normalizar precios desde el campo pricing (JSONB)
             const normalized = pData.map(p => {
               let price = 0;
               let pricingArr = p.pricing;
@@ -147,19 +150,25 @@ export const PublicTenantWebsite = () => {
               }
 
               if (Array.isArray(pricingArr) && pricingArr.length > 0) {
-                price = pricingArr[0].price || 0;
+                // Buscamos el precio más bajo de las variantes para el "Desde"
+                const prices = pricingArr.map((v: any) => v.price).filter((p: any) => typeof p === 'number');
+                price = prices.length > 0 ? Math.min(...prices) : (p.price || 0);
               } else if (p.price) {
                 price = p.price;
               }
               
               return { ...p, price, pricing: pricingArr };
             });
-            console.log(`[PublicWeb] Se cargaron ${normalized.length} productos.`);
             setDbProducts(normalized);
+            
+            // Establecer precio máximo inicial basado en el catálogo cargado
+            if (normalized.length > 0) {
+              const globalMax = Math.max(...normalized.map(p => p.price));
+              setMaxPriceFilter(globalMax);
+            }
           }
         }
       } catch (err) {
-        console.error("[PublicWeb] Error inesperado en el fetch:", err);
         setIsError(true);
       } finally {
         setIsDataReady(true);
@@ -169,14 +178,33 @@ export const PublicTenantWebsite = () => {
     fetchCatalog();
   }, [slug]);
 
-  const brandGroups = useMemo(() => {
+  // Cálculo de marcas disponibles según el tipo seleccionado
+  const availableBrands = useMemo(() => {
+    const brands = new Set<string>();
+    dbProducts.forEach(p => {
+      if (categoryFilter === 'all' || p.type === categoryFilter) {
+        if (p.brand) brands.add(p.brand);
+      }
+    });
+    return Array.from(brands).sort();
+  }, [dbProducts, categoryFilter]);
+
+  // Precio máximo absoluto para el slider
+  const absoluteMaxPrice = useMemo(() => {
+    if (dbProducts.length === 0) return 0;
+    return Math.max(...dbProducts.map(p => p.price));
+  }, [dbProducts]);
+
+  // Grupos de marcas filtrados
+  const filteredGroups = useMemo(() => {
     const groups: Record<string, { brand: string, minPrice: number, products: any[] }> = {};
     
     dbProducts.forEach(p => {
-      const matchesCategory = categoryFilter === 'all' || p.type === categoryFilter;
+      const matchesType = categoryFilter === 'all' || p.type === categoryFilter;
       const matchesBrand = !brandFilter || p.brand === brandFilter;
+      const matchesPrice = p.price <= maxPriceFilter;
 
-      if (matchesCategory && matchesBrand) {
+      if (matchesType && matchesBrand && matchesPrice) {
         if (!groups[p.brand]) {
           groups[p.brand] = { brand: p.brand, minPrice: p.price || 0, products: [] };
         }
@@ -187,7 +215,7 @@ export const PublicTenantWebsite = () => {
       }
     });
     return Object.values(groups);
-  }, [dbProducts, brandFilter, categoryFilter]);
+  }, [dbProducts, categoryFilter, brandFilter, maxPriceFilter]);
 
   const navigateToHome = () => { setView('landing'); window.scrollTo({ top: 0, behavior: 'smooth' }); };
   const navigateToCatalog = () => {
@@ -278,6 +306,74 @@ export const PublicTenantWebsite = () => {
                   <p className="text-slate-400 font-bold text-xs italic">{tt('catalog_subtitle')}</p>
                </div>
                
+               {/* BARRA DE FILTROS */}
+               <div className="bg-white border border-gray-100 rounded-[2rem] p-8 md:p-10 mb-16 shadow-sm grid grid-cols-1 md:grid-cols-12 gap-10 items-start">
+                  {/* Tipo de equipo */}
+                  <div className="md:col-span-5">
+                    <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400 mb-4">
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 6h16M4 12h16M4 18h7"/></svg>
+                      {tt('filter_type')}
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                      {[
+                        { id: 'all', label: tt('all_types') },
+                        { id: 'aire_acondicionado', label: 'Aire Acondicionado' },
+                        { id: 'caldera', label: 'Caldera' },
+                        { id: 'termo_electrico', label: 'Termo Eléctrico' }
+                      ].map(type => (
+                        <button
+                          key={type.id}
+                          onClick={() => { setCategoryFilter(type.id); setBrandFilter(''); }}
+                          className={`px-5 py-2.5 rounded-full text-[11px] font-black uppercase tracking-widest transition-all ${categoryFilter === type.id ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' : 'bg-white text-slate-500 border border-slate-100 hover:border-blue-200'}`}
+                        >
+                          {type.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Marca */}
+                  <div className="md:col-span-3">
+                    <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-4">{tt('filter_brand')}</label>
+                    <div className="relative">
+                      <select
+                        value={brandFilter}
+                        onChange={(e) => setBrandFilter(e.target.value)}
+                        className="w-full h-12 px-5 rounded-2xl border border-slate-100 bg-slate-50/50 text-[11px] font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 appearance-none cursor-pointer"
+                      >
+                        <option value="">{tt('all_brands')}</option>
+                        {availableBrands.map(b => <option key={b} value={b}>{b}</option>)}
+                      </select>
+                      <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7"/></svg>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Precio Máximo */}
+                  <div className="md:col-span-4">
+                    <div className="flex justify-between items-center mb-4">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">{tt('filter_price')}</label>
+                      <span className="text-[13px] font-black text-blue-600 italic">{formatCurrency(maxPriceFilter, language)}</span>
+                    </div>
+                    <div className="space-y-4">
+                      <input
+                        type="range"
+                        min="0"
+                        max={absoluteMaxPrice || 5000}
+                        step="10"
+                        value={maxPriceFilter}
+                        onChange={(e) => setMaxPriceFilter(parseInt(e.target.value))}
+                        className="w-full h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                      />
+                      <div className="flex justify-between text-[10px] font-black text-slate-300 uppercase">
+                        <span>0 €</span>
+                        <span>{formatCurrency(absoluteMaxPrice || 0, language)}</span>
+                      </div>
+                    </div>
+                  </div>
+               </div>
+
                {rlsError ? (
                  <div className="py-20 text-center border-2 border-dashed border-red-200 bg-red-50/50 rounded-[2rem] px-8">
                    <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-6">
@@ -290,14 +386,13 @@ export const PublicTenantWebsite = () => {
                      <code className="bg-red-100 px-2 py-1 rounded mt-2 block font-mono text-[10px]">GRANT SELECT ON public.products TO anon;</code>
                    </p>
                  </div>
-               ) : brandGroups.length === 0 ? (
+               ) : filteredGroups.length === 0 ? (
                  <div className="py-20 text-center border-2 border-dashed border-slate-100 rounded-[2rem]">
                    <p className="text-slate-300 font-black uppercase italic text-sm">{tt('no_products_filter')}</p>
-                   <p className="text-[10px] text-slate-400 mt-2">Asegúrate de que haya productos con estado 'active' en el panel de gestión.</p>
                  </div>
                ) : (
                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 md:gap-12">
-                    {brandGroups.map(group => (
+                    {filteredGroups.map(group => (
                       <div key={group.brand} className="bg-white rounded-[2rem] p-8 border border-slate-100 shadow-sm flex flex-col text-left hover:shadow-xl transition-all">
                          <div className="h-48 bg-slate-50 rounded-[1.5rem] mb-6 flex items-center justify-center overflow-hidden">
                             {group.products[0]?.image_url ? (
