@@ -48,13 +48,13 @@ const LOCAL_I18N = {
     hero_desc: 'Soluciones de climatización de alta eficiencia para tu hogar.',
     hero_cta_catalog: 'Ver Catálogo',
     catalog_title: 'Catálogo Destacado',
-    catalog_subtitle: 'Nuestra selección de equipos profesionales.',
+    catalog_subtitle: 'Encuentra el equipo ideal para tu hogar.',
     no_products_filter: 'No hay productos que coincidan con los filtros.',
     wizard_models_available: 'Modelos Disponibles',
     footer_copy: 'EcoQuote AI · Smart Installation Solution',
-    filter_type: 'Tipo de equipo',
-    filter_brand: 'Marca',
-    filter_price: 'Precio Máximo',
+    filter_type: 'TIPO DE EQUIPO',
+    filter_brand: 'MARCA',
+    filter_price: 'PRECIO MÁXIMO',
     all_brands: 'Todas las marcas',
     all_types: 'Todos'
   },
@@ -72,13 +72,13 @@ const LOCAL_I18N = {
     hero_desc: 'Solucions de climatització d’alta eficiència per a la teva llar.',
     hero_cta_catalog: 'Veure Catàleg',
     catalog_title: 'Catàleg Destacat',
-    catalog_subtitle: 'La nostra selecció d’equips professionals.',
+    catalog_subtitle: 'Troba l\'equip ideal per a la teva llar.',
     no_products_filter: 'No hi ha productes que coincideixin amb els filtres.',
     wizard_models_available: 'Models Disponibles',
     footer_copy: 'EcoQuote AI · Smart Installation Solution',
-    filter_type: 'Tipus d\'equip',
-    filter_brand: 'Marca',
-    filter_price: 'Preu Màxim',
+    filter_type: 'TIPUS D\'EQUIP',
+    filter_brand: 'MARCA',
+    filter_price: 'PREU MÀXIM',
     all_brands: 'Totes les marques',
     all_types: 'Tots'
   }
@@ -101,7 +101,7 @@ export const PublicTenantWebsite = () => {
   // Estados de Filtros
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [brandFilter, setBrandFilter] = useState('');
-  const [maxPriceFilter, setMaxPriceFilter] = useState<number>(0);
+  const [maxPriceFilter, setMaxPriceFilter] = useState<number>(5000);
 
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
 
@@ -150,7 +150,6 @@ export const PublicTenantWebsite = () => {
               }
 
               if (Array.isArray(pricingArr) && pricingArr.length > 0) {
-                // Buscamos el precio más bajo de las variantes para el "Desde"
                 const prices = pricingArr.map((v: any) => v.price).filter((p: any) => typeof p === 'number');
                 price = prices.length > 0 ? Math.min(...prices) : (p.price || 0);
               } else if (p.price) {
@@ -301,16 +300,16 @@ export const PublicTenantWebsite = () => {
 
           <section id="catalog" className="py-20 px-4 md:px-8 scroll-mt-24">
              <div className="max-w-7xl mx-auto">
-               <div className="text-left mb-12">
-                  <h2 className="text-3xl md:text-4xl font-black tracking-tighter uppercase italic mb-2">{tt('catalog_title')}</h2>
-                  <p className="text-slate-400 font-bold text-xs italic">{tt('catalog_subtitle')}</p>
+               <div className="text-left mb-6">
+                  <h2 className="text-3xl md:text-4xl font-black tracking-tighter uppercase mb-2">{tt('catalog_title')}</h2>
+                  <p className="text-slate-400 font-medium text-sm mb-10">{tt('catalog_subtitle')}</p>
                </div>
                
-               {/* BARRA DE FILTROS */}
-               <div className="bg-white border border-gray-100 rounded-[2rem] p-8 md:p-10 mb-16 shadow-sm grid grid-cols-1 md:grid-cols-12 gap-10 items-start">
+               {/* FILTROS INTEGRADOS */}
+               <div className="bg-white border border-gray-100 rounded-[2rem] p-8 md:p-10 mb-12 shadow-sm grid grid-cols-1 md:grid-cols-12 gap-10 items-start">
                   {/* Tipo de equipo */}
                   <div className="md:col-span-5">
-                    <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400 mb-4">
+                    <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-300 mb-4">
                       <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 6h16M4 12h16M4 18h7"/></svg>
                       {tt('filter_type')}
                     </label>
@@ -324,7 +323,7 @@ export const PublicTenantWebsite = () => {
                         <button
                           key={type.id}
                           onClick={() => { setCategoryFilter(type.id); setBrandFilter(''); }}
-                          className={`px-5 py-2.5 rounded-full text-[11px] font-black uppercase tracking-widest transition-all ${categoryFilter === type.id ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' : 'bg-white text-slate-500 border border-slate-100 hover:border-blue-200'}`}
+                          className={`px-5 py-2.5 rounded-full text-[11px] font-black uppercase tracking-widest transition-all ${categoryFilter === type.id ? 'bg-blue-600 text-white shadow-lg' : 'bg-white text-slate-500 border border-slate-100 hover:border-blue-200'}`}
                         >
                           {type.label}
                         </button>
@@ -334,7 +333,7 @@ export const PublicTenantWebsite = () => {
 
                   {/* Marca */}
                   <div className="md:col-span-3">
-                    <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-4">{tt('filter_brand')}</label>
+                    <label className="block text-[10px] font-black uppercase tracking-widest text-slate-300 mb-4">{tt('filter_brand')}</label>
                     <div className="relative">
                       <select
                         value={brandFilter}
@@ -353,8 +352,8 @@ export const PublicTenantWebsite = () => {
                   {/* Precio Máximo */}
                   <div className="md:col-span-4">
                     <div className="flex justify-between items-center mb-4">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">{tt('filter_price')}</label>
-                      <span className="text-[13px] font-black text-blue-600 italic">{formatCurrency(maxPriceFilter, language)}</span>
+                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-300">{tt('filter_price')}</label>
+                      <span className="text-[13px] font-black text-blue-600">{maxPriceFilter} €</span>
                     </div>
                     <div className="space-y-4">
                       <input
@@ -366,9 +365,9 @@ export const PublicTenantWebsite = () => {
                         onChange={(e) => setMaxPriceFilter(parseInt(e.target.value))}
                         className="w-full h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-blue-600"
                       />
-                      <div className="flex justify-between text-[10px] font-black text-slate-300 uppercase">
+                      <div className="flex justify-between text-[10px] font-black text-slate-200 uppercase">
                         <span>0 €</span>
-                        <span>{formatCurrency(absoluteMaxPrice || 0, language)}</span>
+                        <span>{absoluteMaxPrice || 0} €</span>
                       </div>
                     </div>
                   </div>
