@@ -20,11 +20,12 @@ export default async function handler(req: Request) {
     return new Response(JSON.stringify({ error: 'Método no permitido', requestId }), { status: 405, headers: jsonHeaders });
   }
 
-  const apiKey = process.env.API_KEY;
+  // Cambio solicitado: Solo usar VITE_GEMINI_API_KEY
+  const apiKey = process.env.VITE_GEMINI_API_KEY;
   if (!apiKey) {
-    console.error(`[${requestId}] [Extract] Error: API_KEY no configurada`);
+    console.error(`[${requestId}] [Extract] Error: VITE_GEMINI_API_KEY no configurada`);
     return new Response(JSON.stringify({ 
-      error: 'Configuración incompleta en el servidor.', 
+      error: 'Falta VITE_GEMINI_API_KEY en las variables de entorno.', 
       code: 'KEY_MISSING',
       requestId 
     }), { status: 500, headers: jsonHeaders });
@@ -136,7 +137,10 @@ export default async function handler(req: Request) {
     return new Response(JSON.stringify(normalized), { status: 200, headers: jsonHeaders });
 
   } catch (err: any) {
-    console.error(`[${requestId}] [Extract] Error final:`, err.message);
+    console.error(`[${requestId}] [Extract] Error final:`, err.message || err);
+    
+    // Diagnóstico de errores de Gemini (Cuotas, permisos, etc)
+    const errString = String(err).toLowerCase();
     
     if (err.message === 'UPSTREAM_TIMEOUT') {
       return new Response(JSON.stringify({ 
@@ -146,8 +150,24 @@ export default async function handler(req: Request) {
       }), { status: 504, headers: jsonHeaders });
     }
 
+    if (errString.includes('429') || errString.includes('rate_limit') || errString.includes('quota')) {
+      return new Response(JSON.stringify({ 
+        error: "Límite de peticiones de IA excedido (Rate Limit).", 
+        code: "RATE_LIMIT",
+        requestId
+      }), { status: 429, headers: jsonHeaders });
+    }
+
+    if (errString.includes('403') || errString.includes('permission_denied')) {
+      return new Response(JSON.stringify({ 
+        error: "Permiso denegado por la API de Google.", 
+        code: "PERMISSION_DENIED",
+        requestId
+      }), { status: 403, headers: jsonHeaders });
+    }
+
     return new Response(JSON.stringify({ 
-      error: `Error: ${err.message}`,
+      error: `Error interno: ${err.message || 'Error desconocido'}`,
       code: "INTERNAL_ERROR",
       requestId
     }), { status: 500, headers: jsonHeaders });

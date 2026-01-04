@@ -27,20 +27,29 @@ export async function extractProductWithGemini(file: File): Promise<any> {
 
     if (!response.ok) {
       const rid = data?.requestId ? ` [Ref: ${data.requestId}]` : '';
+      const code = data?.code || 'UNKNOWN_ERROR';
       
-      if (data?.code === 'UPSTREAM_TIMEOUT') {
+      if (code === 'UPSTREAM_TIMEOUT') {
         throw new Error(`El motor de IA ha tardado demasiado.${rid} Prueba con un archivo más ligero o una imagen.`);
       }
       
-      if (data?.code === 'FILE_TOO_LARGE' || response.status === 413) {
+      if (code === 'FILE_TOO_LARGE' || response.status === 413) {
         throw new Error(`Archivo demasiado grande (máximo 4.5MB).${rid}`);
       }
 
-      if (data?.code === 'KEY_MISSING') {
-        throw new Error(`Error de configuración: Falta la API Key en el servidor.${rid}`);
+      if (code === 'KEY_MISSING') {
+        throw new Error(`Error de configuración: Falta VITE_GEMINI_API_KEY en el servidor.${rid}`);
+      }
+
+      if (code === 'RATE_LIMIT') {
+        throw new Error(`Límite de cuota IA excedido. Espera un momento y vuelve a intentarlo.${rid}`);
+      }
+
+      if (code === 'PERMISSION_DENIED') {
+        throw new Error(`La API Key no tiene permisos suficientes.${rid}`);
       }
       
-      throw new Error(data?.error || `Error de conexión (Status: ${response.status}).${rid}`);
+      throw new Error(data?.error || `Error en el servidor (${code}).${rid}`);
     }
 
     if (!data) {
@@ -51,7 +60,7 @@ export async function extractProductWithGemini(file: File): Promise<any> {
     
   } catch (err: any) {
     if (err.name === 'AbortError') {
-      throw new Error("La subida o el procesamiento han tardado demasiado. Comprueba tu conexión o usa un archivo más pequeño.");
+      throw new Error("La conexión se ha cortado por falta de respuesta del navegador. Comprueba tu conexión a internet o usa un archivo más pequeño.");
     }
     console.error("Gemini Service Error:", err);
     throw err;
