@@ -1,4 +1,5 @@
 
+import { GoogleGenAI, Type } from "@google/genai";
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useOutletContext } from 'react-router-dom';
 import { supabase } from '../../supabaseClient';
@@ -471,8 +472,14 @@ export const ProductEditor = () => {
                         className="bg-transparent border-none p-0 text-[9px] font-black uppercase text-slate-400 outline-none w-full" 
                       />
                       <input 
-                        value={s.description} 
-                        onChange={(e) => { const cs = [...techSpecs]; cs[i].description = e.target.value; setTechSpecs(cs); }}
+                        value={s.value || s.description || ''} 
+                        onChange={(e) => { 
+                          const cs = [...techSpecs]; 
+                          // Actualizamos ambos para mantener consistencia y compatibilidad
+                          cs[i].value = e.target.value; 
+                          cs[i].description = e.target.value;
+                          setTechSpecs(cs); 
+                        }}
                         className="bg-transparent border-none p-0 text-[11px] font-bold text-slate-800 outline-none w-full" 
                       />
                     </div>
@@ -481,7 +488,7 @@ export const ProductEditor = () => {
                 </div>
               ))}
               <button 
-                onClick={() => setTechSpecs([...techSpecs, { title: 'Dato', description: '-' }])}
+                onClick={() => setTechSpecs([...techSpecs, { title: 'Dato', value: '-' }])}
                 className="w-full py-3 border-2 border-dashed border-slate-100 rounded-2xl text-[8px] font-black uppercase text-slate-300 hover:text-blue-500 transition-colors"
               >
                 + Añadir Especificación
