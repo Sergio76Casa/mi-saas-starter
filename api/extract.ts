@@ -1,98 +1,142 @@
-
-import busboy from 'busboy';
-// Fix: Import Buffer from node:buffer to resolve "Cannot find name 'Buffer'" errors.
-import { Buffer } from 'node:buffer';
+// api/extract.ts
+import busboy from "busboy";
+import { Buffer } from "node:buffer";
 import { GoogleGenAI, Type } from "@google/genai";
 
-// Configuración de Vercel para Node Serverless Runtime
-// maxDuration permite extender el timeout (por defecto 10s en Hobby, hasta 60s en Pro)
-export const maxDuration = 60;
+// Nota: En Vercel Hobby el límite real suele ser ~10s por ejecución.
+// Esto NO garantiza más tiempo, pero lo dejamos por claridad.
+export const maxDuration = 10;
 
 /**
- * Utilidad para parsear el stream multipart de Node.js usando busboy
+ * Parse multipart/form-data (Node IncomingMessage) usando busboy
  */
-// Fix: Added explicit Buffer type from node:buffer import
-async function parseMultipart(req: any): Promise<{ buffer: Buffer, fileName: string, mimeType: string }> {
+async function parseMultipart(
+  req: any
+): Promise<{ buffer: Buffer; fileName: string; mimeType: string }> {
   return new Promise((resolve, reject) => {
     const bb = busboy({ headers: req.headers });
-    // Fix: Added explicit Buffer type from node:buffer import
-    let fileBuffer: Buffer | null = null;
-    let fileName = '';
-    let mimeType = '';
 
-    bb.on('file', (_name, file, info) => {
+    let fileBuffer: Buffer | null = null;
+    let fileName = "";
+    let mimeType = "";
+
+    bb.on("file", (_fieldname, file, info) => {
       const { filename, mimeType: mt } = info;
       fileName = filename;
       mimeType = mt;
-      const chunks: any[] = [];
-      file.on('data', (data) => chunks.push(data));
-      file.on('end', () => {
-        // Fix: Use global Buffer now available via import
+
+      const chunks: Buffer[] = [];
+      file.on("data", (data: Buffer) => chunks.push(data));
+      file.on("end", () => {
         fileBuffer = Buffer.concat(chunks);
       });
+      file.on("error", (err: any) => reject(err));
     });
 
-    bb.on('finish', () => {
-      if (fileBuffer) {
-        resolve({ buffer: fileBuffer, fileName, mimeType });
-      } else {
-        reject(new Error('No se encontró ningún archivo en la petición'));
+    bb.on("finish", () => {
+      if (!fileBuffer) {
+        reject(new Error("No se encontró ningún archivo en la petición"));
+        return;
       }
+      resolve({ buffer: fileBuffer, fileName, mimeType });
     });
 
-    bb.on('error', (err) => reject(err));
-    
-    // Inyectar el stream de la petición al parser de busboy
+    bb.on("error", (err) => reject(err));
+
     req.pipe(bb);
   });
 }
 
+/**
+ * Helpers
+ */
+function toNumber(val: any, fallback = 0): number {
+  if (val === null || val === undefined) return fallback;
+  if (typeof val === "number" && Number.isFinite(val)) return val;
+  if (typeof val === "string") {
+    // soporta coma decimal: "6,50"
+    const norm = val.replace(/\s/g, "").replace(",", ".");
+    const n = Number(norm);
+    return Number.isFinite(n) ? n : fallback;
+  }
+  return fallback;
+}
+
+async function extractJsonText(result: any): Promise<string> {
+  // Casos comunes:
+  // - result.text (string)
+  // - result.text() (function)
+  // - result.response.text() (function)
+  if (result?.text) {
+    if (typeof result.text === "function") return await result.text();
+    if (typeof result.text === "string") return result.text;
+  }
+  if (result?.response?.text) {
+    if (typeof result.response.text === "function") return await result.response.text();
+    if (typeof result.response.text === "string") return result.response.text;
+  }
+  return "";
+}
+
 export default async function handler(req: any, res: any) {
-  const requestId = Math.random().toString(36).substring(7).toUpperCase();
+  const requestId = Math.random().toString(36).substring(2, 8).toUpperCase();
+  const startedAt = Date.now();
 
-  // Log para confirmar que estamos en Node Serverless Runtime y NO en Edge
-  console.log(`[${requestId}] [Extract] Recibido: Petición iniciada en Node.js (Serverless Runtime)`);
+  console.log(
+    `[${requestId}] [Extract] Recibido: Petición iniciada en Node.js (Serverless Runtime)`
+  );
 
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Método no permitido', requestId });
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Método no permitido", requestId });
   }
 
-  // Fix: The API key must be obtained exclusively from process.env.API_KEY
-  const apiKey = process.env.API_KEY;
+  // ✅ Variable correcta en Vercel
+  const apiKey = process.env.VITE_GEMINI_API_KEY;
   if (!apiKey) {
-    console.error(`[${requestId}] [Extract] Error: API_KEY no configurada`);
-    return res.status(500).json({ 
-      error: 'Configuración incompleta: Falta API_KEY.', 
-      code: 'KEY_MISSING',
-      requestId 
+    console.error(`[${requestId}] [Extract] Error: VITE_GEMINI_API_KEY no configurada`);
+    return res.status(500).json({
+      error: "Configuración incompleta: Falta VITE_GEMINI_API_KEY en el servidor.",
+      code: "KEY_MISSING",
+      requestId,
     });
   }
 
   try {
-    // Parseo del archivo usando busboy (Node.js Streams)
+    console.log(`[${requestId}] [Extract] Parseo: Procesando multipart/form-data`);
     const { buffer, mimeType } = await parseMultipart(req);
-    
+
+    // Límite de tamaño (ajusta si lo necesitas)
+    // OJO: en Hobby el límite de body puede ser bajo; esto evita reventar memoria.
     if (buffer.length > 4.5 * 1024 * 1024) {
-      return res.status(413).json({ 
-        error: 'Archivo demasiado grande (máx 4.5MB).', 
-        code: 'FILE_TOO_LARGE',
-        requestId 
+      return res.status(413).json({
+        error: "Archivo demasiado grande (máx 4.5MB).",
+        code: "FILE_TOO_LARGE",
+        requestId,
       });
     }
 
-    const base64Data = buffer.toString('base64');
+    const base64Data = buffer.toString("base64");
 
-    // Fix: Initialize GoogleGenAI exclusively with process.env.API_KEY
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-    const systemInstruction = "HVAC Expert. Extract technical data and installation materials/extras to JSON. Languages: es/ca. For extras: if quantity is missing use 1. If unit price is missing but total exists, unit_price = total / qty.";
+    // ✅ usa la constante apiKey validada
+    const ai = new GoogleGenAI({ apiKey });
 
-    // Llamada a Gemini con timeout real configurable
+    const systemInstruction =
+      "Eres experto HVAC. Extrae datos técnicos y materiales/extras de instalación en JSON. " +
+      "Idiomas: es/ca. Extras: si falta qty usa 1. Si falta unit_price pero existe total y qty, unit_price = total/qty.";
+
+    console.log(`[${requestId}] [Extract] Gemini: llamando a generateContent`);
+
     const geminiCall = ai.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: {
         parts: [
           { text: systemInstruction },
-          { inlineData: { data: base64Data, mimeType: mimeType || "application/pdf" } },
+          {
+            inlineData: {
+              data: base64Data,
+              mimeType: mimeType || "application/pdf",
+            },
+          },
         ],
       },
       config: {
@@ -104,18 +148,33 @@ export default async function handler(req: any, res: any) {
             model: { type: Type.STRING },
             type: { type: Type.STRING },
             stock: { type: Type.INTEGER },
-            description: { type: Type.OBJECT, properties: { es: { type: Type.STRING }, ca: { type: Type.STRING } } },
+
+            description: {
+              type: Type.OBJECT,
+              properties: {
+                es: { type: Type.STRING },
+                ca: { type: Type.STRING },
+              },
+            },
+
             pricing: {
               type: Type.ARRAY,
               items: {
                 type: Type.OBJECT,
                 properties: {
-                  name: { type: Type.OBJECT, properties: { es: { type: Type.STRING }, ca: { type: Type.STRING } } },
+                  name: {
+                    type: Type.OBJECT,
+                    properties: {
+                      es: { type: Type.STRING }, // ✅ FIX
+                      ca: { type: Type.STRING }, // ✅ FIX
+                    },
+                  },
                   price: { type: Type.NUMBER },
-                  cost: { type: Type.NUMBER }
-                }
-              }
+                  cost: { type: Type.NUMBER },
+                },
+              },
             },
+
             extras: {
               type: Type.ARRAY,
               items: {
@@ -123,68 +182,96 @@ export default async function handler(req: any, res: any) {
                 properties: {
                   name: { type: Type.STRING },
                   qty: { type: Type.NUMBER },
-                  unit_price: { type: Type.NUMBER }
-                }
-              }
+                  unit_price: { type: Type.NUMBER },
+                },
+              },
             },
+
             financing: {
               type: Type.ARRAY,
               items: {
                 type: Type.OBJECT,
                 properties: {
                   months: { type: Type.NUMBER },
-                  coefficient: { type: Type.NUMBER }
-                }
-              }
+                  coefficient: { type: Type.NUMBER },
+                },
+              },
             },
+
             techSpecs: {
               type: Type.ARRAY,
               items: {
                 type: Type.OBJECT,
-                properties: { title: { type: Type.STRING }, value: { type: Type.STRING } }
-              }
-            }
-          }
-        }
+                properties: {
+                  title: { type: Type.STRING },
+                  value: { type: Type.STRING },
+                },
+              },
+            },
+          },
+        },
       },
     });
 
-    // Timeout de 45 segundos para la respuesta de Gemini (dentro del margen de 60s de Node Serverless)
-    const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('UPSTREAM_TIMEOUT')), 45000)
+    // Timeout interno: ajusta según tu realidad en Hobby.
+    // Dejamos margen para parseo + respuesta antes del límite duro.
+    const elapsed = Date.now() - startedAt;
+    const remainingBudgetMs = Math.max(1500, 9000 - elapsed); // objetivo ~9s total
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error("UPSTREAM_TIMEOUT")), remainingBudgetMs)
     );
 
-    const response = await Promise.race([geminiCall, timeoutPromise]) as any;
-    // Fix: Access .text property directly instead of calling it as a function
-    const raw = JSON.parse(response.text || "{}");
-    
+    const result = (await Promise.race([geminiCall, timeoutPromise])) as any;
+
+    const jsonText = await extractJsonText(result);
+    const raw = JSON.parse(jsonText || "{}");
+
     const normalized = {
       ...raw,
       requestId,
+
       brand: raw.brand || "Desconocida",
       model: raw.model || "Desconocido",
+
+      description: raw.description || { es: "", ca: "" },
+
       pricing: (raw.pricing || []).map((p: any, i: number) => ({
         id: `p${i + 1}`,
-        name: p.name || { es: "Precio Base", ca: "Preu Base" },
-        price: p.price || 0,
-        cost: p.cost || 0
+        name: p?.name || { es: "Precio Base", ca: "Preu Base" },
+        price: toNumber(p?.price, 0),
+        cost: toNumber(p?.cost, 0),
       })),
+
       extras: (raw.extras || []).map((e: any) => ({
-        name: e.name || "Material extra",
-        qty: e.qty || 1,
-        unit_price: e.unit_price || 0
+        name: e?.name || "Material extra",
+        qty: toNumber(e?.qty, 1) || 1,
+        unit_price: toNumber(e?.unit_price, 0),
       })),
-      __extracted_at: new Date().toISOString()
+
+      financing: (raw.financing || []).map((f: any) => ({
+        months: toNumber(f?.months, 0),
+        coefficient: toNumber(f?.coefficient, 0),
+      })),
+
+      techSpecs: (raw.techSpecs || []).map((t: any) => ({
+        title: t?.title || "",
+        value: t?.value || "",
+      })),
+
+      __extracted_at: new Date().toISOString(),
     };
 
+    console.log(`[${requestId}] [Extract] OK: respondiendo JSON normalizado`);
     return res.status(200).json(normalized);
-
   } catch (err: any) {
-    console.error(`[${requestId}] Error en API Extract:`, err);
-    return res.status(500).json({ 
-      error: `Fallo en la extracción: ${err.message || 'Error desconocido'}`,
-      code: err.message === 'UPSTREAM_TIMEOUT' ? "UPSTREAM_TIMEOUT" : "INTERNAL_ERROR",
-      requestId
+    const msg = err?.message || "Error desconocido";
+    const code = msg === "UPSTREAM_TIMEOUT" ? "UPSTREAM_TIMEOUT" : "INTERNAL_ERROR";
+    console.error(`[${requestId}] [Extract] Error final:`, err);
+
+    return res.status(500).json({
+      error: `Fallo en la extracción: ${msg}`,
+      code,
+      requestId,
     });
   }
 }
