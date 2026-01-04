@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useOutletContext } from 'react-router-dom';
 import { supabase } from '../../supabaseClient';
@@ -55,6 +56,7 @@ export const ProductEditor = () => {
       if (data && !error) {
         setProductData({
           ...data,
+          description: data.description || { es: '', ca: '' },
           pricing: data.pricing || [],
           installation_kits: data.installation_kits || [],
           extras: data.extras || []
@@ -140,6 +142,7 @@ export const ProductEditor = () => {
         model: productData.model,
         type: productData.type,
         status: productData.status || 'active',
+        description: productData.description || { es: '', ca: '' },
         pricing: Array.isArray(productData.pricing) ? productData.pricing : [],
         installation_kits: Array.isArray(productData.installation_kits) ? productData.installation_kits : [],
         extras: Array.isArray(productData.extras) ? productData.extras : [],
@@ -156,7 +159,6 @@ export const ProductEditor = () => {
         : await supabase.from('products').update(payload).eq('id', id).eq('tenant_id', tenant.id).select();
 
       if (error) {
-        // Manejo específico del error de RLS
         if (error.message.includes('row-level security policy')) {
           throw new Error("No tienes permisos de escritura para esta empresa. Verifica que seas administrador de la misma.");
         }
@@ -272,6 +274,7 @@ export const ProductEditor = () => {
                 >
                   <option value="active">Activo</option>
                   <option value="inactive">Inactivo</option>
+                  <option value="draft">Borrador</option>
                 </select>
               </div>
 

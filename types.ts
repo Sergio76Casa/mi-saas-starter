@@ -37,6 +37,7 @@ export interface Product {
   type: string;
   status: 'draft' | 'active' | 'inactive';
   pricing: Array<{ variant: string; price: number }>; 
+  description?: { es: string; ca: string };
   features?: string;
   installation_kits?: Array<{ name: string; price: number }>;
   extras?: Array<{ name: string; price: number }>;
