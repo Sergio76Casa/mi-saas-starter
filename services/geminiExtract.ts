@@ -7,9 +7,9 @@ export async function extractProductWithGemini(file: File): Promise<any> {
   const formData = new FormData();
   formData.append('file', file);
 
-  // Timeout ajustado a 18 segundos para dar margen sobre el límite de Vercel (10s)
+  // Timeout frontend de 28 segundos para dar margen al timeout del servidor (25s)
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 18000);
+  const timeoutId = setTimeout(() => controller.abort(), 28000);
 
   try {
     const response = await fetch('/api/extract', {
@@ -19,31 +19,38 @@ export async function extractProductWithGemini(file: File): Promise<any> {
     });
 
     const contentType = response.headers.get('content-type');
-    
-    if (!response.ok) {
-      if (contentType && contentType.includes('application/json')) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `Error ${response.status}`);
+    let errorData: any = null;
+
+    if (contentType && contentType.includes('application/json')) {
+      const data = await response.json();
+      if (!response.ok) {
+        errorData = data;
       } else {
-        if (response.status === 413) {
-          throw new Error("Archivo demasiado grande (máximo 4.5MB).");
-        }
-        if (response.status === 504 || response.status === 500) {
-          throw new Error("La extracción ha tardado demasiado. Prueba de nuevo. Si el problema persiste, usa un PDF más ligero o una imagen. En planes con más tiempo de ejecución, la extracción es más estable.");
-        }
-        throw new Error(`Error de conexión (${response.status}).`);
+        return data;
       }
     }
 
-    if (contentType && contentType.includes('application/json')) {
-      return await response.json();
-    } else {
-      throw new Error("La respuesta del servidor no es válida.");
+    if (!response.ok) {
+      if (errorData?.code === 'UPSTREAM_TIMEOUT') {
+        throw new Error("El motor de IA ha tardado demasiado. Prueba de nuevo. Si el problema persiste, usa un PDF más ligero o una imagen.");
+      }
+      
+      if (response.status === 413) {
+        throw new Error("Archivo demasiado grande (máximo 4.5MB).");
+      }
+      
+      if (response.status === 504 || response.status === 500) {
+        throw new Error("La extracción ha fallado por tiempo. Prueba de nuevo o usa un PDF más ligero.");
+      }
+
+      throw new Error(errorData?.error || `Error de conexión (${response.status}).`);
     }
+
+    throw new Error("La respuesta del servidor no es válida.");
     
   } catch (err: any) {
     if (err.name === 'AbortError') {
-      throw new Error("Tiempo de espera agotado. Prueba de nuevo. Si el problema persiste, usa un PDF más ligero o una imagen. En planes con más tiempo de ejecución, la extracción es más estable.");
+      throw new Error("Tiempo de espera agotado en el navegador. Prueba de nuevo. Si el problema persiste, usa un PDF más ligero o una imagen.");
     }
     console.error("Gemini Service Error:", err);
     throw err;

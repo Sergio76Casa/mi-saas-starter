@@ -12,29 +12,45 @@ function encode(bytes: Uint8Array): string {
 
 export default async function handler(req: Request) {
   const jsonHeaders = { 'Content-Type': 'application/json' };
+  const requestId = Math.random().toString(36).substring(7);
 
-  if (req.method !== 'POST') return new Response(null, { status: 405 });
+  console.log(`[${requestId}] [Extract] Recibido: Petición iniciada`);
+
+  if (req.method !== 'POST') {
+    return new Response(JSON.stringify({ error: 'Método no permitido' }), { status: 405, headers: jsonHeaders });
+  }
 
   const apiKey = process.env.API_KEY;
-  if (!apiKey) return new Response(JSON.stringify({ error: 'Configuración incompleta (API Key missing)' }), { status: 500, headers: jsonHeaders });
+  if (!apiKey) {
+    console.error(`[${requestId}] [Extract] Error: API_KEY no configurada`);
+    return new Response(JSON.stringify({ error: 'Configuración incompleta (API Key missing)' }), { status: 500, headers: jsonHeaders });
+  }
 
   try {
+    console.log(`[${requestId}] [Extract] Parseo: Procesando FormData`);
     const formData = await req.formData();
     const file = formData.get('file') as File;
-    if (!file) return new Response(JSON.stringify({ error: 'No hay archivo' }), { status: 400, headers: jsonHeaders });
+    
+    if (!file) {
+      return new Response(JSON.stringify({ error: 'No hay archivo' }), { status: 400, headers: jsonHeaders });
+    }
 
     if (file.size > 4.5 * 1024 * 1024) {
+      console.warn(`[${requestId}] [Extract] Archivo rechazado por tamaño: ${file.size} bytes`);
       return new Response(JSON.stringify({ error: 'Archivo demasiado grande (máx 4.5MB).' }), { status: 413, headers: jsonHeaders });
     }
 
-    const ai = new GoogleGenAI({ apiKey });
+    console.log(`[${requestId}] [Extract] Base64: Convirtiendo archivo ${file.name}`);
     const arrayBuffer = await file.arrayBuffer();
     const base64Data = encode(new Uint8Array(arrayBuffer));
 
-    // Prompt ultra-optimizado para velocidad
+    const ai = new GoogleGenAI({ apiKey });
     const systemInstruction = "HVAC Expert. Extract technical data to JSON. Languages: es/ca. Types: aire_acondicionado, caldera, termo_electrico.";
 
-    const response = await ai.models.generateContent({
+    console.log(`[${requestId}] [Extract] Llamada Gemini: Iniciando petición (Timeout 25s)`);
+    
+    // Implementación de timeout manual para la llamada a la API
+    const geminiCall = ai.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: {
         parts: [
@@ -85,9 +101,17 @@ export default async function handler(req: Request) {
       },
     });
 
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('UPSTREAM_TIMEOUT')), 25000)
+    );
+
+    const response = await Promise.race([geminiCall, timeoutPromise]) as any;
+    
+    console.log(`[${requestId}] [Extract] Respuesta: Gemini ha respondido`);
+
     const raw = JSON.parse(response.text || "{}");
     
-    // Normalización rápida
+    console.log(`[${requestId}] [Extract] Normalización: Estructurando datos finales`);
     const normalized = {
       brand: raw.brand || "Desconocida",
       model: raw.model || "Desconocido",
@@ -114,9 +138,22 @@ export default async function handler(req: Request) {
       __extracted_at: new Date().toISOString()
     };
 
+    console.log(`[${requestId}] [Extract] Respond: Enviando JSON exitoso`);
     return new Response(JSON.stringify(normalized), { status: 200, headers: jsonHeaders });
 
   } catch (err: any) {
-    return new Response(JSON.stringify({ error: `Error: ${err.message}` }), { status: 500, headers: jsonHeaders });
+    console.error(`[${requestId}] [Extract] Error final:`, err.message);
+    
+    if (err.message === 'UPSTREAM_TIMEOUT') {
+      return new Response(JSON.stringify({ 
+        error: "Gemini ha tardado demasiado en responder.", 
+        code: "UPSTREAM_TIMEOUT" 
+      }), { status: 504, headers: jsonHeaders });
+    }
+
+    return new Response(JSON.stringify({ 
+      error: `Error en la extracción: ${err.message}`,
+      code: "INTERNAL_ERROR"
+    }), { status: 500, headers: jsonHeaders });
   }
 }
