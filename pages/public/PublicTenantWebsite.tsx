@@ -452,8 +452,124 @@ export const PublicTenantWebsite = () => {
         </div>
       )}
 
-      <footer className="py-20 border-t border-slate-100 text-center bg-white">
-         <div className="text-[9px] font-black uppercase tracking-[0.3em] text-slate-400 italic">© 2025 · {tt('footer_copy')}</div>
+      {/* Footer Estructurado y Premium */}
+      <footer className="bg-gradient-to-br from-slate-900 via-slate-950 to-black text-white pt-24 pb-12 border-t border-white/5 relative overflow-hidden">
+        {/* Abstract Background Element */}
+        <div className="absolute top-0 right-0 w-96 h-96 bg-blue-600/5 blur-[120px] rounded-full -translate-y-1/2 translate-x-1/2"></div>
+        
+        <div className="max-w-7xl mx-auto px-6 md:px-10 relative z-10">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-20 text-left">
+            
+            {/* Column 1: Logo & Redes */}
+            <div className="space-y-8">
+              <div className="flex items-center gap-3">
+                {tenant.use_logo_on_web && tenant.logo_url ? (
+                  <img src={tenant.logo_url} className="h-10 w-auto object-contain brightness-0 invert" alt={tenant.name} />
+                ) : (
+                  <span className="text-2xl font-black italic tracking-tighter uppercase text-white">{tenant.name}</span>
+                )}
+              </div>
+              <p className="text-slate-400 text-[13px] font-medium leading-relaxed max-w-xs italic">
+                Somos expertos en soluciones de climatización eficiente. Presupuestos transparentes, instalación profesional y las mejores marcas del mercado.
+              </p>
+              <div className="flex gap-3 pt-2">
+                <a href="#" className="w-10 h-10 bg-white/5 border border-white/10 rounded-xl flex items-center justify-center text-white hover:bg-blue-600 hover:border-blue-500 transition-all group">
+                   <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M22 12c0-5.523-4.477-10-10-10S2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.878v-6.987h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.988C18.343 21.128 22 16.991 22 12z"/></svg>
+                </a>
+                <a href="#" className="w-10 h-10 bg-white/5 border border-white/10 rounded-xl flex items-center justify-center text-white hover:bg-blue-600 hover:border-blue-500 transition-all group">
+                   <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
+                </a>
+              </div>
+            </div>
+
+            {/* Column 2: Servicios */}
+            <div className="space-y-8">
+              <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-blue-500">Servicios</h4>
+              <ul className="space-y-4">
+                <li>
+                  <a href="#catalog" className="flex items-center gap-3 text-slate-400 hover:text-white transition-colors group">
+                    <svg className="w-4 h-4 opacity-50 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                    <span className="text-[13px] font-bold uppercase tracking-widest italic">Instalación</span>
+                  </a>
+                </li>
+                <li>
+                  <a href="#" className="flex items-center gap-3 text-slate-400 hover:text-white transition-colors group">
+                    <svg className="w-4 h-4 opacity-50 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/></svg>
+                    <span className="text-[13px] font-bold uppercase tracking-widest italic">Mantenimiento</span>
+                  </a>
+                </li>
+                <li>
+                  <a href="#" className="flex items-center gap-3 text-slate-400 hover:text-white transition-colors group">
+                    <svg className="w-4 h-4 opacity-50 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                    <span className="text-[13px] font-bold uppercase tracking-widest italic">Reparación</span>
+                  </a>
+                </li>
+              </ul>
+            </div>
+
+            {/* Column 3: Legal */}
+            <div className="space-y-8">
+              <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-blue-500">Legal</h4>
+              <ul className="space-y-4">
+                <li>
+                  <a href="#" className="flex items-center gap-3 text-slate-400 hover:text-white transition-colors group">
+                    <svg className="w-4 h-4 opacity-50 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                    <span className="text-[13px] font-bold uppercase tracking-widest italic">Privacidad</span>
+                  </a>
+                </li>
+                <li>
+                  <a href="#" className="flex items-center gap-3 text-slate-400 hover:text-white transition-colors group">
+                    <svg className="w-4 h-4 opacity-50 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
+                    <span className="text-[13px] font-bold uppercase tracking-widest italic">Cookies</span>
+                  </a>
+                </li>
+                <li>
+                  <a href="#" className="flex items-center gap-3 text-slate-400 hover:text-white transition-colors group">
+                    <svg className="w-4 h-4 opacity-50 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3"/></svg>
+                    <span className="text-[13px] font-bold uppercase tracking-widest italic">Aviso Legal</span>
+                  </a>
+                </li>
+              </ul>
+            </div>
+
+            {/* Column 4: Contacto */}
+            <div className="space-y-8">
+              <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-blue-500">Contacto</h4>
+              <ul className="space-y-6">
+                <li className="flex items-start gap-3">
+                  <svg className="w-5 h-5 text-blue-500 mt-1 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                  <div className="space-y-2">
+                    <p className="text-[12px] font-bold text-slate-100 leading-snug">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-1">CENTRAL MATARÓ</span>
+                      Ronda Mossen Jacint Verdaguer, 47 local 08397, Mataró (Barcelona)
+                    </p>
+                    <p className="text-[12px] font-bold text-slate-100 leading-snug pt-2">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-1">CENTRO SABADELL</span>
+                      Ronda Zamenhof, 100 08208, Sabadell (Barcelona)
+                    </p>
+                  </div>
+                </li>
+                <li className="flex items-center gap-3">
+                  <svg className="w-5 h-5 text-blue-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>
+                  <p className="text-[13px] font-black text-white tracking-widest">+34 935 361 372</p>
+                </li>
+                <li className="flex items-center gap-3">
+                  <svg className="w-5 h-5 text-blue-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                  <p className="text-[13px] font-bold text-slate-400 italic">info@eco-efficient.cat</p>
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          <div className="pt-12 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-6">
+            <div className="text-[9px] font-black uppercase tracking-[0.3em] text-slate-500 italic">
+              © 2025 · {tenant.name} · {tt('footer_copy')}
+            </div>
+            <div className="flex gap-6">
+              <span className="text-[8px] font-black uppercase tracking-widest text-slate-700">Diseñado por EcoQuote AI</span>
+            </div>
+          </div>
+        </div>
       </footer>
     </div>
   );
