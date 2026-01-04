@@ -391,29 +391,60 @@ export const ProductEditor = () => {
             <h4 className="text-[10px] font-black uppercase text-slate-400 mb-6 tracking-widest flex items-center gap-2">
               <span className="w-1.5 h-1.5 bg-purple-500 rounded-full"></span> Financiación
             </h4>
-            <div className="space-y-3">
+            <div className="space-y-4">
               {financing.map((f: any, i: number) => (
-                <div key={i} className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-[10px] font-black text-slate-800 italic">{f.label?.es}</span>
-                    <button onClick={() => setFinancing(financing.filter((_: any, idx: number) => idx !== i))} className="text-red-300 text-lg">×</button>
+                <div key={i} className="p-4 bg-slate-50 rounded-2xl border border-slate-100 group">
+                  <div className="flex justify-between items-center mb-3">
+                    <input 
+                      value={f.label?.es || ''} 
+                      onChange={(e) => {
+                        const cf = [...financing];
+                        cf[i] = { ...cf[i], label: { es: e.target.value, ca: e.target.value } };
+                        setFinancing(cf);
+                      }}
+                      placeholder="Etiqueta (Ej: 12 meses)"
+                      className="bg-transparent border-none p-0 text-[9px] font-black uppercase text-slate-800 outline-none w-full placeholder:text-slate-300"
+                    />
+                    <button onClick={() => setFinancing(financing.filter((_: any, idx: number) => idx !== i))} className="text-slate-300 hover:text-red-500 transition-colors px-1">×</button>
                   </div>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-2 gap-2">
                     <div className="text-center bg-white p-2 rounded-xl border border-slate-100">
-                      <span className="block text-[7px] font-black text-slate-400 uppercase">Meses</span>
-                      <span className="text-[11px] font-bold">{f.months}</span>
+                      <span className="block text-[7px] font-black text-slate-400 uppercase mb-1">Meses</span>
+                      <input 
+                        type="number" 
+                        value={f.months || 0} 
+                        onChange={(e) => {
+                          const cf = [...financing];
+                          cf[i] = { ...cf[i], months: parseInt(e.target.value) || 0 };
+                          setFinancing(cf);
+                        }}
+                        className="w-full text-center text-[11px] font-bold outline-none border-none bg-transparent"
+                      />
                     </div>
                     <div className="text-center bg-white p-2 rounded-xl border border-slate-100">
-                      <span className="block text-[7px] font-black text-slate-400 uppercase">Apertura</span>
-                      <span className="text-[11px] font-bold text-blue-600">{f.commission}%</span>
-                    </div>
-                    <div className="text-center bg-white p-2 rounded-xl border border-slate-100">
-                      <span className="block text-[7px] font-black text-slate-400 uppercase">Coef.</span>
-                      <span className="text-[11px] font-bold">{f.coefficient}</span>
+                      <span className="block text-[7px] font-black text-slate-400 uppercase mb-1">Coef.</span>
+                      <input 
+                        type="number" 
+                        step="0.000001"
+                        value={f.coefficient || 0} 
+                        onChange={(e) => {
+                          const cf = [...financing];
+                          cf[i] = { ...cf[i], coefficient: parseFloat(e.target.value) || 0 };
+                          setFinancing(cf);
+                        }}
+                        className="w-full text-center text-[11px] font-bold outline-none border-none bg-transparent text-blue-600"
+                      />
                     </div>
                   </div>
                 </div>
               ))}
+              
+              <button 
+                onClick={() => setFinancing([...financing, { months: 12, coefficient: 0.087, label: { es: 'NUEVA FINANCIACIÓN', ca: 'NOU FINANÇAMENT' } }])}
+                className="w-full py-4 border-2 border-dashed border-slate-100 rounded-2xl text-[8px] font-black uppercase text-slate-300 hover:text-purple-500 transition-colors"
+              >
+                + Añadir Financiación
+              </button>
             </div>
           </section>
 
