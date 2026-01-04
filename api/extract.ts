@@ -15,8 +15,8 @@ export default async function handler(req: Request) {
 
   if (req.method !== 'POST') return new Response(null, { status: 405 });
 
-  const apiKey = process.env.VITE_GEMINI_API_KEY;
-  if (!apiKey) return new Response(JSON.stringify({ error: 'Configuración incompleta' }), { status: 500, headers: jsonHeaders });
+  const apiKey = process.env.API_KEY;
+  if (!apiKey) return new Response(JSON.stringify({ error: 'Configuración incompleta (API Key missing)' }), { status: 500, headers: jsonHeaders });
 
   try {
     const formData = await req.formData();
