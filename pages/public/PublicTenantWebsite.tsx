@@ -301,19 +301,19 @@ export const PublicTenantWebsite = () => {
           <section id="catalog" className="py-20 px-4 md:px-8 scroll-mt-24">
              <div className="max-w-7xl mx-auto">
                <div className="text-left mb-6">
-                  <h2 className="text-3xl md:text-4xl font-black tracking-tighter uppercase mb-2">{tt('catalog_title')}</h2>
+                  <h2 className="text-3xl md:text-4xl font-black tracking-tighter mb-2">{tt('catalog_title')}</h2>
                   <p className="text-slate-400 font-medium text-sm mb-10">{tt('catalog_subtitle')}</p>
                </div>
                
                {/* FILTROS INTEGRADOS */}
-               <div className="bg-white border border-gray-100 rounded-[2rem] p-8 md:p-10 mb-12 shadow-sm grid grid-cols-1 md:grid-cols-12 gap-10 items-start">
+               <div className="bg-white border border-gray-100 rounded-[2rem] p-6 md:py-7 md:px-9 mb-10 shadow-sm grid grid-cols-1 md:grid-cols-12 gap-8 items-start">
                   {/* Tipo de equipo */}
-                  <div className="md:col-span-5">
-                    <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-300 mb-4">
+                  <div className="md:col-span-6">
+                    <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-300 mb-3">
                       <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 6h16M4 12h16M4 18h7"/></svg>
                       {tt('filter_type')}
                     </label>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-1.5">
                       {[
                         { id: 'all', label: tt('all_types') },
                         { id: 'aire_acondicionado', label: 'Aire Acondicionado' },
@@ -323,7 +323,7 @@ export const PublicTenantWebsite = () => {
                         <button
                           key={type.id}
                           onClick={() => { setCategoryFilter(type.id); setBrandFilter(''); }}
-                          className={`px-5 py-2.5 rounded-full text-[11px] font-black tracking-widest transition-all ${categoryFilter === type.id ? 'bg-blue-600 text-white shadow-lg' : 'bg-white text-slate-500 border border-slate-100 hover:border-blue-200'}`}
+                          className={`px-4 py-2 rounded-full text-[10px] font-black tracking-widest transition-all ${categoryFilter === type.id ? 'bg-blue-600 text-white shadow-lg' : 'bg-white text-slate-500 border border-slate-100 hover:border-blue-200'}`}
                         >
                           {type.label}
                         </button>
@@ -333,25 +333,25 @@ export const PublicTenantWebsite = () => {
 
                   {/* Marca */}
                   <div className="md:col-span-3">
-                    <label className="block text-[10px] font-black uppercase tracking-widest text-slate-300 mb-4">{tt('filter_brand')}</label>
+                    <label className="block text-[10px] font-black uppercase tracking-widest text-slate-300 mb-3">{tt('filter_brand')}</label>
                     <div className="relative">
                       <select
                         value={brandFilter}
                         onChange={(e) => setBrandFilter(e.target.value)}
-                        className="w-full h-12 px-5 rounded-2xl border border-slate-100 bg-slate-50/50 text-[11px] font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 appearance-none cursor-pointer"
+                        className="w-full h-10 px-4 rounded-xl border border-slate-100 bg-slate-50/50 text-[11px] font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 appearance-none cursor-pointer"
                       >
                         <option value="">{tt('all_brands')}</option>
                         {availableBrands.map(b => <option key={b} value={b}>{b}</option>)}
                       </select>
-                      <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                      <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7"/></svg>
                       </div>
                     </div>
                   </div>
 
                   {/* Precio Máximo */}
-                  <div className="md:col-span-4">
-                    <div className="flex justify-between items-center mb-4">
+                  <div className="md:col-span-3">
+                    <div className="flex justify-between items-center mb-3">
                       <label className="text-[10px] font-black uppercase tracking-widest text-slate-300">{tt('filter_price')}</label>
                       <span className="text-[13px] font-black text-blue-600">{maxPriceFilter} €</span>
                     </div>
