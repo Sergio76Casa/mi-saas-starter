@@ -1,11 +1,8 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
 
-// Al eliminar la config de runtime 'edge', Vercel usa Node.js (Serverless) por defecto.
-// Esto permite manejar cuerpos de petición más grandes (4.5MB+ dependiendo del plan).
-
 /**
- * Función manual para codificar a base64 (requerido por las guías del SDK)
+ * Función manual para codificar a base64
  */
 function encode(bytes: Uint8Array): string {
   let binary = '';
@@ -26,12 +23,10 @@ export default async function handler(req: Request) {
     });
   }
 
-  // Uso exclusivo de la variable solicitada
   const apiKey = process.env.VITE_GEMINI_API_KEY;
-  
   if (!apiKey) {
     return new Response(JSON.stringify({ 
-      error: 'La variable VITE_GEMINI_API_KEY no está configurada en el panel de Vercel.' 
+      error: 'VITE_GEMINI_API_KEY no configurada en Vercel.' 
     }), { 
       status: 500, 
       headers: jsonHeaders 
@@ -43,8 +38,18 @@ export default async function handler(req: Request) {
     const file = formData.get('file') as File;
 
     if (!file) {
-      return new Response(JSON.stringify({ error: 'No se ha recibido ningún archivo.' }), { 
+      return new Response(JSON.stringify({ error: 'No hay archivo.' }), { 
         status: 400, 
+        headers: jsonHeaders 
+      });
+    }
+
+    // Validación de tamaño (Límite de Vercel Hobby es ~4.5MB para el body total)
+    if (file.size > 4.5 * 1024 * 1024) {
+      return new Response(JSON.stringify({ 
+        error: 'El archivo es demasiado grande (máximo 4.5MB). Prueba a reducir su peso.' 
+      }), { 
+        status: 413, 
         headers: jsonHeaders 
       });
     }
@@ -75,7 +80,6 @@ export default async function handler(req: Request) {
           properties: {
             brand: { type: Type.STRING },
             model: { type: Type.STRING },
-            reference: { type: Type.STRING },
             type: { type: Type.STRING },
             status: { type: Type.STRING },
             stock: { type: Type.INTEGER },
@@ -101,7 +105,6 @@ export default async function handler(req: Request) {
                 properties: {
                   label: { type: Type.OBJECT, properties: { es: { type: Type.STRING }, ca: { type: Type.STRING } } },
                   months: { type: Type.NUMBER },
-                  commission: { type: Type.NUMBER },
                   coefficient: { type: Type.NUMBER }
                 }
               }
@@ -126,7 +129,6 @@ export default async function handler(req: Request) {
     const normalized = {
       brand: raw.brand || "Desconocida",
       model: raw.model || "Desconocido",
-      reference: raw.reference || "",
       type: raw.type || "aire_acondicionado",
       status: (['active', 'draft', 'inactive'].includes(raw.status) ? raw.status : 'active'),
       stock: raw.stock || 0,
@@ -141,7 +143,6 @@ export default async function handler(req: Request) {
         id: `f${i + 1}`,
         label: f.label || { es: `${f.months || 12} meses`, ca: `${f.months || 12} mesos` },
         months: f.months || 12,
-        commission: f.commission || 0,
         coefficient: f.coefficient || 0.087
       })),
       techSpecs: (raw.techSpecs || []).map((t: any) => ({
