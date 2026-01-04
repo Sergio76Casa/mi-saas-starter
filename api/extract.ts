@@ -1,10 +1,12 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
 
-export const config = {
-  runtime: 'edge',
-};
+// Al eliminar la config de runtime 'edge', Vercel usa Node.js (Serverless) por defecto.
+// Esto permite manejar cuerpos de petición más grandes (4.5MB+ dependiendo del plan).
 
+/**
+ * Función manual para codificar a base64 (requerido por las guías del SDK)
+ */
 function encode(bytes: Uint8Array): string {
   let binary = '';
   const len = bytes.byteLength;
@@ -15,18 +17,24 @@ function encode(bytes: Uint8Array): string {
 }
 
 export default async function handler(req: Request) {
+  const jsonHeaders = { 'Content-Type': 'application/json' };
+
   if (req.method !== 'POST') {
     return new Response(JSON.stringify({ error: 'Método no permitido' }), { 
       status: 405, 
-      headers: { 'Content-Type': 'application/json' } 
+      headers: jsonHeaders 
     });
   }
 
-  const apiKey = process.env.API_KEY;
+  // Uso exclusivo de la variable solicitada
+  const apiKey = process.env.VITE_GEMINI_API_KEY;
+  
   if (!apiKey) {
-    return new Response(JSON.stringify({ error: 'Falta la configuración de API_KEY en el servidor' }), { 
+    return new Response(JSON.stringify({ 
+      error: 'La variable VITE_GEMINI_API_KEY no está configurada en el panel de Vercel.' 
+    }), { 
       status: 500, 
-      headers: { 'Content-Type': 'application/json' } 
+      headers: jsonHeaders 
     });
   }
 
@@ -35,22 +43,21 @@ export default async function handler(req: Request) {
     const file = formData.get('file') as File;
 
     if (!file) {
-      return new Response(JSON.stringify({ error: 'No se proporcionó ningún archivo' }), { 
+      return new Response(JSON.stringify({ error: 'No se ha recibido ningún archivo.' }), { 
         status: 400, 
-        headers: { 'Content-Type': 'application/json' } 
+        headers: jsonHeaders 
       });
     }
 
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-    
+    const ai = new GoogleGenAI({ apiKey });
     const arrayBuffer = await file.arrayBuffer();
     const base64Data = encode(new Uint8Array(arrayBuffer));
 
     const systemInstruction = `
-      Extract HVAC technical data, FINANCING, and STOCK from the provided document.
-      Languages: es/ca. 
-      IMPORTANT: The field 'type' MUST be exactly one of these: 'aire_acondicionado', 'caldera', 'termo_electrico'.
-      Return only valid JSON.
+      Eres un experto en HVAC. Extrae datos técnicos, FINANCIACIÓN y STOCK.
+      Idiomas: es/ca. 
+      Campo 'type': 'aire_acondicionado', 'caldera', 'termo_electrico'.
+      Devuelve solo JSON válido.
     `.trim();
 
     const response = await ai.models.generateContent({
@@ -146,14 +153,16 @@ export default async function handler(req: Request) {
 
     return new Response(JSON.stringify(normalized), {
       status: 200,
-      headers: { 'Content-Type': 'application/json' },
+      headers: jsonHeaders,
     });
 
   } catch (err: any) {
     console.error("Vercel API Error:", err);
-    return new Response(JSON.stringify({ error: err.message || 'Error interno del servidor' }), {
+    return new Response(JSON.stringify({ 
+      error: `Error IA: ${err.message}` 
+    }), {
       status: 500,
-      headers: { 'Content-Type': 'application/json' },
+      headers: jsonHeaders,
     });
   }
 }
