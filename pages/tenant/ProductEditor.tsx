@@ -341,7 +341,7 @@ export const ProductEditor = () => {
 
           <section className="bg-white p-10 rounded-[2.5rem] border border-slate-100 shadow-sm">
             <h4 className="text-[10px] font-black uppercase text-slate-400 mb-8 tracking-widest flex items-center gap-2">
-              <span className="w-1.5 h-1.5 bg-green-500 rounded-full"></span> Precios y Costes
+              <span className="w-1.5 h-1.5 bg-green-500 rounded-full"></span> Precios
             </h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {productData.pricing && Array.isArray(productData.pricing) && productData.pricing.map((p: any, i: number) => (
@@ -353,25 +353,30 @@ export const ProductEditor = () => {
                     ×
                   </button>
                   <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="space-y-1">
-                        <span className="text-[8px] font-black text-slate-400 uppercase ml-1">Nombre (ES)</span>
-                        <input value={p.name?.es} onChange={(e) => { const cp = [...productData.pricing]; cp[i].name.es = e.target.value; setProductData({...productData, pricing: cp}); }} className="w-full px-3 py-2 bg-white border border-slate-100 rounded-xl text-[11px] font-bold" />
-                      </div>
-                      <div className="space-y-1">
-                        <span className="text-[8px] font-black text-slate-400 uppercase ml-1">Nombre (CA)</span>
-                        <input value={p.name?.ca} onChange={(e) => { const cp = [...productData.pricing]; cp[i].name.ca = e.target.value; setProductData({...productData, pricing: cp}); }} className="w-full px-3 py-2 bg-white border border-slate-100 rounded-xl text-[11px] font-bold" />
-                      </div>
+                    <div className="space-y-1">
+                      <span className="text-[8px] font-black text-slate-400 uppercase ml-1">Nombre</span>
+                      <input 
+                        value={p.name?.es || ''} 
+                        onChange={(e) => { 
+                          const cp = [...productData.pricing]; 
+                          cp[i].name = { es: e.target.value, ca: e.target.value }; 
+                          setProductData({...productData, pricing: cp}); 
+                        }} 
+                        className="w-full px-3 py-2 bg-white border border-slate-100 rounded-xl text-[11px] font-bold" 
+                      />
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-1">
-                        <span className="text-[8px] font-black text-slate-400 uppercase ml-1">Venta</span>
-                        <input type="number" value={p.price} onChange={(e) => { const cp = [...productData.pricing]; cp[i].price = parseFloat(e.target.value); setProductData({...productData, pricing: cp}); }} className="w-full px-3 py-2 bg-white border border-slate-100 rounded-xl text-[13px] font-black text-blue-600" />
-                      </div>
-                      <div className="space-y-1">
-                        <span className="text-[8px] font-black text-slate-400 uppercase ml-1">Coste</span>
-                        <input type="number" value={p.cost} onChange={(e) => { const cp = [...productData.pricing]; cp[i].cost = parseFloat(e.target.value); setProductData({...productData, pricing: cp}); }} className="w-full px-3 py-2 bg-white border border-slate-100 rounded-xl text-[13px] font-black text-slate-900" />
-                      </div>
+                    <div className="space-y-1">
+                      <span className="text-[8px] font-black text-slate-400 uppercase ml-1">Venta</span>
+                      <input 
+                        type="number" 
+                        value={p.price} 
+                        onChange={(e) => { 
+                          const cp = [...productData.pricing]; 
+                          cp[i].price = parseFloat(e.target.value); 
+                          setProductData({...productData, pricing: cp}); 
+                        }} 
+                        className="w-full px-3 py-2 bg-white border border-slate-100 rounded-xl text-[13px] font-black text-blue-600" 
+                      />
                     </div>
                   </div>
                 </div>
