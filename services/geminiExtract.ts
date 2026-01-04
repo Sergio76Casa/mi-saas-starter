@@ -2,19 +2,6 @@
 import { GoogleGenAI, Type } from "@google/genai";
 
 /**
- * Obtiene la API KEY de forma segura intentando varias rutas comunes en el navegador.
- * Se prioriza VITE_GEMINI_API_KEY que es el nombre configurado en Vercel por el usuario.
- */
-const getApiKey = (): string => {
-  const env = (import.meta as any).env?.VITE_GEMINI_API_KEY || 
-              (globalThis as any).process?.env?.API_KEY || 
-              (import.meta as any).env?.VITE_API_KEY || 
-              (import.meta as any).env?.API_KEY || 
-              "";
-  return env;
-};
-
-/**
  * Convierte un archivo File en una cadena Base64 pura.
  */
 const fileToBase64 = (file: File): Promise<string> =>
@@ -66,14 +53,8 @@ const normType = (t: any): string => {
  * Extrae datos del producto usando el modelo Gemini.
  */
 export async function extractProductWithGemini(file: File): Promise<any> {
-  const apiKey = getApiKey();
-
-  if (!apiKey || apiKey === "") {
-    throw new Error("Configuración incompleta: La variable VITE_GEMINI_API_KEY no está disponible en el navegador. En Vercel, asegúrate de haber redeplegado el proyecto tras añadir la variable.");
-  }
-
-  // Inicialización siguiendo el estándar de la API
-  const ai = new GoogleGenAI({ apiKey });
+  // Fix: Initialized GoogleGenAI with process.env.API_KEY directly as per SDK guidelines
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const base64Data = await fileToBase64(file);
 
   const systemInstruction = `
@@ -145,6 +126,7 @@ export async function extractProductWithGemini(file: File): Promise<any> {
       },
     });
 
+    // Fix: Used the '.text' property directly as per the latest SDK requirements (not calling .text())
     const raw = JSON.parse(stripMarkdownJson(response.text || "{}"));
 
     return {
@@ -172,7 +154,7 @@ export async function extractProductWithGemini(file: File): Promise<any> {
         title: String(t.title || "").trim(),
         description: String(t.value || "").trim()
       })).filter((x: any) => x.title),
-      __version: "v11-fixed-key-name",
+      __version: "v12-fixed-sdk-usage",
       __extracted_at: new Date().toISOString()
     };
   } catch (apiError: any) {

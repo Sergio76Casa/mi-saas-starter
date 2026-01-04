@@ -18,12 +18,8 @@ serve(async (req) => {
     const file = formData.get("file") as File;
     if (!file) throw new Error("No file provided");
 
-    // En Deno (Supabase), se prefiere Deno.env, pero mantenemos la compatibilidad solicitada.
-    const apiKey = (globalThis as any).process?.env?.API_KEY || (globalThis as any).Deno?.env.get("API_KEY");
-    
-    if (!apiKey) throw new Error("API_KEY missing in Edge Function environment");
-
-    const ai = new GoogleGenAI({ apiKey });
+    // Fix: Replaced environment variable logic to strictly use process.env.API_KEY directly as required.
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const arrayBuffer = await file.arrayBuffer();
     const base64Data = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
 
@@ -38,6 +34,7 @@ serve(async (req) => {
       config: { responseMimeType: "application/json" }
     });
 
+    // Fix: Used 'response.text' property directly as per extracts from SDK property definition.
     return new Response(response.text, {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

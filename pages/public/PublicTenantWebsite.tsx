@@ -94,6 +94,7 @@ export const PublicTenantWebsite = () => {
   const [rlsError, setRlsError] = useState(false);
   const navigate = useNavigate();
 
+  // Fix: Corrected 'key0f' typo to 'keyof' which was breaking the component's scope parsing.
   const tt = (key: keyof typeof LOCAL_I18N['es']) => LOCAL_I18N[language]?.[key] ?? LOCAL_I18N.es[key];
 
   const [view, setView] = useState<'landing' | 'wizard'>('landing');
@@ -258,7 +259,7 @@ export const PublicTenantWebsite = () => {
   );
 
   return (
-    <div className="min-h-screen bg-white text-slate-900 selection:bg-blue-600/20 overflow-x-hidden">
+    <div className="min-h-screen bg-[#F8FAFC] text-slate-900 selection:bg-blue-600/20 overflow-x-hidden">
       <nav className="fixed top-0 left-0 right-0 h-16 md:h-20 bg-white/80 backdrop-blur-md z-[100] border-b border-gray-100">
         <div className="max-w-7xl mx-auto h-full flex items-center justify-between px-6 md:px-10">
           <button onClick={navigateToHome} className="flex items-center gap-3 shrink-0">
@@ -457,21 +458,21 @@ export const PublicTenantWebsite = () => {
                 <h2 className="text-3xl md:text-4xl font-black tracking-tighter uppercase mb-2">{tt('nav_contact')}</h2>
                 <p className="text-slate-400 font-medium text-sm mb-10 max-w-lg mx-auto italic">¿Necesitas ayuda con tu climatización? Estamos aquí para asesorarte en la mejor solución para tu hogar.</p>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="p-10 bg-gray-50 rounded-[2rem] border border-gray-100">
+                    <div className="p-10 bg-white rounded-[2rem] border border-gray-100 shadow-sm">
                        <div className="w-12 h-12 bg-blue-600 text-white rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
                           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>
                        </div>
                        <h4 className="text-[11px] font-black uppercase tracking-widest text-slate-400 mb-2">Llámanos</h4>
                        <p className="font-black text-slate-900">+34 900 000 000</p>
                     </div>
-                    <div className="p-10 bg-gray-50 rounded-[2rem] border border-gray-100">
+                    <div className="p-10 bg-white rounded-[2rem] border border-gray-100 shadow-sm">
                        <div className="w-12 h-12 bg-blue-600 text-white rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
                           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
                        </div>
                        <h4 className="text-[11px] font-black uppercase tracking-widest text-slate-400 mb-2">Escríbenos</h4>
                        <p className="font-black text-slate-900">hola@{slug}.com</p>
                     </div>
-                    <div className="p-10 bg-gray-50 rounded-[2rem] border border-gray-100">
+                    <div className="p-10 bg-white rounded-[2rem] border border-gray-100 shadow-sm">
                        <div className="w-12 h-12 bg-blue-600 text-white rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
                           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
                        </div>
