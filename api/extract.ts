@@ -35,9 +35,6 @@ export default async function handler(req: Request) {
   }
 
   try {
-    console.log(`[${requestId}] [Extract] Parseo: Procesando FormData`);
-    
-    // Con runtime: 'edge', req.formData() funciona correctamente
     const formData = await req.formData();
     const file = formData.get('file') as File;
     
@@ -46,7 +43,6 @@ export default async function handler(req: Request) {
     }
 
     if (file.size > 4.5 * 1024 * 1024) {
-      console.warn(`[${requestId}] [Extract] Archivo rechazado por tamaño: ${file.size} bytes`);
       return new Response(JSON.stringify({ 
         error: 'Archivo demasiado grande (máx 4.5MB).', 
         code: 'FILE_TOO_LARGE',
@@ -54,15 +50,12 @@ export default async function handler(req: Request) {
       }), { status: 413, headers: jsonHeaders });
     }
 
-    console.log(`[${requestId}] [Extract] Base64: Convirtiendo archivo ${file.name}`);
     const arrayBuffer = await file.arrayBuffer();
     const base64Data = encode(new Uint8Array(arrayBuffer));
 
     const ai = new GoogleGenAI({ apiKey });
-    const systemInstruction = "HVAC Expert. Extract technical data to JSON. Languages: es/ca. Types: aire_acondicionado, caldera, termo_electrico.";
+    const systemInstruction = "HVAC Expert. Extract technical data and installation materials/extras to JSON. Languages: es/ca. For extras: if quantity is missing use 1. If unit price is missing but total exists, unit_price = total / qty.";
 
-    console.log(`[${requestId}] [Extract] Llamada Gemini: Iniciando petición (Race 25s)`);
-    
     const geminiCall = ai.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: {
@@ -89,6 +82,17 @@ export default async function handler(req: Request) {
                   name: { type: Type.OBJECT, properties: { es: { type: Type.STRING }, ca: { type: Type.STRING } } },
                   price: { type: Type.NUMBER },
                   cost: { type: Type.NUMBER }
+                }
+              }
+            },
+            extras: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  name: { type: Type.STRING },
+                  qty: { type: Type.NUMBER },
+                  unit_price: { type: Type.NUMBER }
                 }
               }
             },
@@ -119,9 +123,6 @@ export default async function handler(req: Request) {
     );
 
     const response = await Promise.race([geminiCall, timeoutPromise]) as any;
-    
-    console.log(`[${requestId}] [Extract] Respuesta: Gemini ha respondido`);
-
     const raw = JSON.parse(response.text || "{}");
     
     const normalized = {
@@ -135,35 +136,20 @@ export default async function handler(req: Request) {
         price: p.price || 0,
         cost: p.cost || 0
       })),
+      extras: (raw.extras || []).map((e: any) => ({
+        name: e.name || "Material extra",
+        qty: e.qty || 1,
+        unit_price: e.unit_price || 0
+      })),
       __extracted_at: new Date().toISOString()
     };
 
     return new Response(JSON.stringify(normalized), { status: 200, headers: jsonHeaders });
 
   } catch (err: any) {
-    console.error(`[${requestId}] [Extract] Error final:`, err.message || err);
-    
-    const errString = String(err).toLowerCase();
-    
-    if (err.message === 'UPSTREAM_TIMEOUT') {
-      return new Response(JSON.stringify({ 
-        error: "La IA ha tardado demasiado en responder.", 
-        code: "UPSTREAM_TIMEOUT",
-        requestId
-      }), { status: 504, headers: jsonHeaders });
-    }
-
-    if (errString.includes('429') || errString.includes('rate_limit') || errString.includes('quota')) {
-      return new Response(JSON.stringify({ 
-        error: "Límite de cuota excedido.", 
-        code: "RATE_LIMIT",
-        requestId
-      }), { status: 429, headers: jsonHeaders });
-    }
-
     return new Response(JSON.stringify({ 
       error: `Fallo en la extracción: ${err.message || 'Error desconocido'}`,
-      code: "INTERNAL_ERROR",
+      code: err.message === 'UPSTREAM_TIMEOUT' ? "UPSTREAM_TIMEOUT" : "INTERNAL_ERROR",
       requestId
     }), { status: 500, headers: jsonHeaders });
   }

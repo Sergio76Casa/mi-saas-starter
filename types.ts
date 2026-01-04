@@ -62,7 +62,7 @@ export interface Product {
   description?: { es: string; ca: string };
   features?: string;
   installation_kits?: Array<{ name: string; price: number }>;
-  extras?: Array<{ name: string; price: number }>;
+  extras?: Array<{ name: string; qty: number; unit_price: number }>;
   stock?: number;
   pdf_url?: string;
   image_url?: string;

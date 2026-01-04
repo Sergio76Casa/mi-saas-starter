@@ -7,11 +7,14 @@ import { Tenant } from '../../types';
 import { Input } from '../../components/common/Input';
 import { LoadingSpinner } from '../../components/common/LoadingSpinner';
 import { extractProductWithGemini } from '../../services/geminiExtract';
+import { formatCurrency } from '../../i18n';
+import { useApp } from '../../AppProvider';
 
 export const ProductEditor = () => {
   const { id, slug } = useParams();
   const navigate = useNavigate();
   const { tenant } = useOutletContext<{ tenant: Tenant }>();
+  const { language } = useApp();
   const [loading, setLoading] = useState(true);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiStatus, setAiStatus] = useState('');
@@ -40,12 +43,9 @@ export const ProductEditor = () => {
   useEffect(() => { 
     const fetchProduct = async () => {
       if (id === 'new') {
-        console.log(`Iniciando creación de nuevo producto para la empresa: ${tenant.name}`);
         setLoading(false);
         return;
       }
-      
-      console.log(`Cargando producto ID: ${id} para la empresa: ${tenant.name}`);
       
       const { data, error } = await supabase
         .from('products')
@@ -55,7 +55,6 @@ export const ProductEditor = () => {
         .single();
 
       if (data && !error) {
-        // Función auxiliar para asegurar que los campos JSON sean objetos
         const safeParse = (val: any, fallback: any = []) => {
           if (!val) return fallback;
           if (typeof val === 'string') {
@@ -64,17 +63,12 @@ export const ProductEditor = () => {
           return val;
         };
 
-        const parsedDescription = safeParse(data.description, { es: '', ca: '' });
-        const parsedPricing = safeParse(data.pricing, []);
-        const parsedKits = safeParse(data.installation_kits, []);
-        const parsedExtras = safeParse(data.extras, []);
-
         setProductData({
           ...data,
-          description: parsedDescription,
-          pricing: parsedPricing,
-          installation_kits: parsedKits,
-          extras: parsedExtras
+          description: safeParse(data.description, { es: '', ca: '' }),
+          pricing: safeParse(data.pricing, []),
+          installation_kits: safeParse(data.installation_kits, []),
+          extras: safeParse(data.extras, [])
         });
 
         try {
@@ -85,7 +79,6 @@ export const ProductEditor = () => {
           }
         } catch (e) { console.error("Error al parsear features:", e); }
       } else if (error) {
-        console.error("Acceso no autorizado o producto inexistente:", error.message);
         navigate(`/t/${slug}/products`);
       }
       setLoading(false);
@@ -97,12 +90,8 @@ export const ProductEditor = () => {
     const fileExt = file.name.split('.').pop();
     const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
     const path = `${tenant.id}/${folder}/${fileName}`;
-    
-    console.log(`Subiendo archivo a storage: ${path}`);
-    
     const { error } = await supabase.storage.from('products').upload(path, file);
     if (error) throw error;
-    
     const { data: { publicUrl } } = supabase.storage.from('products').getPublicUrl(path);
     return publicUrl;
   };
@@ -114,7 +103,6 @@ export const ProductEditor = () => {
     try {
       const folder = file.type.includes('pdf') ? 'fichas' : 'images';
       const uploadedUrl = await uploadFile(file, folder);
-
       const normalized = await extractProductWithGemini(file);
       
       setProductData((prev: any) => ({
@@ -126,6 +114,7 @@ export const ProductEditor = () => {
         stock: normalized.stock || prev.stock,
         description: normalized.description || prev.description,
         pricing: normalized.pricing || [],
+        extras: normalized.extras || [],
         pdf_url: uploadedUrl 
       }));
 
@@ -147,10 +136,7 @@ export const ProductEditor = () => {
       alert("Marca y Modelo son obligatorios para guardar.");
       return;
     }
-
     setSaving(true);
-    console.log(`Intentando guardar producto en empresa ID: ${tenant.id}`);
-
     try {
       const payload = {
         tenant_id: tenant.id,
@@ -170,25 +156,37 @@ export const ProductEditor = () => {
         is_deleted: false 
       };
 
-      const { data, error } = id === 'new' 
+      const { error } = id === 'new' 
         ? await supabase.from('products').insert([payload]).select()
         : await supabase.from('products').update(payload).eq('id', id).eq('tenant_id', tenant.id).select();
 
-      if (error) {
-        if (error.message.includes('row-level security policy')) {
-          throw new Error("No tienes permisos de escritura para esta empresa. Verifica que seas administrador de la misma.");
-        }
-        throw error;
-      }
-      
-      console.log("Producto guardado con éxito:", data);
+      if (error) throw error;
       navigate(`/t/${slug}/products`);
     } catch (err: any) {
-      console.error("Error fatal al guardar:", err);
       alert("Error al guardar: " + err.message);
     } finally {
       setSaving(false);
     }
+  };
+
+  const addExtra = () => {
+    setProductData({
+      ...productData,
+      extras: [...(productData.extras || []), { name: '', qty: 1, unit_price: 0 }]
+    });
+  };
+
+  const updateExtra = (index: number, field: string, value: any) => {
+    const newExtras = [...productData.extras];
+    newExtras[index] = { ...newExtras[index], [field]: value };
+    setProductData({ ...productData, extras: newExtras });
+  };
+
+  const removeExtra = (index: number) => {
+    setProductData({
+      ...productData,
+      extras: productData.extras.filter((_: any, i: number) => i !== index)
+    });
   };
 
   if (loading) return <LoadingSpinner />;
@@ -232,79 +230,37 @@ export const ProductEditor = () => {
       
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
         <div className="lg:col-span-2 space-y-8">
-          
           <section className="bg-white p-10 rounded-[2.5rem] border border-slate-100 shadow-sm">
             <h4 className="text-[10px] font-black uppercase text-slate-400 mb-8 tracking-widest flex items-center gap-2">
               <span className="w-1.5 h-1.5 bg-blue-500 rounded-full"></span> Información del Equipo
             </h4>
-            
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10">
               <div className="space-y-3">
                 <label className="text-[9px] font-black uppercase text-slate-400 ml-1">Logo Marca</label>
-                <div 
-                  onClick={() => brandLogoRef.current?.click()}
-                  className="h-32 rounded-3xl border-2 border-dashed border-slate-100 bg-slate-50 flex items-center justify-center cursor-pointer group relative overflow-hidden transition-all hover:bg-slate-100"
-                >
-                  {productData.brand_logo_url ? (
-                    <img src={productData.brand_logo_url} className="w-full h-full object-contain p-4" alt="Brand Logo" />
-                  ) : (
-                    <div className="text-center opacity-30">
-                      <svg className="w-8 h-8 mx-auto mb-1 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                      <span className="text-[8px] font-black uppercase">Subir Logo</span>
-                    </div>
-                  )}
+                <div onClick={() => brandLogoRef.current?.click()} className="h-32 rounded-3xl border-2 border-dashed border-slate-100 bg-slate-50 flex items-center justify-center cursor-pointer group relative overflow-hidden transition-all hover:bg-slate-100">
+                  {productData.brand_logo_url ? <img src={productData.brand_logo_url} className="w-full h-full object-contain p-4" alt="Brand Logo" /> : <div className="text-center opacity-30"><svg className="w-8 h-8 mx-auto mb-1 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg><span className="text-[8px] font-black uppercase">Subir Logo</span></div>}
                   <input type="file" ref={brandLogoRef} className="hidden" onChange={async (e) => { if(e.target.files?.[0]) { const url = await uploadFile(e.target.files[0], 'brands'); setProductData({...productData, brand_logo_url: url}); }}} />
                 </div>
               </div>
-
               <div className="space-y-3">
                 <label className="text-[9px] font-black uppercase text-slate-400 ml-1">Foto Producto</label>
-                <div 
-                  onClick={() => productImgRef.current?.click()}
-                  className="h-32 rounded-3xl border-2 border-dashed border-slate-100 bg-slate-50 flex items-center justify-center cursor-pointer group relative overflow-hidden transition-all hover:bg-slate-100"
-                >
-                  {productData.image_url ? (
-                    <img src={productData.image_url} className="w-full h-full object-contain p-2" alt="Product" />
-                  ) : (
-                    <div className="text-center opacity-30">
-                      <svg className="w-8 h-8 mx-auto mb-1 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                      <span className="text-[8px] font-black uppercase">Subir Foto</span>
-                    </div>
-                  )}
+                <div onClick={() => productImgRef.current?.click()} className="h-32 rounded-3xl border-2 border-dashed border-slate-100 bg-slate-50 flex items-center justify-center cursor-pointer group relative overflow-hidden transition-all hover:bg-slate-100">
+                  {productData.image_url ? <img src={productData.image_url} className="w-full h-full object-contain p-2" alt="Product" /> : <div className="text-center opacity-30"><svg className="w-8 h-8 mx-auto mb-1 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg><span className="text-[8px] font-black uppercase">Subir Foto</span></div>}
                   <input type="file" ref={productImgRef} className="hidden" onChange={async (e) => { if(e.target.files?.[0]) { const url = await uploadFile(e.target.files[0], 'products'); setProductData({...productData, image_url: url}); }}} />
                 </div>
               </div>
             </div>
-
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <Input label="Marca" value={productData.brand} onChange={(e:any) => setProductData({...productData, brand: e.target.value})} />
               <Input label="Modelo" value={productData.model} onChange={(e:any) => setProductData({...productData, model: e.target.value})} />
-              
               <Input label="Stock Disponible" type="number" value={productData.stock} onChange={(e:any) => setProductData({...productData, stock: e.target.value})} />
               <div>
                 <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1">Estado</label>
-                <select 
-                  value={productData.status} 
-                  onChange={(e) => setProductData({...productData, status: e.target.value})}
-                  className="w-full px-6 py-4 border border-slate-100 rounded-2xl bg-slate-50 text-sm font-bold focus:ring-2 focus:ring-blue-500 outline-none appearance-none"
-                >
-                  <option value="active">Activo</option>
-                  <option value="inactive">Inactivo</option>
-                  <option value="draft">Borrador</option>
-                </select>
+                <select value={productData.status} onChange={(e) => setProductData({...productData, status: e.target.value})} className="w-full px-6 py-4 border border-slate-100 rounded-2xl bg-slate-50 text-sm font-bold focus:ring-2 focus:ring-blue-500 outline-none appearance-none"><option value="active">Activo</option><option value="inactive">Inactivo</option><option value="draft">Borrador</option></select>
               </div>
-
               <div className="md:col-span-2">
                 <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1">Categoría</label>
-                <select 
-                  value={productData.type} 
-                  onChange={(e) => setProductData({...productData, type: e.target.value})}
-                  className="w-full px-6 py-4 border border-slate-100 rounded-2xl bg-slate-50 text-sm font-bold focus:ring-2 focus:ring-blue-500 outline-none appearance-none"
-                >
-                  <option value="aire_acondicionado">Aire Acondicionado</option>
-                  <option value="caldera">Caldera</option>
-                  <option value="termo_electrico">Termo Eléctrico</option>
-                </select>
+                <select value={productData.type} onChange={(e) => setProductData({...productData, type: e.target.value})} className="w-full px-6 py-4 border border-slate-100 rounded-2xl bg-slate-50 text-sm font-bold focus:ring-2 focus:ring-blue-500 outline-none appearance-none"><option value="aire_acondicionado">Aire Acondicionado</option><option value="caldera">Caldera</option><option value="termo_electrico">Termo Eléctrico</option></select>
               </div>
             </div>
           </section>
@@ -315,79 +271,77 @@ export const ProductEditor = () => {
             </h4>
             <div className="space-y-6">
               <div>
-                <div className="flex items-center gap-2 mb-2 ml-1">
-                  <span className="bg-slate-900 text-white text-[8px] font-black px-1.5 py-0.5 rounded">ES</span>
-                  <label className="text-[9px] font-black uppercase text-slate-400">Español</label>
-                </div>
-                <textarea 
-                  value={productData.description?.es || ''} 
-                  onChange={(e) => setProductData({...productData, description: {...productData.description, es: e.target.value}})}
-                  className="w-full px-6 py-4 border border-slate-100 rounded-2xl bg-slate-50 text-sm font-medium h-24 resize-none focus:ring-2 focus:ring-blue-500 outline-none"
-                />
+                <div className="flex items-center gap-2 mb-2 ml-1"><span className="bg-slate-900 text-white text-[8px] font-black px-1.5 py-0.5 rounded">ES</span><label className="text-[9px] font-black uppercase text-slate-400">Español</label></div>
+                <textarea value={productData.description?.es || ''} onChange={(e) => setProductData({...productData, description: {...productData.description, es: e.target.value}})} className="w-full px-6 py-4 border border-slate-100 rounded-2xl bg-slate-50 text-sm font-medium h-24 resize-none focus:ring-2 focus:ring-blue-500 outline-none" />
               </div>
               <div>
-                <div className="flex items-center gap-2 mb-2 ml-1">
-                  <span className="bg-blue-600 text-white text-[8px] font-black px-1.5 py-0.5 rounded">CA</span>
-                  <label className="text-[9px] font-black uppercase text-slate-400">Catalán</label>
-                </div>
-                <textarea 
-                  value={productData.description?.ca || ''} 
-                  onChange={(e) => setProductData({...productData, description: {...productData.description, ca: e.target.value}})}
-                  className="w-full px-6 py-4 border border-slate-100 rounded-2xl bg-slate-50 text-sm font-medium h-24 resize-none focus:ring-2 focus:ring-blue-500 outline-none"
-                />
+                <div className="flex items-center gap-2 mb-2 ml-1"><span className="bg-blue-600 text-white text-[8px] font-black px-1.5 py-0.5 rounded">CA</span><label className="text-[9px] font-black uppercase text-slate-400">Catalán</label></div>
+                <textarea value={productData.description?.ca || ''} onChange={(e) => setProductData({...productData, description: {...productData.description, ca: e.target.value}})} className="w-full px-6 py-4 border border-slate-100 rounded-2xl bg-slate-50 text-sm font-medium h-24 resize-none focus:ring-2 focus:ring-blue-500 outline-none" />
               </div>
             </div>
           </section>
 
+          {/* SECCIÓN PRECIOS */}
           <section className="bg-white p-10 rounded-[2.5rem] border border-slate-100 shadow-sm">
             <h4 className="text-[10px] font-black uppercase text-slate-400 mb-8 tracking-widest flex items-center gap-2">
-              <span className="w-1.5 h-1.5 bg-green-500 rounded-full"></span> Precios
+              <span className="w-1.5 h-1.5 bg-green-500 rounded-full"></span> Variantes de Precio
             </h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {productData.pricing && Array.isArray(productData.pricing) && productData.pricing.map((p: any, i: number) => (
                 <div key={i} className="p-6 bg-slate-50 rounded-3xl border border-slate-100 relative group">
-                  <button 
-                    onClick={() => setProductData({...productData, pricing: productData.pricing.filter((_:any,idx:number)=>idx!==i)})}
-                    className="absolute top-4 right-4 w-6 h-6 flex items-center justify-center bg-white text-red-400 border border-slate-100 rounded-full text-sm font-black shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
-                  >
-                    ×
-                  </button>
+                  <button onClick={() => setProductData({...productData, pricing: productData.pricing.filter((_:any,idx:number)=>idx!==i)})} className="absolute top-4 right-4 w-6 h-6 flex items-center justify-center bg-white text-red-400 border border-slate-100 rounded-full text-sm font-black shadow-sm opacity-0 group-hover:opacity-100 transition-opacity">×</button>
                   <div className="space-y-4">
-                    <div className="space-y-1">
-                      <span className="text-[8px] font-black text-slate-400 uppercase ml-1">Nombre</span>
-                      <input 
-                        value={p.name?.es || ''} 
-                        onChange={(e) => { 
-                          const cp = [...productData.pricing]; 
-                          cp[i].name = { es: e.target.value, ca: e.target.value }; 
-                          setProductData({...productData, pricing: cp}); 
-                        }} 
-                        className="w-full px-3 py-2 bg-white border border-slate-100 rounded-xl text-[11px] font-bold" 
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <span className="text-[8px] font-black text-slate-400 uppercase ml-1">Venta</span>
-                      <input 
-                        type="number" 
-                        value={p.price} 
-                        onChange={(e) => { 
-                          const cp = [...productData.pricing]; 
-                          cp[i].price = parseFloat(e.target.value); 
-                          setProductData({...productData, pricing: cp}); 
-                        }} 
-                        className="w-full px-3 py-2 bg-white border border-slate-100 rounded-xl text-[13px] font-black text-blue-600" 
-                      />
-                    </div>
+                    <div className="space-y-1"><span className="text-[8px] font-black text-slate-400 uppercase ml-1">Nombre</span><input value={p.name?.es || ''} onChange={(e) => { const cp = [...productData.pricing]; cp[i].name = { es: e.target.value, ca: e.target.value }; setProductData({...productData, pricing: cp}); }} className="w-full px-3 py-2 bg-white border border-slate-100 rounded-xl text-[11px] font-bold" /></div>
+                    <div className="space-y-1"><span className="text-[8px] font-black text-slate-400 uppercase ml-1">Venta</span><input type="number" value={p.price} onChange={(e) => { const cp = [...productData.pricing]; cp[i].price = parseFloat(e.target.value); setProductData({...productData, pricing: cp}); }} className="w-full px-3 py-2 bg-white border border-slate-100 rounded-xl text-[13px] font-black text-blue-600" /></div>
                   </div>
                 </div>
               ))}
-              <button 
-                onClick={() => setProductData({...productData, pricing: [...(Array.isArray(productData.pricing) ? productData.pricing : []), { name: {es:'Variante',ca:'Variant'}, price: 0, cost: 0 }]})}
-                className="h-full min-h-[140px] flex flex-col items-center justify-center border-2 border-dashed border-slate-100 rounded-3xl text-slate-300 hover:text-blue-500 hover:border-blue-200 transition-all group"
-              >
-                <span className="text-2xl mb-1 group-hover:scale-125 transition-transform">+</span>
-                <span className="text-[9px] font-black uppercase tracking-widest text-center px-4">Añadir Precio</span>
-              </button>
+              <button onClick={() => setProductData({...productData, pricing: [...(Array.isArray(productData.pricing) ? productData.pricing : []), { name: {es:'Variante',ca:'Variant'}, price: 0, cost: 0 }]})} className="h-full min-h-[140px] flex flex-col items-center justify-center border-2 border-dashed border-slate-100 rounded-3xl text-slate-300 hover:text-blue-500 hover:border-blue-200 transition-all group"><span className="text-2xl mb-1 group-hover:scale-125 transition-transform">+</span><span className="text-[9px] font-black uppercase tracking-widest text-center px-4">Añadir Precio</span></button>
+            </div>
+          </section>
+
+          {/* SECCIÓN EXTRAS (NUEVA) */}
+          <section className="bg-white p-10 rounded-[2.5rem] border border-slate-100 shadow-sm">
+            <div className="flex justify-between items-center mb-8">
+              <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-widest flex items-center gap-2">
+                <span className="w-1.5 h-1.5 bg-blue-600 rounded-full"></span> Materiales y Extras de Instalación
+              </h4>
+              <button onClick={addExtra} className="text-[9px] font-black uppercase bg-blue-50 text-blue-600 px-4 py-2 rounded-full hover:bg-blue-100 transition-colors">+ Añadir Extra</button>
+            </div>
+            
+            <div className="space-y-3">
+              {(productData.extras || []).map((extra: any, i: number) => (
+                <div key={i} className="flex flex-col md:flex-row items-end gap-4 p-5 bg-slate-50 rounded-2xl border border-slate-100 relative group animate-in slide-in-from-left-2 duration-300">
+                  <button onClick={() => removeExtra(i)} className="absolute top-4 right-4 text-slate-300 hover:text-red-500 transition-colors">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+                  </button>
+                  
+                  <div className="flex-1 w-full space-y-1">
+                    <label className="text-[8px] font-black uppercase text-slate-400 ml-1">Concepto / Material</label>
+                    <input value={extra.name} onChange={(e) => updateExtra(i, 'name', e.target.value)} className="w-full px-4 py-2.5 bg-white border border-slate-100 rounded-xl text-xs font-bold focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Ej: Metro lineal tubería" />
+                  </div>
+                  
+                  <div className="w-24 space-y-1">
+                    <label className="text-[8px] font-black uppercase text-slate-400 ml-1 text-center block">Cant.</label>
+                    <input type="number" value={extra.qty} onChange={(e) => updateExtra(i, 'qty', parseFloat(e.target.value))} className="w-full px-4 py-2.5 bg-white border border-slate-100 rounded-xl text-xs font-bold text-center focus:ring-2 focus:ring-blue-500 outline-none" />
+                  </div>
+                  
+                  <div className="w-32 space-y-1">
+                    <label className="text-[8px] font-black uppercase text-slate-400 ml-1 text-center block">Precio Unidad</label>
+                    <input type="number" value={extra.unit_price} onChange={(e) => updateExtra(i, 'unit_price', parseFloat(e.target.value))} className="w-full px-4 py-2.5 bg-white border border-slate-100 rounded-xl text-xs font-black text-center text-blue-600 focus:ring-2 focus:ring-blue-500 outline-none" />
+                  </div>
+
+                  <div className="w-28 space-y-1 pb-3 text-right">
+                    <label className="text-[7px] font-black uppercase text-slate-300 mb-1 block">Total Línea</label>
+                    <span className="text-xs font-black text-slate-900">{formatCurrency((extra.qty || 0) * (extra.unit_price || 0), language)}</span>
+                  </div>
+                </div>
+              ))}
+              {(!productData.extras || productData.extras.length === 0) && (
+                <div className="py-12 border-2 border-dashed border-slate-100 rounded-[2rem] text-center">
+                   <p className="text-[10px] font-black uppercase text-slate-300 italic">No hay extras extraídos o añadidos</p>
+                </div>
+              )}
             </div>
           </section>
         </div>
@@ -401,56 +355,16 @@ export const ProductEditor = () => {
               {financing.map((f: any, i: number) => (
                 <div key={i} className="p-4 bg-slate-50 rounded-2xl border border-slate-100 group">
                   <div className="flex justify-between items-center mb-3">
-                    <input 
-                      value={f.label?.es || ''} 
-                      onChange={(e) => {
-                        const cf = [...financing];
-                        cf[i] = { ...cf[i], label: { es: e.target.value, ca: e.target.value } };
-                        setFinancing(cf);
-                      }}
-                      placeholder="Etiqueta (Ej: 12 meses)"
-                      className="bg-transparent border-none p-0 text-[9px] font-black uppercase text-slate-800 outline-none w-full placeholder:text-slate-300"
-                    />
+                    <input value={f.label?.es || ''} onChange={(e) => { const cf = [...financing]; cf[i] = { ...cf[i], label: { es: e.target.value, ca: e.target.value } }; setFinancing(cf); }} placeholder="Etiqueta" className="bg-transparent border-none p-0 text-[9px] font-black uppercase text-slate-800 outline-none w-full placeholder:text-slate-300" />
                     <button onClick={() => setFinancing(financing.filter((_: any, idx: number) => idx !== i))} className="text-slate-300 hover:text-red-500 transition-colors px-1">×</button>
                   </div>
                   <div className="grid grid-cols-2 gap-2">
-                    <div className="text-center bg-white p-2 rounded-xl border border-slate-100">
-                      <span className="block text-[7px] font-black text-slate-400 uppercase mb-1">Meses</span>
-                      <input 
-                        type="number" 
-                        value={f.months || 0} 
-                        onChange={(e) => {
-                          const cf = [...financing];
-                          cf[i] = { ...cf[i], months: parseInt(e.target.value) || 0 };
-                          setFinancing(cf);
-                        }}
-                        className="w-full text-center text-[11px] font-bold outline-none border-none bg-transparent"
-                      />
-                    </div>
-                    <div className="text-center bg-white p-2 rounded-xl border border-slate-100">
-                      <span className="block text-[7px] font-black text-slate-400 uppercase mb-1">Coef.</span>
-                      <input 
-                        type="number" 
-                        step="0.000001"
-                        value={f.coefficient || 0} 
-                        onChange={(e) => {
-                          const cf = [...financing];
-                          cf[i] = { ...cf[i], coefficient: parseFloat(e.target.value) || 0 };
-                          setFinancing(cf);
-                        }}
-                        className="w-full text-center text-[11px] font-bold outline-none border-none bg-transparent text-blue-600"
-                      />
-                    </div>
+                    <div className="text-center bg-white p-2 rounded-xl border border-slate-100"><span className="block text-[7px] font-black text-slate-400 uppercase mb-1">Meses</span><input type="number" value={f.months || 0} onChange={(e) => { const cf = [...financing]; cf[i] = { ...cf[i], months: parseInt(e.target.value) || 0 }; setFinancing(cf); }} className="w-full text-center text-[11px] font-bold outline-none border-none bg-transparent" /></div>
+                    <div className="text-center bg-white p-2 rounded-xl border border-slate-100"><span className="block text-[7px] font-black text-slate-400 uppercase mb-1">Coef.</span><input type="number" step="0.000001" value={f.coefficient || 0} onChange={(e) => { const cf = [...financing]; cf[i] = { ...cf[i], coefficient: parseFloat(e.target.value) || 0 }; setFinancing(cf); }} className="w-full text-center text-[11px] font-bold outline-none border-none bg-transparent text-blue-600" /></div>
                   </div>
                 </div>
               ))}
-              
-              <button 
-                onClick={() => setFinancing([...financing, { months: 12, coefficient: 0.087, label: { es: 'NUEVA FINANCIACIÓN', ca: 'NOU FINANÇAMENT' } }])}
-                className="w-full py-4 border-2 border-dashed border-slate-100 rounded-2xl text-[8px] font-black uppercase text-slate-300 hover:text-purple-500 transition-colors"
-              >
-                + Añadir Financiación
-              </button>
+              <button onClick={() => setFinancing([...financing, { months: 12, coefficient: 0.087, label: { es: 'NUEVA FINANCIACIÓN', ca: 'NOU FINANÇAMENT' } }])} className="w-full py-4 border-2 border-dashed border-slate-100 rounded-2xl text-[8px] font-black uppercase text-slate-300 hover:text-purple-500 transition-colors">+ Añadir Financiación</button>
             </div>
           </section>
 
@@ -459,45 +373,11 @@ export const ProductEditor = () => {
               <span className="w-1.5 h-1.5 bg-amber-500 rounded-full"></span> Ficha Técnica
             </h4>
             <div className="space-y-4">
-              {productData.pdf_url && (
-                 <div className="mb-4">
-                    <a href={productData.pdf_url} target="_blank" rel="noreferrer" className="flex items-center gap-3 p-4 bg-blue-50 text-blue-600 rounded-2xl border border-blue-100 hover:bg-blue-100 transition-colors group">
-                       <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                       <span className="text-[10px] font-black uppercase tracking-widest">Ver PDF Original</span>
-                    </a>
-                 </div>
-              )}
+              {productData.pdf_url && <div className="mb-4"><a href={productData.pdf_url} target="_blank" rel="noreferrer" className="flex items-center gap-3 p-4 bg-blue-50 text-blue-600 rounded-2xl border border-blue-100 hover:bg-blue-100 transition-colors group"><svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg><span className="text-[10px] font-black uppercase tracking-widest">Ver PDF Original</span></a></div>}
               {techSpecs.map((s: any, i: number) => (
-                <div key={i} className="group border-b border-slate-50 pb-3">
-                  <div className="flex justify-between items-start">
-                    <div className="space-y-0.5">
-                      <input 
-                        value={s.title} 
-                        onChange={(e) => { const cs = [...techSpecs]; cs[i].title = e.target.value; setTechSpecs(cs); }}
-                        className="bg-transparent border-none p-0 text-[9px] font-black uppercase text-slate-400 outline-none w-full" 
-                      />
-                      <input 
-                        value={s.value || s.description || ''} 
-                        onChange={(e) => { 
-                          const cs = [...techSpecs]; 
-                          // Actualizamos ambos para mantener consistencia y compatibilidad
-                          cs[i].value = e.target.value; 
-                          cs[i].description = e.target.value;
-                          setTechSpecs(cs); 
-                        }}
-                        className="bg-transparent border-none p-0 text-[11px] font-bold text-slate-800 outline-none w-full" 
-                      />
-                    </div>
-                    <button onClick={() => setTechSpecs(techSpecs.filter((_: any, idx: number) => idx !== i))} className="text-slate-200 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100">×</button>
-                  </div>
-                </div>
+                <div key={i} className="group border-b border-slate-50 pb-3"><div className="flex justify-between items-start"><div className="space-y-0.5"><input value={s.title} onChange={(e) => { const cs = [...techSpecs]; cs[i].title = e.target.value; setTechSpecs(cs); }} className="bg-transparent border-none p-0 text-[9px] font-black uppercase text-slate-400 outline-none w-full" /><input value={s.value || s.description || ''} onChange={(e) => { const cs = [...techSpecs]; cs[i].value = e.target.value; cs[i].description = e.target.value; setTechSpecs(cs); }} className="bg-transparent border-none p-0 text-[11px] font-bold text-slate-800 outline-none w-full" /></div><button onClick={() => setTechSpecs(techSpecs.filter((_: any, idx: number) => idx !== i))} className="text-slate-200 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100">×</button></div></div>
               ))}
-              <button 
-                onClick={() => setTechSpecs([...techSpecs, { title: 'Dato', value: '-' }])}
-                className="w-full py-3 border-2 border-dashed border-slate-100 rounded-2xl text-[8px] font-black uppercase text-slate-300 hover:text-blue-500 transition-colors"
-              >
-                + Añadir Especificación
-              </button>
+              <button onClick={() => setTechSpecs([...techSpecs, { title: 'Dato', value: '-' }])} className="w-full py-3 border-2 border-dashed border-slate-100 rounded-2xl text-[8px] font-black uppercase text-slate-300 hover:text-blue-500 transition-colors">+ Añadir Especificación</button>
             </div>
           </section>
         </aside>
