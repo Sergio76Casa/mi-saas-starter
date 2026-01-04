@@ -129,11 +129,13 @@ export const PublicTenantWebsite = () => {
         setTenant(tData as any);
 
         if (tData.status === 'active') {
+          // FILTRO CORREGIDO: Solo productos activos Y no borrados para este tenant
           const { data: pData, error: pError } = await supabase
             .from('products')
             .select('*')
             .eq('tenant_id', tData.id)
-            .eq('status', 'active');
+            .eq('status', 'active')
+            .or('is_deleted.eq.false,is_deleted.is.null');
 
           if (pError) {
             if (pError.message.toLowerCase().includes('permission denied') || pError.code === '42501' || pError.message.includes('Unauthorized')) {
@@ -222,6 +224,10 @@ export const PublicTenantWebsite = () => {
     if (el) el.scrollIntoView({ behavior: 'smooth' });
     else setView('landing');
   };
+  const navigateToContact = () => {
+    const el = document.getElementById('contact');
+    if (el) el.scrollIntoView({ behavior: 'smooth' });
+  };
 
   const handleAdminClick = () => {
     const adminUrl = `/t/${slug}/dashboard`;
@@ -255,7 +261,7 @@ export const PublicTenantWebsite = () => {
     <div className="min-h-screen bg-white text-slate-900 selection:bg-blue-600/20 overflow-x-hidden">
       <nav className="fixed top-0 left-0 right-0 h-16 md:h-20 bg-white/80 backdrop-blur-md z-[100] border-b border-gray-100">
         <div className="max-w-7xl mx-auto h-full flex items-center justify-between px-6 md:px-10">
-          <button onClick={navigateToHome} className="flex items-center gap-3">
+          <button onClick={navigateToHome} className="flex items-center gap-3 shrink-0">
             {tenant.use_logo_on_web && tenant.logo_url ? (
               <img src={tenant.logo_url} className="h-8 md:h-10 w-auto object-contain" alt={tenant.name} />
             ) : (
@@ -263,17 +269,46 @@ export const PublicTenantWebsite = () => {
             )}
           </button>
           
-          <div className="hidden lg:flex items-center gap-2">
-            <button onClick={navigateToHome} className={`px-5 py-2.5 rounded-xl text-[13px] font-bold ${view === 'landing' ? 'bg-blue-50 text-blue-600' : 'text-slate-500'}`}>{tt('nav_home')}</button>
-            <button onClick={navigateToCatalog} className="px-5 py-2.5 rounded-xl text-[13px] font-bold text-slate-500">{tt('nav_products')}</button>
+          <div className="hidden lg:flex items-center gap-1 bg-gray-50/50 p-1 rounded-2xl border border-gray-100/50">
+            <button 
+              onClick={navigateToHome} 
+              className={`px-6 py-2 rounded-xl text-[13px] font-bold transition-all ${view === 'landing' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
+            >
+              {tt('nav_home')}
+            </button>
+            <button 
+              onClick={navigateToCatalog} 
+              className={`px-6 py-2 rounded-xl text-[13px] font-bold transition-all ${view === 'wizard' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
+            >
+              {tt('nav_products')}
+            </button>
+            <button 
+              onClick={navigateToContact} 
+              className="px-6 py-2 rounded-xl text-[13px] font-bold text-slate-500 hover:text-slate-900 transition-all"
+            >
+              {tt('nav_contact')}
+            </button>
           </div>
 
-          <div className="flex items-center gap-4">
-              <select value={language} onChange={(e) => setLanguage(e.target.value as any)} className="bg-transparent text-[11px] font-black uppercase text-slate-600 outline-none cursor-pointer">
-                 <option value="es">ES</option>
-                 <option value="ca">CA</option>
-              </select>
-              <button onClick={handleAdminClick} className="w-10 h-10 flex items-center justify-center text-slate-400 bg-white hover:bg-slate-50 rounded-xl">
+          <div className="flex items-center gap-3 md:gap-5 shrink-0">
+              <div className="flex items-center gap-1 text-[11px] font-black uppercase text-slate-400 group cursor-pointer">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129"/></svg>
+                <select 
+                  value={language} 
+                  onChange={(e) => setLanguage(e.target.value as any)} 
+                  className="bg-transparent outline-none cursor-pointer text-slate-600 hover:text-slate-900 transition-colors"
+                >
+                   <option value="es">ES</option>
+                   <option value="ca">CA</option>
+                </select>
+              </div>
+
+              <div className="w-px h-6 bg-gray-100 hidden md:block"></div>
+
+              <button 
+                onClick={handleAdminClick} 
+                className="w-10 h-10 flex items-center justify-center text-slate-400 bg-white hover:bg-slate-50 hover:text-slate-900 rounded-xl border border-gray-100 transition-all shadow-sm"
+              >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
               </button>
           </div>
@@ -414,6 +449,36 @@ export const PublicTenantWebsite = () => {
                     ))}
                  </div>
                )}
+             </div>
+          </section>
+          
+          <section id="contact" className="py-20 px-4 md:px-8 border-t border-gray-100">
+             <div className="max-w-7xl mx-auto text-center">
+                <h2 className="text-3xl md:text-4xl font-black tracking-tighter uppercase mb-2">{tt('nav_contact')}</h2>
+                <p className="text-slate-400 font-medium text-sm mb-10 max-w-lg mx-auto italic">¿Necesitas ayuda con tu climatización? Estamos aquí para asesorarte en la mejor solución para tu hogar.</p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="p-10 bg-gray-50 rounded-[2rem] border border-gray-100">
+                       <div className="w-12 h-12 bg-blue-600 text-white rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
+                          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>
+                       </div>
+                       <h4 className="text-[11px] font-black uppercase tracking-widest text-slate-400 mb-2">Llámanos</h4>
+                       <p className="font-black text-slate-900">+34 900 000 000</p>
+                    </div>
+                    <div className="p-10 bg-gray-50 rounded-[2rem] border border-gray-100">
+                       <div className="w-12 h-12 bg-blue-600 text-white rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
+                          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                       </div>
+                       <h4 className="text-[11px] font-black uppercase tracking-widest text-slate-400 mb-2">Escríbenos</h4>
+                       <p className="font-black text-slate-900">hola@{slug}.com</p>
+                    </div>
+                    <div className="p-10 bg-gray-50 rounded-[2rem] border border-gray-100">
+                       <div className="w-12 h-12 bg-blue-600 text-white rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
+                          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                       </div>
+                       <h4 className="text-[11px] font-black uppercase tracking-widest text-slate-400 mb-2">Visítanos</h4>
+                       <p className="font-black text-slate-900">Carrer de la Climatización, 123</p>
+                    </div>
+                </div>
              </div>
           </section>
         </main>
