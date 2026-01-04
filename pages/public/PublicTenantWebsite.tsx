@@ -355,10 +355,13 @@ export const PublicTenantWebsite = () => {
                     const specs = getTechSpecs(p);
                     return (
                       <div key={p.id} className="bg-white rounded-[2.5rem] border border-slate-100 shadow-md flex flex-col overflow-hidden text-left transition-all hover:shadow-xl group relative">
-                         {/* Brand Badge Top Left */}
-                         <div className="absolute top-6 left-6 z-10 px-3 py-1.5 bg-white/90 backdrop-blur rounded-full border border-slate-100 shadow-sm flex items-center gap-2">
-                            {p.brand_logo_url && <img src={p.brand_logo_url} className="h-3 w-auto object-contain grayscale opacity-60" alt="" />}
-                            <span className="text-[9px] font-black uppercase text-slate-400 tracking-widest">{p.brand}</span>
+                         {/* Brand Badge Top Left - ACTUALIZADO: Solo logo grande y en color */}
+                         <div className="absolute top-6 left-6 z-10 p-2 bg-white/95 backdrop-blur rounded-2xl border border-slate-100 shadow-md flex items-center justify-center min-w-[48px] min-h-[48px]">
+                            {p.brand_logo_url ? (
+                              <img src={p.brand_logo_url} className="h-10 w-auto object-contain" alt={p.brand} />
+                            ) : (
+                              <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest px-2">{p.brand}</span>
+                            )}
                          </div>
 
                          {/* Action Column Right */}
