@@ -51,7 +51,6 @@ const LOCAL_I18N = {
     catalog_subtitle: 'Encuentra el equipo ideal para tu hogar.',
     no_products_filter: 'No hay productos que coincidan con los filtros.',
     wizard_models_available: 'Modelos Disponibles',
-    footer_copy: 'EcoQuote AI · Smart Installation Solution',
     filter_type: 'TIPO DE EQUIPO',
     filter_brand: 'MARCA',
     filter_price: 'PRECIO MÁXIMO',
@@ -63,7 +62,20 @@ const LOCAL_I18N = {
     configure_btn: 'Configurar Presupuesto',
     more_features: '+ {count} características más',
     share_msg: '¡Enlace copiado!',
-    since: 'Desde'
+    since: 'Desde',
+    footer_desc: 'Somos expertos en soluciones de climatización eficiente. Presupuestos transparentes, instalación profesional y las mejores marcas del mercado.',
+    footer_services: 'Servicios',
+    footer_legal: 'Legal',
+    footer_contact: 'Contacto',
+    footer_copy: 'Todos los derechos reservados',
+    link_install: 'Instalación',
+    link_maint: 'Mantenimiento',
+    link_repair: 'Reparación',
+    link_warranty: 'Garantías',
+    link_privacy: 'Privacidad',
+    link_cookies: 'Cookies',
+    link_legal: 'Aviso Legal',
+    modal_close: 'Cerrar'
   },
   ca: {
     nav_home: 'Inici',
@@ -82,7 +94,6 @@ const LOCAL_I18N = {
     catalog_subtitle: 'Troba l\'equip ideal per a la teva llar.',
     no_products_filter: 'No hi ha productes que coincideixin amb els filtres.',
     wizard_models_available: 'Models Disponibles',
-    footer_copy: 'EcoQuote AI · Smart Installation Solution',
     filter_type: 'TIPUS D\'EQUIP',
     filter_brand: 'MARCA',
     filter_price: 'PREU MÀXIM',
@@ -94,11 +105,24 @@ const LOCAL_I18N = {
     configure_btn: 'Configurar Pressupost',
     more_features: '+ {count} característiques més',
     share_msg: 'Enllaç copiat!',
-    since: 'Des de'
+    since: 'Des de',
+    footer_desc: 'Som experts en solucions de climatització eficient. Pressupostos transparents, instal·lació professional i les millors marques del mercat.',
+    footer_services: 'Serveis',
+    footer_legal: 'Legal',
+    footer_contact: 'Contacte',
+    footer_copy: 'Tots els drets reservats',
+    link_install: 'Instal·lació',
+    link_maint: 'Manteniment',
+    link_repair: 'Reparació',
+    link_warranty: 'Garanties',
+    link_privacy: 'Privacitat',
+    link_cookies: 'Cookies',
+    link_legal: 'Avís Legal',
+    modal_close: 'Tancar'
   }
 } as const;
 
-const SERVICES_CONTENT: Record<string, any> = {
+const FOOTER_MODAL_CONTENT: Record<string, any> = {
   instalacion: {
     title: { es: 'Instalación', ca: 'Instal·lació' },
     img: 'https://images.unsplash.com/photo-1581094288338-2314dddb7ecc?q=80&w=2070&auto=format&fit=crop',
@@ -130,6 +154,30 @@ const SERVICES_CONTENT: Record<string, any> = {
       es: 'Cobertura y tranquilidad. Gestionamos garantías y te acompañamos ante cualquier incidencia del equipo o la instalación.',
       ca: 'Cobertura i tranquil·litat. Gestionem garanties i t’acompanyem davant qualsevol incidència de l’equip o la instal·lació.'
     }
+  },
+  privacidad: {
+    title: { es: 'Privacidad', ca: 'Privacitat' },
+    img: 'https://images.unsplash.com/photo-1563986768609-322da13575f3?q=80&w=2070&auto=format&fit=crop',
+    desc: {
+      es: 'Tratamos tus datos con responsabilidad y solo para ofrecerte el servicio. Puedes solicitar acceso, rectificación o eliminación cuando lo necesites.',
+      ca: 'Tractem les teves dades amb responsabilitat i només per oferir-te el servei. Pots sol·licitar accés, rectificació o eliminació quan ho necessitis.'
+    }
+  },
+  cookies: {
+    title: { es: 'Cookies', ca: 'Cookies' },
+    img: 'https://images.unsplash.com/photo-1516321497487-e288fb19713f?q=80&w=2070&auto=format&fit=crop',
+    desc: {
+      es: 'Utilizamos cookies para mejorar tu experiencia y analizar el uso del sitio. Puedes aceptar, rechazar o configurar tus preferencias.',
+      ca: 'Utilitzem cookies per millorar la teva experiència i analitzar l’ús del lloc. Pots acceptar, rebutjar o configurar les teves preferències.'
+    }
+  },
+  aviso_legal: {
+    title: { es: 'Aviso Legal', ca: 'Avís Legal' },
+    img: 'https://images.unsplash.com/photo-1450101499163-c8848c66ca85?q=80&w=2070&auto=format&fit=crop',
+    desc: {
+      es: 'Aquí encontrarás la información legal del sitio, condiciones de uso y responsabilidades. Si tienes dudas, contáctanos.',
+      ca: 'Aquí trobaràs la informació legal del lloc, condicions d’ús i responsabilitats. Si tens dubtes, contacta amb nosaltres.'
+    }
   }
 };
 
@@ -147,7 +195,7 @@ export const PublicTenantWebsite = () => {
 
   const [view, setView] = useState<'landing' | 'wizard'>('landing');
   const [detailProduct, setDetailProduct] = useState<any>(null);
-  const [activeService, setActiveService] = useState<string | null>(null);
+  const [activeFooterModal, setActiveFooterModal] = useState<string | null>(null);
   
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [brandFilter, setBrandFilter] = useState('');
@@ -301,27 +349,27 @@ export const PublicTenantWebsite = () => {
         </div>
       )}
 
-      {/* Service Modal */}
-      {activeService && SERVICES_CONTENT[activeService] && (
+      {/* Footer/Service/Legal Modal */}
+      {activeFooterModal && FOOTER_MODAL_CONTENT[activeFooterModal] && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 md:p-10 animate-in fade-in duration-300">
-           <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setActiveService(null)}></div>
+           <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setActiveFooterModal(null)}></div>
            <div className="relative bg-white w-full max-w-xl overflow-hidden rounded-[2.5rem] shadow-2xl flex flex-col animate-in zoom-in-95">
-              <button onClick={() => setActiveService(null)} className="absolute top-6 right-6 w-10 h-10 flex items-center justify-center rounded-full bg-white/20 backdrop-blur text-white hover:bg-white/40 z-10">
+              <button onClick={() => setActiveFooterModal(null)} className="absolute top-6 right-6 w-10 h-10 flex items-center justify-center rounded-full bg-white/20 backdrop-blur text-white hover:bg-white/40 z-10">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
               </button>
 
               <div className="h-48 relative overflow-hidden">
-                <img src={SERVICES_CONTENT[activeService].img} className="w-full h-full object-cover" alt="" />
+                <img src={FOOTER_MODAL_CONTENT[activeFooterModal].img} className="w-full h-full object-cover" alt="" />
                 <div className="absolute inset-0 bg-gradient-to-t from-white via-transparent text-white"></div>
               </div>
 
               <div className="p-10 md:p-12 text-center">
-                <h3 className="text-3xl font-black tracking-tighter uppercase italic text-slate-900 mb-6">{SERVICES_CONTENT[activeService].title[language]}</h3>
+                <h3 className="text-3xl font-black tracking-tighter uppercase italic text-slate-900 mb-6">{FOOTER_MODAL_CONTENT[activeFooterModal].title[language]}</h3>
                 <p className="text-slate-500 font-medium leading-relaxed italic text-lg">
-                  {SERVICES_CONTENT[activeService].desc[language]}
+                  {FOOTER_MODAL_CONTENT[activeFooterModal].desc[language]}
                 </p>
-                <button onClick={() => setActiveService(null)} className="mt-10 px-10 py-4 bg-slate-900 text-white rounded-2xl font-black uppercase text-[11px] tracking-widest hover:bg-black transition-all">
-                  Cerrar
+                <button onClick={() => setActiveFooterModal(null)} className="mt-10 px-10 py-4 bg-slate-900 text-white rounded-2xl font-black uppercase text-[11px] tracking-widest hover:bg-black transition-all">
+                  {tt('modal_close')}
                 </button>
               </div>
            </div>
@@ -519,7 +567,7 @@ export const PublicTenantWebsite = () => {
                 )}
               </div>
               <p className="text-slate-400 text-[13px] font-medium leading-relaxed max-w-xs italic">
-                Somos expertos en soluciones de climatización eficiente. Presupuestos transparentes, instalación profesional y las mejores marcas del mercado.
+                {tt('footer_desc')}
               </p>
               <div className="flex gap-3 pt-2">
                 <a href="#" className="w-10 h-10 bg-white/5 border border-white/10 rounded-xl flex items-center justify-center text-white hover:bg-blue-600 hover:border-blue-500 transition-all group">
@@ -532,61 +580,61 @@ export const PublicTenantWebsite = () => {
             </div>
 
             <div className="space-y-8">
-              <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-blue-500">Servicios</h4>
+              <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-blue-500">{tt('footer_services')}</h4>
               <ul className="space-y-4">
                 <li>
-                  <button onClick={() => setActiveService('instalacion')} className="flex items-center gap-3 text-slate-400 hover:text-white transition-colors group text-left outline-none">
+                  <button onClick={() => setActiveFooterModal('instalacion')} className="flex items-center gap-3 text-slate-400 hover:text-white transition-colors group text-left outline-none">
                     <svg className="w-4 h-4 opacity-50 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-                    <span className="text-[13px] font-bold uppercase tracking-widest italic">Instalación</span>
+                    <span className="text-[13px] font-bold uppercase tracking-widest italic">{tt('link_install')}</span>
                   </button>
                 </li>
                 <li>
-                  <button onClick={() => setActiveService('mantenimiento')} className="flex items-center gap-3 text-slate-400 hover:text-white transition-colors group text-left outline-none">
+                  <button onClick={() => setActiveFooterModal('mantenimiento')} className="flex items-center gap-3 text-slate-400 hover:text-white transition-colors group text-left outline-none">
                     <svg className="w-4 h-4 opacity-50 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/></svg>
-                    <span className="text-[13px] font-bold uppercase tracking-widest italic">Mantenimiento</span>
+                    <span className="text-[13px] font-bold uppercase tracking-widest italic">{tt('link_maint')}</span>
                   </button>
                 </li>
                 <li>
-                  <button onClick={() => setActiveService('reparacion')} className="flex items-center gap-3 text-slate-400 hover:text-white transition-colors group text-left outline-none">
+                  <button onClick={() => setActiveFooterModal('reparacion')} className="flex items-center gap-3 text-slate-400 hover:text-white transition-colors group text-left outline-none">
                     <svg className="w-4 h-4 opacity-50 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-                    <span className="text-[13px] font-bold uppercase tracking-widest italic">Reparación</span>
+                    <span className="text-[13px] font-bold uppercase tracking-widest italic">{tt('link_repair')}</span>
                   </button>
                 </li>
                 <li>
-                  <button onClick={() => setActiveService('garantias')} className="flex items-center gap-3 text-slate-400 hover:text-white transition-colors group text-left outline-none">
+                  <button onClick={() => setActiveFooterModal('garantias')} className="flex items-center gap-3 text-slate-400 hover:text-white transition-colors group text-left outline-none">
                     <svg className="w-4 h-4 opacity-50 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
-                    <span className="text-[13px] font-bold uppercase tracking-widest italic">Garantías</span>
+                    <span className="text-[13px] font-bold uppercase tracking-widest italic">{tt('link_warranty')}</span>
                   </button>
                 </li>
               </ul>
             </div>
 
             <div className="space-y-8">
-              <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-blue-500">Legal</h4>
+              <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-blue-500">{tt('footer_legal')}</h4>
               <ul className="space-y-4">
                 <li>
-                  <a href="#" className="flex items-center gap-3 text-slate-400 hover:text-white transition-colors group">
+                  <button onClick={() => setActiveFooterModal('privacidad')} className="flex items-center gap-3 text-slate-400 hover:text-white transition-colors group text-left outline-none">
                     <svg className="w-4 h-4 opacity-50 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
-                    <span className="text-[13px] font-bold uppercase tracking-widest italic">Privacidad</span>
-                  </a>
+                    <span className="text-[13px] font-bold uppercase tracking-widest italic">{tt('link_privacy')}</span>
+                  </button>
                 </li>
                 <li>
-                  <a href="#" className="flex items-center gap-3 text-slate-400 hover:text-white transition-colors group">
+                  <button onClick={() => setActiveFooterModal('cookies')} className="flex items-center gap-3 text-slate-400 hover:text-white transition-colors group text-left outline-none">
                     <svg className="w-4 h-4 opacity-50 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
-                    <span className="text-[13px] font-bold uppercase tracking-widest italic">Cookies</span>
-                  </a>
+                    <span className="text-[13px] font-bold uppercase tracking-widest italic">{tt('link_cookies')}</span>
+                  </button>
                 </li>
                 <li>
-                  <a href="#" className="flex items-center gap-3 text-slate-400 hover:text-white transition-colors group">
+                  <button onClick={() => setActiveFooterModal('aviso_legal')} className="flex items-center gap-3 text-slate-400 hover:text-white transition-colors group text-left outline-none">
                     <svg className="w-4 h-4 opacity-50 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3"/></svg>
-                    <span className="text-[13px] font-bold uppercase tracking-widest italic">Aviso Legal</span>
-                  </a>
+                    <span className="text-[13px] font-bold uppercase tracking-widest italic">{tt('link_legal')}</span>
+                  </button>
                 </li>
               </ul>
             </div>
 
             <div className="space-y-8">
-              <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-blue-500">Contacto</h4>
+              <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-blue-500">{tt('footer_contact')}</h4>
               <ul className="space-y-6">
                 <li className="flex items-start gap-3">
                   <svg className="w-5 h-5 text-blue-500 mt-1 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>

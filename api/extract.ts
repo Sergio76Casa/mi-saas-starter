@@ -5,10 +5,7 @@ export const config = {
   runtime: 'edge',
 };
 
-/**
- * Función manual para convertir bytes a base64 (según directrices).
- */
-function encodeToBase64(bytes: Uint8Array): string {
+function encode(bytes: Uint8Array): string {
   let binary = '';
   const len = bytes.byteLength;
   for (let i = 0; i < len; i++) {
@@ -25,9 +22,9 @@ export default async function handler(req: Request) {
     });
   }
 
-  const apiKey = process.env.VITE_GEMINI_API_KEY;
+  const apiKey = process.env.API_KEY;
   if (!apiKey) {
-    return new Response(JSON.stringify({ error: 'Falta la configuración de VITE_GEMINI_API_KEY en el servidor' }), { 
+    return new Response(JSON.stringify({ error: 'Falta la configuración de API_KEY en el servidor' }), { 
       status: 500, 
       headers: { 'Content-Type': 'application/json' } 
     });
@@ -44,10 +41,10 @@ export default async function handler(req: Request) {
       });
     }
 
-    const ai = new GoogleGenAI({ apiKey });
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     
     const arrayBuffer = await file.arrayBuffer();
-    const base64Data = encodeToBase64(new Uint8Array(arrayBuffer));
+    const base64Data = encode(new Uint8Array(arrayBuffer));
 
     const systemInstruction = `
       Extract HVAC technical data, FINANCING, and STOCK from the provided document.
@@ -119,7 +116,6 @@ export default async function handler(req: Request) {
 
     const raw = JSON.parse(response.text || "{}");
     
-    // Normalización de datos para el frontend
     const normalized = {
       brand: raw.brand || "Desconocida",
       model: raw.model || "Desconocido",
