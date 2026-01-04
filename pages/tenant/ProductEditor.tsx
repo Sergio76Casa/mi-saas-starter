@@ -54,13 +54,28 @@ export const ProductEditor = () => {
         .single();
 
       if (data && !error) {
+        // Función auxiliar para asegurar que los campos JSON sean objetos
+        const safeParse = (val: any, fallback: any = []) => {
+          if (!val) return fallback;
+          if (typeof val === 'string') {
+            try { return JSON.parse(val); } catch (e) { return fallback; }
+          }
+          return val;
+        };
+
+        const parsedDescription = safeParse(data.description, { es: '', ca: '' });
+        const parsedPricing = safeParse(data.pricing, []);
+        const parsedKits = safeParse(data.installation_kits, []);
+        const parsedExtras = safeParse(data.extras, []);
+
         setProductData({
           ...data,
-          description: data.description || { es: '', ca: '' },
-          pricing: data.pricing || [],
-          installation_kits: data.installation_kits || [],
-          extras: data.extras || []
+          description: parsedDescription,
+          pricing: parsedPricing,
+          installation_kits: parsedKits,
+          extras: parsedExtras
         });
+
         try {
           if (data.features) {
             const parsed = typeof data.features === 'string' ? JSON.parse(data.features) : data.features;
