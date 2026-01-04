@@ -1,9 +1,6 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
 
-/**
- * Función manual para codificar a base64
- */
 function encode(bytes: Uint8Array): string {
   let binary = '';
   const len = bytes.byteLength;
@@ -16,54 +13,26 @@ function encode(bytes: Uint8Array): string {
 export default async function handler(req: Request) {
   const jsonHeaders = { 'Content-Type': 'application/json' };
 
-  if (req.method !== 'POST') {
-    return new Response(JSON.stringify({ error: 'Método no permitido' }), { 
-      status: 405, 
-      headers: jsonHeaders 
-    });
-  }
+  if (req.method !== 'POST') return new Response(null, { status: 405 });
 
   const apiKey = process.env.VITE_GEMINI_API_KEY;
-  if (!apiKey) {
-    return new Response(JSON.stringify({ 
-      error: 'VITE_GEMINI_API_KEY no configurada en Vercel.' 
-    }), { 
-      status: 500, 
-      headers: jsonHeaders 
-    });
-  }
+  if (!apiKey) return new Response(JSON.stringify({ error: 'Configuración incompleta' }), { status: 500, headers: jsonHeaders });
 
   try {
     const formData = await req.formData();
     const file = formData.get('file') as File;
+    if (!file) return new Response(JSON.stringify({ error: 'No hay archivo' }), { status: 400, headers: jsonHeaders });
 
-    if (!file) {
-      return new Response(JSON.stringify({ error: 'No hay archivo.' }), { 
-        status: 400, 
-        headers: jsonHeaders 
-      });
-    }
-
-    // Validación de tamaño (Límite de Vercel Hobby es ~4.5MB para el body total)
     if (file.size > 4.5 * 1024 * 1024) {
-      return new Response(JSON.stringify({ 
-        error: 'El archivo es demasiado grande (máximo 4.5MB). Prueba a reducir su peso.' 
-      }), { 
-        status: 413, 
-        headers: jsonHeaders 
-      });
+      return new Response(JSON.stringify({ error: 'Archivo demasiado grande (máx 4.5MB).' }), { status: 413, headers: jsonHeaders });
     }
 
     const ai = new GoogleGenAI({ apiKey });
     const arrayBuffer = await file.arrayBuffer();
     const base64Data = encode(new Uint8Array(arrayBuffer));
 
-    const systemInstruction = `
-      Eres un experto en HVAC. Extrae datos técnicos, FINANCIACIÓN y STOCK.
-      Idiomas: es/ca. 
-      Campo 'type': 'aire_acondicionado', 'caldera', 'termo_electrico'.
-      Devuelve solo JSON válido.
-    `.trim();
+    // Prompt ultra-optimizado para velocidad
+    const systemInstruction = "HVAC Expert. Extract technical data to JSON. Languages: es/ca. Types: aire_acondicionado, caldera, termo_electrico.";
 
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
@@ -81,12 +50,8 @@ export default async function handler(req: Request) {
             brand: { type: Type.STRING },
             model: { type: Type.STRING },
             type: { type: Type.STRING },
-            status: { type: Type.STRING },
             stock: { type: Type.INTEGER },
-            description: { 
-              type: Type.OBJECT, 
-              properties: { es: { type: Type.STRING }, ca: { type: Type.STRING } } 
-            },
+            description: { type: Type.OBJECT, properties: { es: { type: Type.STRING }, ca: { type: Type.STRING } } },
             pricing: {
               type: Type.ARRAY,
               items: {
@@ -103,7 +68,6 @@ export default async function handler(req: Request) {
               items: {
                 type: Type.OBJECT,
                 properties: {
-                  label: { type: Type.OBJECT, properties: { es: { type: Type.STRING }, ca: { type: Type.STRING } } },
                   months: { type: Type.NUMBER },
                   coefficient: { type: Type.NUMBER }
                 }
@@ -113,10 +77,7 @@ export default async function handler(req: Request) {
               type: Type.ARRAY,
               items: {
                 type: Type.OBJECT,
-                properties: {
-                  title: { type: Type.STRING },
-                  value: { type: Type.STRING }
-                }
+                properties: { title: { type: Type.STRING }, value: { type: Type.STRING } }
               }
             }
           }
@@ -126,11 +87,12 @@ export default async function handler(req: Request) {
 
     const raw = JSON.parse(response.text || "{}");
     
+    // Normalización rápida
     const normalized = {
       brand: raw.brand || "Desconocida",
       model: raw.model || "Desconocido",
       type: raw.type || "aire_acondicionado",
-      status: (['active', 'draft', 'inactive'].includes(raw.status) ? raw.status : 'active'),
+      status: 'active',
       stock: raw.stock || 0,
       description: raw.description || { es: "", ca: "" },
       pricing: (raw.pricing || []).map((p: any, i: number) => ({
@@ -141,7 +103,7 @@ export default async function handler(req: Request) {
       })),
       financing: (raw.financing || []).map((f: any, i: number) => ({
         id: `f${i + 1}`,
-        label: f.label || { es: `${f.months || 12} meses`, ca: `${f.months || 12} mesos` },
+        label: { es: `${f.months} meses`, ca: `${f.months} mesos` },
         months: f.months || 12,
         coefficient: f.coefficient || 0.087
       })),
@@ -152,18 +114,9 @@ export default async function handler(req: Request) {
       __extracted_at: new Date().toISOString()
     };
 
-    return new Response(JSON.stringify(normalized), {
-      status: 200,
-      headers: jsonHeaders,
-    });
+    return new Response(JSON.stringify(normalized), { status: 200, headers: jsonHeaders });
 
   } catch (err: any) {
-    console.error("Vercel API Error:", err);
-    return new Response(JSON.stringify({ 
-      error: `Error IA: ${err.message}` 
-    }), {
-      status: 500,
-      headers: jsonHeaders,
-    });
+    return new Response(JSON.stringify({ error: `Error: ${err.message}` }), { status: 500, headers: jsonHeaders });
   }
 }
