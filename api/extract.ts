@@ -1,6 +1,10 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
 
+export const config = {
+  runtime: 'edge',
+};
+
 function encode(bytes: Uint8Array): string {
   let binary = '';
   const len = bytes.byteLength;
@@ -14,18 +18,17 @@ export default async function handler(req: Request) {
   const jsonHeaders = { 'Content-Type': 'application/json' };
   const requestId = Math.random().toString(36).substring(7).toUpperCase();
 
-  console.log(`[${requestId}] [Extract] Recibido: Petición iniciada`);
+  console.log(`[${requestId}] [Extract] Recibido: Petición iniciada en Edge Runtime`);
 
   if (req.method !== 'POST') {
     return new Response(JSON.stringify({ error: 'Método no permitido', requestId }), { status: 405, headers: jsonHeaders });
   }
 
-  // Cambio solicitado: Solo usar VITE_GEMINI_API_KEY
   const apiKey = process.env.VITE_GEMINI_API_KEY;
   if (!apiKey) {
     console.error(`[${requestId}] [Extract] Error: VITE_GEMINI_API_KEY no configurada`);
     return new Response(JSON.stringify({ 
-      error: 'Falta VITE_GEMINI_API_KEY en las variables de entorno.', 
+      error: 'Configuración incompleta: Falta VITE_GEMINI_API_KEY.', 
       code: 'KEY_MISSING',
       requestId 
     }), { status: 500, headers: jsonHeaders });
@@ -33,11 +36,13 @@ export default async function handler(req: Request) {
 
   try {
     console.log(`[${requestId}] [Extract] Parseo: Procesando FormData`);
+    
+    // Con runtime: 'edge', req.formData() funciona correctamente
     const formData = await req.formData();
     const file = formData.get('file') as File;
     
     if (!file) {
-      return new Response(JSON.stringify({ error: 'No hay archivo', requestId }), { status: 400, headers: jsonHeaders });
+      return new Response(JSON.stringify({ error: 'No se recibió ningún archivo', requestId }), { status: 400, headers: jsonHeaders });
     }
 
     if (file.size > 4.5 * 1024 * 1024) {
@@ -56,7 +61,7 @@ export default async function handler(req: Request) {
     const ai = new GoogleGenAI({ apiKey });
     const systemInstruction = "HVAC Expert. Extract technical data to JSON. Languages: es/ca. Types: aire_acondicionado, caldera, termo_electrico.";
 
-    console.log(`[${requestId}] [Extract] Llamada Gemini: Iniciando petición (Timeout 25s)`);
+    console.log(`[${requestId}] [Extract] Llamada Gemini: Iniciando petición (Race 25s)`);
     
     const geminiCall = ai.models.generateContent({
       model: "gemini-3-flash-preview",
@@ -133,18 +138,16 @@ export default async function handler(req: Request) {
       __extracted_at: new Date().toISOString()
     };
 
-    console.log(`[${requestId}] [Extract] Respond: Enviando JSON exitoso`);
     return new Response(JSON.stringify(normalized), { status: 200, headers: jsonHeaders });
 
   } catch (err: any) {
     console.error(`[${requestId}] [Extract] Error final:`, err.message || err);
     
-    // Diagnóstico de errores de Gemini (Cuotas, permisos, etc)
     const errString = String(err).toLowerCase();
     
     if (err.message === 'UPSTREAM_TIMEOUT') {
       return new Response(JSON.stringify({ 
-        error: "El motor de IA ha tardado demasiado en responder.", 
+        error: "La IA ha tardado demasiado en responder.", 
         code: "UPSTREAM_TIMEOUT",
         requestId
       }), { status: 504, headers: jsonHeaders });
@@ -152,22 +155,14 @@ export default async function handler(req: Request) {
 
     if (errString.includes('429') || errString.includes('rate_limit') || errString.includes('quota')) {
       return new Response(JSON.stringify({ 
-        error: "Límite de peticiones de IA excedido (Rate Limit).", 
+        error: "Límite de cuota excedido.", 
         code: "RATE_LIMIT",
         requestId
       }), { status: 429, headers: jsonHeaders });
     }
 
-    if (errString.includes('403') || errString.includes('permission_denied')) {
-      return new Response(JSON.stringify({ 
-        error: "Permiso denegado por la API de Google.", 
-        code: "PERMISSION_DENIED",
-        requestId
-      }), { status: 403, headers: jsonHeaders });
-    }
-
     return new Response(JSON.stringify({ 
-      error: `Error interno: ${err.message || 'Error desconocido'}`,
+      error: `Fallo en la extracción: ${err.message || 'Error desconocido'}`,
       code: "INTERNAL_ERROR",
       requestId
     }), { status: 500, headers: jsonHeaders });
