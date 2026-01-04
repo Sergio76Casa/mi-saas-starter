@@ -98,6 +98,41 @@ const LOCAL_I18N = {
   }
 } as const;
 
+const SERVICES_CONTENT: Record<string, any> = {
+  instalacion: {
+    title: { es: 'Instalación', ca: 'Instal·lació' },
+    img: 'https://images.unsplash.com/photo-1581094288338-2314dddb7ecc?q=80&w=2070&auto=format&fit=crop',
+    desc: {
+      es: 'Instalación profesional, limpia y certificada. Te asesoramos y dejamos el equipo listo para funcionar con máxima eficiencia.',
+      ca: 'Instal·lació professional, neta i certificada. T’assessorem i deixem l’equip a punt per funcionar amb la màxima eficiència.'
+    }
+  },
+  mantenimiento: {
+    title: { es: 'Mantenimiento', ca: 'Manteniment' },
+    img: 'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?q=80&w=2069&auto=format&fit=crop',
+    desc: {
+      es: 'Revisiones periódicas para alargar la vida útil del equipo, mejorar el rendimiento y reducir el consumo.',
+      ca: 'Revisions periòdiques per allargar la vida útil de l’equip, millorar el rendiment i reduir el consum.'
+    }
+  },
+  reparacion: {
+    title: { es: 'Reparación', ca: 'Reparació' },
+    img: 'https://images.unsplash.com/photo-1504328345606-18bbc8c9d7d1?q=80&w=2070&auto=format&fit=crop',
+    desc: {
+      es: 'Diagnóstico rápido y reparación con repuestos de calidad. Solucionamos averías para que recuperes el confort cuanto antes.',
+      ca: 'Diagnosi ràpida i reparació amb recanvis de qualitat. Resolem avaries perquè recuperis el confort com més aviat millor.'
+    }
+  },
+  garantias: {
+    title: { es: 'Garantías', ca: 'Garanties' },
+    img: 'https://images.unsplash.com/photo-1450101499163-c8848c66ca85?q=80&w=2070&auto=format&fit=crop',
+    desc: {
+      es: 'Cobertura y tranquilidad. Gestionamos garantías y te acompañamos ante cualquier incidencia del equipo o la instalación.',
+      ca: 'Cobertura i tranquil·litat. Gestionem garanties i t’acompanyem davant qualsevol incidència de l’equip o la instal·lació.'
+    }
+  }
+};
+
 export const PublicTenantWebsite = () => {
   const { slug } = useParams();
   const { language, setLanguage, session } = useApp();
@@ -112,6 +147,7 @@ export const PublicTenantWebsite = () => {
 
   const [view, setView] = useState<'landing' | 'wizard'>('landing');
   const [detailProduct, setDetailProduct] = useState<any>(null);
+  const [activeService, setActiveService] = useState<string | null>(null);
   
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [brandFilter, setBrandFilter] = useState('');
@@ -194,7 +230,7 @@ export const PublicTenantWebsite = () => {
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] text-slate-900 selection:bg-blue-600/20 overflow-x-hidden">
-      {/* Detail Modal */}
+      {/* Detail Modal Product */}
       {detailProduct && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 md:p-10 animate-in fade-in duration-300">
            <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setDetailProduct(null)}></div>
@@ -204,7 +240,6 @@ export const PublicTenantWebsite = () => {
               </button>
 
               <div className="flex-1 overflow-y-auto">
-                {/* Header Modal */}
                 <div className="p-8 md:p-12 border-b border-slate-50 flex flex-col md:flex-row gap-10 items-center">
                    <div className="w-40 h-40 shrink-0 bg-slate-50 rounded-3xl p-4 flex items-center justify-center">
                       {detailProduct.image_url ? <img src={detailProduct.image_url} className="w-full h-full object-contain" alt={detailProduct.model} /> : <div className="text-slate-200 uppercase font-black text-[10px]">IMG</div>}
@@ -219,7 +254,6 @@ export const PublicTenantWebsite = () => {
                    </div>
                 </div>
 
-                {/* Body Specs */}
                 <div className="p-8 md:p-12">
                    <h3 className="flex items-center gap-3 text-lg font-black uppercase italic tracking-tight mb-8">
                      <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
@@ -239,7 +273,6 @@ export const PublicTenantWebsite = () => {
                       ))}
                    </div>
 
-                   {/* Variantes en Modal */}
                    <div className="mt-12">
                       <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-300 mb-6">{tt('variants_title')}</h3>
                       <div className="flex flex-wrap gap-3">
@@ -254,7 +287,6 @@ export const PublicTenantWebsite = () => {
                 </div>
               </div>
 
-              {/* Footer Modal */}
               <div className="p-8 bg-white border-t border-slate-100 flex flex-col md:flex-row items-center justify-between gap-6">
                  <div>
                     <span className="text-[10px] font-black uppercase text-slate-400 block mb-1 tracking-widest">{tt('base_price')}</span>
@@ -264,6 +296,33 @@ export const PublicTenantWebsite = () => {
                     {tt('configure_btn')}
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M9 5l7 7-7 7"/></svg>
                  </button>
+              </div>
+           </div>
+        </div>
+      )}
+
+      {/* Service Modal */}
+      {activeService && SERVICES_CONTENT[activeService] && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 md:p-10 animate-in fade-in duration-300">
+           <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setActiveService(null)}></div>
+           <div className="relative bg-white w-full max-w-xl overflow-hidden rounded-[2.5rem] shadow-2xl flex flex-col animate-in zoom-in-95">
+              <button onClick={() => setActiveService(null)} className="absolute top-6 right-6 w-10 h-10 flex items-center justify-center rounded-full bg-white/20 backdrop-blur text-white hover:bg-white/40 z-10">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+              </button>
+
+              <div className="h-48 relative overflow-hidden">
+                <img src={SERVICES_CONTENT[activeService].img} className="w-full h-full object-cover" alt="" />
+                <div className="absolute inset-0 bg-gradient-to-t from-white via-transparent text-white"></div>
+              </div>
+
+              <div className="p-10 md:p-12 text-center">
+                <h3 className="text-3xl font-black tracking-tighter uppercase italic text-slate-900 mb-6">{SERVICES_CONTENT[activeService].title[language]}</h3>
+                <p className="text-slate-500 font-medium leading-relaxed italic text-lg">
+                  {SERVICES_CONTENT[activeService].desc[language]}
+                </p>
+                <button onClick={() => setActiveService(null)} className="mt-10 px-10 py-4 bg-slate-900 text-white rounded-2xl font-black uppercase text-[11px] tracking-widest hover:bg-black transition-all">
+                  Cerrar
+                </button>
               </div>
            </div>
         </div>
@@ -321,7 +380,6 @@ export const PublicTenantWebsite = () => {
                   <p className="text-slate-400 font-medium text-sm italic">{tt('catalog_subtitle')}</p>
                </div>
                
-               {/* Filters */}
                <div className="bg-white border border-gray-200 rounded-[2rem] p-6 md:p-8 mb-12 shadow-md grid grid-cols-1 md:grid-cols-12 gap-8 items-start text-left">
                   <div className="md:col-span-6">
                     <label className="block text-[10px] font-black uppercase tracking-widest text-slate-300 mb-4">{tt('filter_type')}</label>
@@ -349,13 +407,11 @@ export const PublicTenantWebsite = () => {
                   </div>
                </div>
 
-               {/* Grid de Productos Corregida (Imagen 1) */}
                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
                   {filteredProducts.map(p => {
                     const specs = getTechSpecs(p);
                     return (
                       <div key={p.id} className="bg-white rounded-[2.5rem] border border-slate-100 shadow-md flex flex-col overflow-hidden text-left transition-all hover:shadow-xl group relative">
-                         {/* Brand Badge Top Left - ACTUALIZADO: Solo logo grande y en color */}
                          <div className="absolute top-6 left-6 z-10 p-2 bg-white/95 backdrop-blur rounded-2xl border border-slate-100 shadow-md flex items-center justify-center min-w-[48px] min-h-[48px]">
                             {p.brand_logo_url ? (
                               <img src={p.brand_logo_url} className="h-10 w-auto object-contain" alt={p.brand} />
@@ -364,7 +420,6 @@ export const PublicTenantWebsite = () => {
                             )}
                          </div>
 
-                         {/* Action Column Right */}
                          <div className="absolute top-6 right-6 z-10 flex flex-col gap-2">
                             <button onClick={() => handleShare(p)} className="w-10 h-10 bg-white/90 backdrop-blur rounded-full flex items-center justify-center text-slate-400 hover:text-blue-600 border border-slate-100 shadow-sm transition-all" title="Compartir">
                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg>
@@ -382,12 +437,10 @@ export const PublicTenantWebsite = () => {
                             </button>
                          </div>
 
-                         {/* Image Section */}
                          <div className="h-64 bg-slate-50/50 flex items-center justify-center p-12 overflow-hidden">
                             {p.image_url ? <img src={p.image_url} className="w-full h-full object-contain group-hover:scale-110 transition-transform duration-500" alt={p.model} /> : <div className="text-slate-200 uppercase font-black text-xs italic">S/I</div>}
                          </div>
 
-                         {/* Content Section */}
                          <div className="p-8">
                             <div className="flex items-center gap-2 mb-4">
                                <div className="flex items-center gap-1.5 px-3 py-1 bg-blue-50 text-blue-600 rounded-full border border-blue-100">
@@ -399,7 +452,6 @@ export const PublicTenantWebsite = () => {
                             <span className="text-[10px] font-black uppercase text-slate-300 tracking-widest block mb-1">{p.brand}</span>
                             <h3 className="text-2xl font-black text-blue-600 tracking-tighter uppercase italic leading-none mb-6 group-hover:text-slate-900 transition-colors">{p.model}</h3>
 
-                            {/* Features list (checkmarks) */}
                             <ul className="space-y-2 mb-8 min-h-[80px]">
                                {specs.slice(0, 3).map((spec: any, i: number) => (
                                  <li key={i} className="flex items-center gap-2 text-slate-500">
@@ -436,7 +488,6 @@ export const PublicTenantWebsite = () => {
            <div className="bg-white p-6 md:p-20 rounded-[2rem] border border-slate-100 shadow-2xl">
               <h2 className="text-3xl font-black tracking-tighter mb-8 italic uppercase">{tt('wizard_models_available')}</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* FIX: Removed reference to undefined 'selectedProduct' variable */}
                   {dbProducts.map(p => (
                     <button key={p.id} onClick={() => setDetailProduct(p)} className={`p-6 rounded-[2rem] border-2 text-left transition-all border-slate-100 bg-white hover:border-blue-200`}>
                         <h3 className="font-black text-xl text-slate-900 uppercase italic mb-2">{p.brand} {p.model}</h3>
@@ -454,13 +505,11 @@ export const PublicTenantWebsite = () => {
 
       {/* Footer Estructurado y Premium */}
       <footer className="bg-gradient-to-br from-slate-900 via-slate-950 to-black text-white pt-24 pb-12 border-t border-white/5 relative overflow-hidden">
-        {/* Abstract Background Element */}
         <div className="absolute top-0 right-0 w-96 h-96 bg-blue-600/5 blur-[120px] rounded-full -translate-y-1/2 translate-x-1/2"></div>
         
         <div className="max-w-7xl mx-auto px-6 md:px-10 relative z-10">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-20 text-left">
             
-            {/* Column 1: Logo & Redes */}
             <div className="space-y-8">
               <div className="flex items-center gap-3">
                 {tenant.use_logo_on_web && tenant.logo_url ? (
@@ -482,32 +531,36 @@ export const PublicTenantWebsite = () => {
               </div>
             </div>
 
-            {/* Column 2: Servicios */}
             <div className="space-y-8">
               <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-blue-500">Servicios</h4>
               <ul className="space-y-4">
                 <li>
-                  <a href="#catalog" className="flex items-center gap-3 text-slate-400 hover:text-white transition-colors group">
+                  <button onClick={() => setActiveService('instalacion')} className="flex items-center gap-3 text-slate-400 hover:text-white transition-colors group text-left outline-none">
                     <svg className="w-4 h-4 opacity-50 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
                     <span className="text-[13px] font-bold uppercase tracking-widest italic">Instalación</span>
-                  </a>
+                  </button>
                 </li>
                 <li>
-                  <a href="#" className="flex items-center gap-3 text-slate-400 hover:text-white transition-colors group">
+                  <button onClick={() => setActiveService('mantenimiento')} className="flex items-center gap-3 text-slate-400 hover:text-white transition-colors group text-left outline-none">
                     <svg className="w-4 h-4 opacity-50 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/></svg>
                     <span className="text-[13px] font-bold uppercase tracking-widest italic">Mantenimiento</span>
-                  </a>
+                  </button>
                 </li>
                 <li>
-                  <a href="#" className="flex items-center gap-3 text-slate-400 hover:text-white transition-colors group">
+                  <button onClick={() => setActiveService('reparacion')} className="flex items-center gap-3 text-slate-400 hover:text-white transition-colors group text-left outline-none">
                     <svg className="w-4 h-4 opacity-50 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
                     <span className="text-[13px] font-bold uppercase tracking-widest italic">Reparación</span>
-                  </a>
+                  </button>
+                </li>
+                <li>
+                  <button onClick={() => setActiveService('garantias')} className="flex items-center gap-3 text-slate-400 hover:text-white transition-colors group text-left outline-none">
+                    <svg className="w-4 h-4 opacity-50 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                    <span className="text-[13px] font-bold uppercase tracking-widest italic">Garantías</span>
+                  </button>
                 </li>
               </ul>
             </div>
 
-            {/* Column 3: Legal */}
             <div className="space-y-8">
               <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-blue-500">Legal</h4>
               <ul className="space-y-4">
@@ -532,7 +585,6 @@ export const PublicTenantWebsite = () => {
               </ul>
             </div>
 
-            {/* Column 4: Contacto */}
             <div className="space-y-8">
               <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-blue-500">Contacto</h4>
               <ul className="space-y-6">
