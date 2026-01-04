@@ -12,18 +12,22 @@ function encode(bytes: Uint8Array): string {
 
 export default async function handler(req: Request) {
   const jsonHeaders = { 'Content-Type': 'application/json' };
-  const requestId = Math.random().toString(36).substring(7);
+  const requestId = Math.random().toString(36).substring(7).toUpperCase();
 
   console.log(`[${requestId}] [Extract] Recibido: Petición iniciada`);
 
   if (req.method !== 'POST') {
-    return new Response(JSON.stringify({ error: 'Método no permitido' }), { status: 405, headers: jsonHeaders });
+    return new Response(JSON.stringify({ error: 'Método no permitido', requestId }), { status: 405, headers: jsonHeaders });
   }
 
   const apiKey = process.env.API_KEY;
   if (!apiKey) {
     console.error(`[${requestId}] [Extract] Error: API_KEY no configurada`);
-    return new Response(JSON.stringify({ error: 'Configuración incompleta (API Key missing)' }), { status: 500, headers: jsonHeaders });
+    return new Response(JSON.stringify({ 
+      error: 'Configuración incompleta en el servidor.', 
+      code: 'KEY_MISSING',
+      requestId 
+    }), { status: 500, headers: jsonHeaders });
   }
 
   try {
@@ -32,12 +36,16 @@ export default async function handler(req: Request) {
     const file = formData.get('file') as File;
     
     if (!file) {
-      return new Response(JSON.stringify({ error: 'No hay archivo' }), { status: 400, headers: jsonHeaders });
+      return new Response(JSON.stringify({ error: 'No hay archivo', requestId }), { status: 400, headers: jsonHeaders });
     }
 
     if (file.size > 4.5 * 1024 * 1024) {
       console.warn(`[${requestId}] [Extract] Archivo rechazado por tamaño: ${file.size} bytes`);
-      return new Response(JSON.stringify({ error: 'Archivo demasiado grande (máx 4.5MB).' }), { status: 413, headers: jsonHeaders });
+      return new Response(JSON.stringify({ 
+        error: 'Archivo demasiado grande (máx 4.5MB).', 
+        code: 'FILE_TOO_LARGE',
+        requestId 
+      }), { status: 413, headers: jsonHeaders });
     }
 
     console.log(`[${requestId}] [Extract] Base64: Convirtiendo archivo ${file.name}`);
@@ -49,7 +57,6 @@ export default async function handler(req: Request) {
 
     console.log(`[${requestId}] [Extract] Llamada Gemini: Iniciando petición (Timeout 25s)`);
     
-    // Implementación de timeout manual para la llamada a la API
     const geminiCall = ai.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: {
@@ -111,30 +118,17 @@ export default async function handler(req: Request) {
 
     const raw = JSON.parse(response.text || "{}");
     
-    console.log(`[${requestId}] [Extract] Normalización: Estructurando datos finales`);
     const normalized = {
+      ...raw,
+      requestId,
       brand: raw.brand || "Desconocida",
       model: raw.model || "Desconocido",
-      type: raw.type || "aire_acondicionado",
-      status: 'active',
-      stock: raw.stock || 0,
-      description: raw.description || { es: "", ca: "" },
       pricing: (raw.pricing || []).map((p: any, i: number) => ({
         id: `p${i + 1}`,
         name: p.name || { es: "Precio Base", ca: "Preu Base" },
         price: p.price || 0,
         cost: p.cost || 0
       })),
-      financing: (raw.financing || []).map((f: any, i: number) => ({
-        id: `f${i + 1}`,
-        label: { es: `${f.months} meses`, ca: `${f.months} mesos` },
-        months: f.months || 12,
-        coefficient: f.coefficient || 0.087
-      })),
-      techSpecs: (raw.techSpecs || []).map((t: any) => ({
-        title: t.title || "",
-        description: t.value || t.description || ""
-      })).filter((x: any) => x.title),
       __extracted_at: new Date().toISOString()
     };
 
@@ -146,14 +140,16 @@ export default async function handler(req: Request) {
     
     if (err.message === 'UPSTREAM_TIMEOUT') {
       return new Response(JSON.stringify({ 
-        error: "Gemini ha tardado demasiado en responder.", 
-        code: "UPSTREAM_TIMEOUT" 
+        error: "El motor de IA ha tardado demasiado en responder.", 
+        code: "UPSTREAM_TIMEOUT",
+        requestId
       }), { status: 504, headers: jsonHeaders });
     }
 
     return new Response(JSON.stringify({ 
-      error: `Error en la extracción: ${err.message}`,
-      code: "INTERNAL_ERROR"
+      error: `Error: ${err.message}`,
+      code: "INTERNAL_ERROR",
+      requestId
     }), { status: 500, headers: jsonHeaders });
   }
 }
