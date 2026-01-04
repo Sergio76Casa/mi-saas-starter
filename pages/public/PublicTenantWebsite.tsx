@@ -306,7 +306,7 @@ export const PublicTenantWebsite = () => {
                </div>
                
                {/* FILTROS INTEGRADOS */}
-               <div className="bg-white border border-gray-100 rounded-[2rem] p-6 md:py-7 md:px-9 mb-10 shadow-sm grid grid-cols-1 md:grid-cols-12 gap-8 items-start">
+               <div className="bg-white border border-gray-200 rounded-[2rem] p-6 md:py-7 md:px-9 mb-10 shadow-md grid grid-cols-1 md:grid-cols-12 gap-8 items-start">
                   {/* Tipo de equipo */}
                   <div className="md:col-span-6">
                     <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-300 mb-3">
@@ -392,7 +392,7 @@ export const PublicTenantWebsite = () => {
                ) : (
                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 md:gap-12">
                     {filteredGroups.map(group => (
-                      <div key={group.brand} className="bg-white rounded-[2rem] p-8 border border-slate-100 shadow-sm flex flex-col text-left hover:shadow-xl transition-all">
+                      <div key={group.brand} className="bg-white rounded-[2rem] p-8 border border-slate-200 shadow-md flex flex-col text-left hover:shadow-xl transition-all">
                          <div className="h-48 bg-slate-50 rounded-[1.5rem] mb-6 flex items-center justify-center overflow-hidden">
                             {group.products[0]?.image_url ? (
                               <img src={group.products[0].image_url} className="w-full h-full object-contain p-4" alt={group.brand} />
