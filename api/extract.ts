@@ -3,11 +3,11 @@ import busboy from "busboy";
 import { Buffer } from "node:buffer";
 import { GoogleGenAI, Type } from "@google/genai";
 
-// En Vercel Hobby el límite estricto es 10s.
+// Límite estricto de Vercel Hobby (10s)
 export const maxDuration = 10;
 
 /**
- * Parse multipart/form-data usando busboy
+ * Utilidad para parsear multipart/form-data con busboy
  */
 async function parseMultipart(req: any): Promise<{ buffer: Buffer; fileName: string; mimeType: string }> {
   return new Promise((resolve, reject) => {
@@ -23,14 +23,10 @@ async function parseMultipart(req: any): Promise<{ buffer: Buffer; fileName: str
       const chunks: Buffer[] = [];
       file.on("data", (data: Buffer) => chunks.push(data));
       file.on("end", () => { fileBuffer = Buffer.concat(chunks); });
-      file.on("error", (err: any) => reject(err));
     });
 
     bb.on("finish", () => {
-      if (!fileBuffer) {
-        reject(new Error("No se encontró ningún archivo"));
-        return;
-      }
+      if (!fileBuffer) return reject(new Error("NO_FILE"));
       resolve({ buffer: fileBuffer, fileName, mimeType });
     });
 
@@ -39,40 +35,54 @@ async function parseMultipart(req: any): Promise<{ buffer: Buffer; fileName: str
   });
 }
 
-function toNumber(val: any, fallback = 0): number {
+/**
+ * Normaliza valores numéricos (limpia comas, espacios y símbolos)
+ */
+function cleanNumber(val: any, fallback = 0): number {
   if (val === null || val === undefined) return fallback;
-  if (typeof val === "number" && Number.isFinite(val)) return val;
-  if (typeof val === "string") {
-    const n = Number(val.replace(/\s/g, "").replace(",", "."));
-    return Number.isFinite(n) ? n : fallback;
-  }
-  return fallback;
+  if (typeof val === "number") return Number.isFinite(val) ? val : fallback;
+  const cleaned = String(val).replace(/[^\d.,-]/g, "").replace(",", ".");
+  const n = parseFloat(cleaned);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+/**
+ * Recorta strings a una longitud máxima
+ */
+function truncate(str: any, max = 150): string {
+  if (!str) return "";
+  return String(str).substring(0, max);
 }
 
 export default async function handler(req: any, res: any) {
   const requestId = Math.random().toString(36).substring(2, 8).toUpperCase();
-  const startedAt = Date.now();
 
-  if (req.method !== "POST") return res.status(405).json({ error: "Método no permitido", requestId });
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Método no permitido", requestId, code: "METHOD_NOT_ALLOWED" });
+  }
 
   const apiKey = process.env.VITE_GEMINI_API_KEY;
   if (!apiKey) {
-    return res.status(500).json({
-      error: "VITE_GEMINI_API_KEY no configurada",
-      code: "KEY_MISSING",
-      requestId,
-    });
+    return res.status(500).json({ error: "VITE_GEMINI_API_KEY no configurada", code: "KEY_MISSING", requestId });
   }
 
   try {
     const { buffer, mimeType } = await parseMultipart(req);
 
+    // Límite de tamaño: 4.5MB
     if (buffer.length > 4.5 * 1024 * 1024) {
       return res.status(413).json({ error: "Archivo demasiado grande (máx 4.5MB)", code: "FILE_TOO_LARGE", requestId });
     }
 
     const ai = new GoogleGenAI({ apiKey });
-    const systemInstruction = "HVAC Expert. Extract technical data to JSON. LIMIT: Max 8 items per array. Be extremely concise.";
+    
+    const systemInstruction = `HVAC Expert. Extract technical data to JSON. 
+    RULES: 
+    - MAX 8 items per array. 
+    - Descriptions: max 150 chars. 
+    - Numbers: use point as decimal, no symbols (€, %, etc).
+    - If quantity is missing or 0, use 1.
+    - If total is present but unit_price is missing, calculate unit_price = total / qty.`;
 
     const geminiCall = ai.models.generateContent({
       model: "gemini-3-flash-preview",
@@ -93,7 +103,10 @@ export default async function handler(req: any, res: any) {
             stock: { type: Type.INTEGER },
             description: {
               type: Type.OBJECT,
-              properties: { es: { type: Type.STRING }, ca: { type: Type.STRING } }
+              properties: { 
+                es: { type: Type.STRING, description: "Max 150 chars" }, 
+                ca: { type: Type.STRING, description: "Max 150 chars" } 
+              }
             },
             pricing: {
               type: Type.ARRAY,
@@ -112,11 +125,17 @@ export default async function handler(req: any, res: any) {
               description: "Max 8 materials",
               items: {
                 type: Type.OBJECT,
-                properties: { name: { type: Type.STRING }, qty: { type: Type.NUMBER }, unit_price: { type: Type.NUMBER } }
+                properties: { 
+                  name: { type: Type.STRING }, 
+                  qty: { type: Type.NUMBER }, 
+                  unit_price: { type: Type.NUMBER },
+                  total: { type: Type.NUMBER }
+                }
               }
             },
             financing: {
               type: Type.ARRAY,
+              description: "Max 8 options",
               items: {
                 type: Type.OBJECT,
                 properties: { months: { type: Type.NUMBER }, coefficient: { type: Type.NUMBER } }
@@ -124,7 +143,7 @@ export default async function handler(req: any, res: any) {
             },
             techSpecs: {
               type: Type.ARRAY,
-              description: "Max 8 technical specifications",
+              description: "Max 8 specs",
               items: {
                 type: Type.OBJECT,
                 properties: { title: { type: Type.STRING }, value: { type: Type.STRING } }
@@ -135,7 +154,7 @@ export default async function handler(req: any, res: any) {
       },
     });
 
-    // Timeout de 8.5s para Hobby (10s total)
+    // Timeout de 8500ms para responder antes que Vercel corte (10s)
     const timeoutPromise = new Promise((_, reject) =>
       setTimeout(() => reject(new Error("UPSTREAM_TIMEOUT")), 8500)
     );
@@ -143,32 +162,69 @@ export default async function handler(req: any, res: any) {
     const result = (await Promise.race([geminiCall, timeoutPromise])) as any;
     const raw = JSON.parse(result.text || "{}");
 
+    // Normalización Final
     const normalized = {
-      ...raw,
       requestId,
-      brand: raw.brand || "Desconocida",
-      model: raw.model || "Desconocido",
+      brand: truncate(raw.brand || "Desconocida", 50),
+      model: truncate(raw.model || "Desconocido", 50),
+      type: raw.type || "aire_acondicionado",
+      stock: cleanNumber(raw.stock, 0),
+      description: {
+        es: truncate(raw.description?.es, 150),
+        ca: truncate(raw.description?.ca, 150)
+      },
       pricing: (raw.pricing || []).slice(0, 8).map((p: any, i: number) => ({
         id: `p${i + 1}`,
-        name: p?.name || { es: "Precio Base", ca: "Preu Base" },
-        price: toNumber(p?.price, 0),
-        cost: toNumber(p?.cost, 0),
+        name: {
+          es: truncate(p?.name?.es || "Variante", 40),
+          ca: truncate(p?.name?.ca || p?.name?.es || "Variant", 40)
+        },
+        price: cleanNumber(p?.price, 0),
+        cost: cleanNumber(p?.cost, 0)
       })),
-      extras: (raw.extras || []).slice(0, 8).map((e: any) => ({
-        name: e?.name || "Material extra",
-        qty: toNumber(e?.qty, 1) || 1,
-        unit_price: toNumber(e?.unit_price, 0),
+      extras: (raw.extras || []).slice(0, 8).map((e: any) => {
+        const qty = cleanNumber(e?.qty, 1) || 1;
+        let unit_price = cleanNumber(e?.unit_price, 0);
+        const total = cleanNumber(e?.total, 0);
+        
+        // Si no hay precio unidad pero sí total, calculamos
+        if (unit_price === 0 && total > 0) {
+          unit_price = total / qty;
+        }
+
+        return {
+          name: truncate(e?.name || "Material extra", 60),
+          qty,
+          unit_price
+        };
+      }),
+      financing: (raw.financing || []).slice(0, 8).map((f: any) => ({
+        months: cleanNumber(f?.months, 12),
+        coefficient: cleanNumber(f?.coefficient, 0)
       })),
-      __extracted_at: new Date().toISOString(),
+      techSpecs: (raw.techSpecs || []).slice(0, 8).map((s: any) => ({
+        title: truncate(s?.title, 40),
+        value: truncate(s?.value, 100)
+      })),
+      __extracted_at: new Date().toISOString()
     };
 
     return res.status(200).json(normalized);
+
   } catch (err: any) {
-    const isTimeout = err?.message === "UPSTREAM_TIMEOUT";
-    return res.status(isTimeout ? 504 : 500).json({
-      error: isTimeout ? "La IA ha tardado demasiado" : `Fallo: ${err.message}`,
-      code: isTimeout ? "UPSTREAM_TIMEOUT" : "INTERNAL_ERROR",
+    if (err?.message === "UPSTREAM_TIMEOUT") {
+      return res.status(504).json({ error: "El motor de IA ha tardado demasiado", code: "UPSTREAM_TIMEOUT", requestId });
+    }
+    if (err?.message === "NO_FILE") {
+      return res.status(400).json({ error: "No se ha enviado ningún archivo", code: "PARSE_ERROR", requestId });
+    }
+    
+    console.error(`[${requestId}] Error:`, err);
+    return res.status(500).json({ 
+      error: "Error interno procesando el archivo", 
+      code: "INTERNAL_ERROR", 
       requestId,
+      detail: err.message 
     });
   }
 }
