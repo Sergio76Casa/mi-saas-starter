@@ -59,7 +59,7 @@ const LOCAL_I18N = {
     hero_title_2: 'Ahorro real.',
     hero_desc: 'Soluciones de climatización de alta eficiencia para tu hogar.',
     hero_cta_catalog: 'Ver Catálogo',
-    catalog_title: 'Catálogo Destacado',
+    catalog_title: 'Catálogo destacado',
     catalog_subtitle: 'Encuentra el equipo ideal para tu hogar.',
     no_products_filter: 'No hay productos que coincidan con los filtros.',
     wizard_models_available: 'Modelos Disponibles',
@@ -102,7 +102,7 @@ const LOCAL_I18N = {
     hero_title_2: 'Estalvi real.',
     hero_desc: 'Solucions de climatització d’alta eficiència per a la teva llar.',
     hero_cta_catalog: 'Veure Catàleg',
-    catalog_title: 'Catàleg Destacat',
+    catalog_title: 'Catàleg destacat',
     catalog_subtitle: 'Troba l\'equip ideal per a la teva llar.',
     no_products_filter: 'No hi ha productes que coincideixin amb els filtres.',
     wizard_models_available: 'Models Disponibles',
@@ -237,9 +237,13 @@ export const PublicTenantWebsite = () => {
             const normalized = pData.map(p => {
               let pricingArr = p.pricing;
               if (typeof pricingArr === 'string') try { pricingArr = JSON.parse(pricingArr); } catch(e) { pricingArr = []; }
+              
+              let desc = p.description;
+              if (typeof desc === 'string') try { desc = JSON.parse(desc); } catch(e) { desc = { es: '', ca: '' }; }
+
               const prices = (pricingArr || []).map((v: any) => v.price).filter((p: any) => typeof p === 'number');
               const price = prices.length > 0 ? Math.min(...prices) : (p.price || 0);
-              return { ...p, price, pricing: pricingArr };
+              return { ...p, price, pricing: pricingArr, description: desc };
             });
             setDbProducts(normalized);
             if (normalized.length > 0) setMaxPriceFilter(Math.max(...normalized.map(p => p.price)));
@@ -310,13 +314,19 @@ export const PublicTenantWebsite = () => {
                    <div className="w-40 h-40 shrink-0 bg-slate-50 rounded-3xl p-4 flex items-center justify-center">
                       {detailProduct.image_url ? <img src={detailProduct.image_url} className="w-full h-full object-contain" alt={detailProduct.model} /> : <div className="text-slate-200 uppercase font-black text-[10px]">IMG</div>}
                    </div>
-                   <div className="text-center md:text-left">
+                   <div className="text-center md:text-left flex-1">
                       <div className="flex items-center justify-center md:justify-start gap-2 mb-2">
                         {detailProduct.brand_logo_url && <img src={detailProduct.brand_logo_url} className="h-4 w-auto object-contain grayscale" alt="" />}
                         <span className="text-[11px] font-black uppercase text-slate-400 tracking-widest">{detailProduct.brand}</span>
                       </div>
                       <h2 className="text-4xl font-black text-slate-900 tracking-tighter uppercase italic mb-1">{detailProduct.model}</h2>
-                      <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">{detailProduct.type?.replace(/_/g, ' ')}</p>
+                      <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4">{detailProduct.type?.replace(/_/g, ' ')}</p>
+                      
+                      {detailProduct.description?.[language] && (
+                        <p className="text-slate-500 font-medium italic text-sm leading-relaxed max-w-xl">
+                          "{detailProduct.description[language]}"
+                        </p>
+                      )}
                    </div>
                 </div>
 
@@ -442,29 +452,33 @@ export const PublicTenantWebsite = () => {
           <section id="catalog" className="py-20 px-4 md:px-8 scroll-mt-24">
              <div className="max-w-7xl mx-auto">
                <div className="text-left mb-10">
-                  <h2 className="text-3xl md:text-4xl font-black tracking-tighter mb-2 uppercase italic">{tt('catalog_title')}</h2>
+                  <h2 className="text-3xl md:text-4xl font-black tracking-tighter mb-2">{tt('catalog_title')}</h2>
                   <p className="text-slate-400 font-medium text-sm italic">{tt('catalog_subtitle')}</p>
                </div>
                
                <div className="bg-white border border-gray-200 rounded-[2rem] p-6 md:p-8 mb-12 shadow-md grid grid-cols-1 md:grid-cols-12 gap-8 items-start text-left">
-                  <div className="md:col-span-6">
+                  <div className="md:col-span-12 lg:col-span-6">
                     <label className="block text-[10px] font-black uppercase tracking-widest text-slate-300 mb-4">{tt('filter_type')}</label>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap lg:flex-nowrap gap-2 items-center">
                       {['all', 'aire_acondicionado', 'caldera', 'termo_electrico'].map(id => (
-                        <button key={id} onClick={() => setCategoryFilter(id)} className={`px-4 py-2 rounded-full text-[10px] font-black tracking-widest transition-all ${categoryFilter === id ? 'bg-blue-600 text-white shadow-lg' : 'bg-white text-slate-500 border border-slate-100'}`}>
+                        <button 
+                          key={id} 
+                          onClick={() => setCategoryFilter(id)} 
+                          className={`px-3 py-1.5 rounded-full text-[9px] font-black tracking-widest transition-all shrink-0 ${categoryFilter === id ? 'bg-blue-600 text-white shadow-lg' : 'bg-white text-slate-500 border border-slate-100'}`}
+                        >
                           {id === 'all' ? tt('all_types') : id.replace(/_/g, ' ').toUpperCase()}
                         </button>
                       ))}
                     </div>
                   </div>
-                  <div className="md:col-span-3">
+                  <div className="md:col-span-6 lg:col-span-3">
                     <label className="block text-[10px] font-black uppercase tracking-widest text-slate-300 mb-4">{tt('filter_brand')}</label>
                     <select value={brandFilter} onChange={(e) => setBrandFilter(e.target.value)} className="w-full h-11 px-4 rounded-xl border border-slate-100 bg-slate-50/50 text-[11px] font-black uppercase outline-none">
                       <option value="">{tt('all_brands')}</option>
                       {availableBrands.map(b => <option key={b} value={b}>{b}</option>)}
                     </select>
                   </div>
-                  <div className="md:col-span-3">
+                  <div className="md:col-span-6 lg:col-span-3">
                     <div className="flex justify-between items-center mb-4">
                       <label className="text-[10px] font-black uppercase tracking-widest text-slate-300">{tt('filter_price')}</label>
                       <span className="text-[13px] font-black text-blue-600">{maxPriceFilter} €</span>
@@ -608,7 +622,7 @@ export const PublicTenantWebsite = () => {
                 )}
                 {tenant.social_youtube && (
                   <a href={tenant.social_youtube} target="_blank" rel="noreferrer" className="w-9 h-9 bg-white/5 border border-white/10 rounded-lg flex items-center justify-center text-white hover:bg-red-600 hover:border-red-500 transition-all group">
-                     <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+                     <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122-2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
                   </a>
                 )}
                 {tenant.social_x && (

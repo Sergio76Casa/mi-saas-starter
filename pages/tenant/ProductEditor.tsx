@@ -63,9 +63,15 @@ export const ProductEditor = () => {
           return val;
         };
 
+        const rawDesc = safeParse(data.description, { es: '', ca: '' });
+
         setProductData({
           ...data,
-          description: safeParse(data.description, { es: '', ca: '' }),
+          // Aseguramos que descripción siempre tenga ambos campos
+          description: {
+            es: rawDesc.es || '',
+            ca: rawDesc.ca || ''
+          },
           pricing: safeParse(data.pricing, []),
           installation_kits: safeParse(data.installation_kits, []),
           extras: safeParse(data.extras, [])
@@ -112,7 +118,10 @@ export const ProductEditor = () => {
         type: normalized.type || prev.type,
         status: normalized.status || prev.status,
         stock: normalized.stock || prev.stock,
-        description: normalized.description || prev.description,
+        description: {
+          es: normalized.description?.es || prev.description.es,
+          ca: normalized.description?.ca || prev.description.ca
+        },
         pricing: normalized.pricing || [],
         extras: normalized.extras || [],
         pdf_url: uploadedUrl 
