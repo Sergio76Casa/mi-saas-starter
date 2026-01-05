@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { createClient } from '@supabase/supabase-js';
@@ -64,6 +65,19 @@ export const AdminTenants = () => {
     }
     
     try {
+      // VALIDACIÓN: Comprobar si el slug ya existe
+      const { data: existingSlug, error: slugCheckError } = await supabase
+        .from('tenants')
+        .select('id')
+        .eq('slug', newTenant.slug)
+        .maybeSingle();
+
+      if (slugCheckError) throw slugCheckError;
+      
+      if (existingSlug) {
+        return alert("La URL personalizada (slug) ya está en uso. Por favor, elige otra.");
+      }
+
       // 1. Crear el Usuario de Auth usando un cliente temporal para no perder la sesión del Admin
       const tempAuthClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
         auth: { persistSession: false }
