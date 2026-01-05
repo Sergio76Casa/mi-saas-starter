@@ -40,6 +40,15 @@ export const ProductEditor = () => {
   const [financing, setFinancing] = useState<any[]>([]);
   const [techSpecs, setTechSpecs] = useState<any[]>([]);
 
+  // Función de utilidad para asegurar que el tipo siempre sea uno de los permitidos
+  const normalizeType = (t: string) => {
+    const low = (t || '').toLowerCase();
+    if (low.includes('aire') || low.includes('split') || low.includes('acondicionado')) return 'aire_acondicionado';
+    if (low.includes('caldera')) return 'caldera';
+    if (low.includes('termo')) return 'termo_electrico';
+    return 'aire_acondicionado';
+  };
+
   useEffect(() => { 
     const fetchProduct = async () => {
       if (id === 'new') {
@@ -115,7 +124,7 @@ export const ProductEditor = () => {
         ...prev,
         brand: normalized.brand || prev.brand,
         model: normalized.model || prev.model,
-        type: normalized.type || prev.type,
+        type: normalizeType(normalized.type || prev.type),
         status: normalized.status || prev.status,
         stock: normalized.stock || prev.stock,
         description: {
@@ -151,7 +160,7 @@ export const ProductEditor = () => {
         tenant_id: tenant.id,
         brand: productData.brand,
         model: productData.model,
-        type: productData.type,
+        type: normalizeType(productData.type), // Normalizamos antes de guardar
         status: productData.status || 'active',
         description: productData.description || { es: '', ca: '' },
         pricing: Array.isArray(productData.pricing) ? productData.pricing : [],

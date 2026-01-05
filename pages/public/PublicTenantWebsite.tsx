@@ -118,7 +118,7 @@ const LOCAL_I18N = {
     more_features: '+ {count} característiques més',
     share_msg: 'Enllaç copiat!',
     since: 'Des de',
-    footer_desc: 'Som experts en solucions de climatització eficient. Pressupostos transparents, instal·lació professional i les millors marques del mercat.',
+    footer_desc: 'Som experts en solucions de climatització eficient. Pressupostos transparents, instal·lació profesional i les millors marques del mercat.',
     footer_services: 'Serveis',
     footer_legal: 'Legal',
     footer_contact: 'Contacte',
@@ -137,7 +137,8 @@ const LOCAL_I18N = {
 const FOOTER_MODAL_CONTENT: Record<string, any> = {
   instalacion: {
     title: { es: 'Instalación', ca: 'Instal·lació' },
-    img: 'https://images.unsplash.com/photo-1581094288338-2314dddb7ecc?q=80&w=2070&auto=format&fit=crop',
+    // Imagen corregida y verificada de Unsplash para Instalación
+    img: 'https://images.unsplash.com/photo-1621905252507-b35220adcfba?q=80&w=2070&auto=format&fit=crop',
     desc: {
       es: 'Instalación profesional, limpia y certificada. Te asesoramos y dejamos el equipo listo para funcionar con máxima eficiencia.',
       ca: 'Instal·lació professional, neta i certificada. T’assessorem i deixem l’equip a punt per funcionar amb la màxima eficiència.'

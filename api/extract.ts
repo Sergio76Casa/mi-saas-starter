@@ -7,6 +7,17 @@ import { GoogleGenAI, Type } from "@google/genai";
 export const maxDuration = 10;
 
 /**
+ * Normaliza el tipo de producto a las 3 categorías estándar del sistema
+ */
+function normalizeType(t: string): string {
+  const low = (t || "").toLowerCase();
+  if (low.includes("aire") || low.includes("split") || low.includes("acondicionado")) return "aire_acondicionado";
+  if (low.includes("caldera")) return "caldera";
+  if (low.includes("termo")) return "termo_electrico";
+  return "aire_acondicionado";
+}
+
+/**
  * Utilidad para parsear multipart/form-data con busboy
  */
 async function parseMultipart(req: any): Promise<{ buffer: Buffer; fileName: string; mimeType: string }> {
@@ -171,7 +182,7 @@ export default async function handler(req: any, res: any) {
       requestId,
       brand: truncate(raw.brand || "Desconocida", 50),
       model: truncate(raw.model || "Desconocido", 50),
-      type: raw.type || "aire_acondicionado",
+      type: normalizeType(raw.type),
       stock: cleanNumber(raw.stock, 0),
       description: {
         es: truncate(raw.description?.es, 150),
