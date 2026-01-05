@@ -61,39 +61,47 @@ export default async function handler(req: any, res: any) {
     return res.status(405).json({ error: "Método no permitido", requestId, code: "METHOD_NOT_ALLOWED" });
   }
 
-  const apiKey = process.env.VITE_GEMINI_API_KEY;
+  // Se usa process.env.API_KEY siguiendo las directrices del SDK
+  const apiKey = process.env.API_KEY || process.env.VITE_GEMINI_API_KEY;
   if (!apiKey) {
-    return res.status(500).json({ error: "VITE_GEMINI_API_KEY no configurada", code: "KEY_MISSING", requestId });
+    return res.status(500).json({ error: "API_KEY no configurada", code: "KEY_MISSING", requestId });
   }
 
   try {
     const { buffer, mimeType } = await parseMultipart(req);
 
-    // Límite de tamaño: 4.5MB
+    // Límite de tamaño: 4.5MB para evitar payloads pesados en el modelo
     if (buffer.length > 4.5 * 1024 * 1024) {
       return res.status(413).json({ error: "Archivo demasiado grande (máx 4.5MB)", code: "FILE_TOO_LARGE", requestId });
     }
 
     const ai = new GoogleGenAI({ apiKey });
     
+    // Instrucción de sistema movida al campo oficial para mayor eficiencia y velocidad
     const systemInstruction = `HVAC Expert. Extract technical data to JSON. 
     RULES: 
     - MAX 8 items per array. 
     - Descriptions: max 150 chars. 
     - Numbers: use point as decimal, no symbols (€, %, etc).
     - If quantity is missing or 0, use 1.
-    - If total is present but unit_price is missing, calculate unit_price = total / qty.`;
+    - If total is present but unit_price is missing, calculate unit_price = total / qty.
+    - Output must be valid JSON.`;
 
     const geminiCall = ai.models.generateContent({
       model: "gemini-3-flash-preview",
-      contents: {
-        parts: [
-          { text: systemInstruction },
-          { inlineData: { data: buffer.toString("base64"), mimeType: mimeType || "application/pdf" } },
-        ],
-      },
+      contents: [
+        { 
+          inlineData: { 
+            data: buffer.toString("base64"), 
+            mimeType: mimeType || "application/pdf" 
+          } 
+        }
+      ],
       config: {
+        systemInstruction,
         responseMimeType: "application/json",
+        // Desactivamos 'thinking' (razonamiento) para reducir la latencia al mínimo en tareas de extracción directa
+        thinkingConfig: { thinkingBudget: 0 },
         responseSchema: {
           type: Type.OBJECT,
           properties: {
@@ -104,13 +112,12 @@ export default async function handler(req: any, res: any) {
             description: {
               type: Type.OBJECT,
               properties: { 
-                es: { type: Type.STRING, description: "Max 150 chars" }, 
-                ca: { type: Type.STRING, description: "Max 150 chars" } 
+                es: { type: Type.STRING }, 
+                ca: { type: Type.STRING } 
               }
             },
             pricing: {
               type: Type.ARRAY,
-              description: "Max 8 variants",
               items: {
                 type: Type.OBJECT,
                 properties: {
@@ -122,7 +129,6 @@ export default async function handler(req: any, res: any) {
             },
             extras: {
               type: Type.ARRAY,
-              description: "Max 8 materials",
               items: {
                 type: Type.OBJECT,
                 properties: { 
@@ -135,7 +141,6 @@ export default async function handler(req: any, res: any) {
             },
             financing: {
               type: Type.ARRAY,
-              description: "Max 8 options",
               items: {
                 type: Type.OBJECT,
                 properties: { months: { type: Type.NUMBER }, coefficient: { type: Type.NUMBER } }
@@ -143,7 +148,6 @@ export default async function handler(req: any, res: any) {
             },
             techSpecs: {
               type: Type.ARRAY,
-              description: "Max 8 specs",
               items: {
                 type: Type.OBJECT,
                 properties: { title: { type: Type.STRING }, value: { type: Type.STRING } }
@@ -154,13 +158,16 @@ export default async function handler(req: any, res: any) {
       },
     });
 
-    // Timeout de 8500ms para responder antes que Vercel corte (10s)
+    // Timeout de 8500ms para responder antes que Vercel corte la ejecución (10s en Hobby)
     const timeoutPromise = new Promise((_, reject) =>
       setTimeout(() => reject(new Error("UPSTREAM_TIMEOUT")), 8500)
     );
 
     const result = (await Promise.race([geminiCall, timeoutPromise])) as any;
-    const raw = JSON.parse(result.text || "{}");
+    
+    // Extracción directa de la propiedad .text
+    const rawText = result.text || "{}";
+    const raw = JSON.parse(rawText);
 
     // Normalización Final
     const normalized = {
@@ -187,7 +194,6 @@ export default async function handler(req: any, res: any) {
         let unit_price = cleanNumber(e?.unit_price, 0);
         const total = cleanNumber(e?.total, 0);
         
-        // Si no hay precio unidad pero sí total, calculamos
         if (unit_price === 0 && total > 0) {
           unit_price = total / qty;
         }
@@ -219,7 +225,7 @@ export default async function handler(req: any, res: any) {
       return res.status(400).json({ error: "No se ha enviado ningún archivo", code: "PARSE_ERROR", requestId });
     }
     
-    console.error(`[${requestId}] Error:`, err);
+    console.error(`[${requestId}] Error Crítico:`, err);
     return res.status(500).json({ 
       error: "Error interno procesando el archivo", 
       code: "INTERNAL_ERROR", 
