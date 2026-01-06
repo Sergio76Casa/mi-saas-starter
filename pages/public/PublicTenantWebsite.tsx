@@ -42,7 +42,7 @@ const LOCAL_I18N = {
     hero_title_2: 'tu hogar ideal',
     hero_desc: 'Encuentra el equipo perfecto con nuestra herramienta de selección inteligente.',
     hero_cta_catalog: 'Ver Catálogo',
-    catalog_title: 'Nuestro Catálogo',
+    catalog_title: 'Catálogo Destacado',
     catalog_subtitle: 'Equipos seleccionados con la mejor relación calidad-precio',
     filter_type: 'Tipo de equipo',
     all_types: 'Todos los tipos',
@@ -88,7 +88,7 @@ const LOCAL_I18N = {
     hero_title_2: 'la teva llar ideal',
     hero_desc: 'Troba l\'equip perfecte amb la nostra eina de selecció intel·ligent.',
     hero_cta_catalog: 'Veure Catàleg',
-    catalog_title: 'El Nostre Catàleg',
+    catalog_title: 'Catàleg Destacat',
     catalog_subtitle: 'Equips seleccionats amb la millor relació qualitat-preu',
     filter_type: 'Tipus d\'equip',
     all_types: 'Tots els tipus',
@@ -138,12 +138,25 @@ export const PublicTenantWebsite = () => {
       setIsDataReady(false);
       setIsError(false);
       try {
-        const { data: tData, error: tError } = await supabase.from('tenants').select('*').eq('slug', slug).eq('is_deleted', false).single();
+        // SEGURIDAD: Obtener tenant por slug y asegurar que no esté borrado
+        const { data: tData, error: tError } = await supabase
+          .from('tenants')
+          .select('*')
+          .eq('slug', slug)
+          .eq('is_deleted', false)
+          .single();
+
         if (tError || !tData) { setIsError(true); return; }
         setTenant(tData as any);
         
         if (tData.status === 'active') {
-          const { data: pData } = await supabase.from('products').select('*').eq('tenant_id', tData.id).eq('status', 'active').or('is_deleted.eq.false,is_deleted.is.null');
+          // SEGURIDAD / RLS: Filtrado estricto por tenant_id, status active y no borrados
+          const { data: pData } = await supabase
+            .from('products')
+            .select('*')
+            .eq('tenant_id', tData.id)
+            .eq('status', 'active')
+            .or('is_deleted.eq.false,is_deleted.is.null');
           
           if (pData) {
             const normalized = pData.map(p => {
@@ -293,21 +306,43 @@ export const PublicTenantWebsite = () => {
         </div>
       )}
 
-      {/* Navbar */}
-      <nav className="fixed top-0 left-0 right-0 h-16 md:h-20 bg-white/80 backdrop-blur-md z-[100] border-b border-gray-100">
+      {/* Navbar Restaurada y Estilizada */}
+      <nav className="fixed top-0 left-0 right-0 h-16 md:h-20 bg-white/90 backdrop-blur-xl z-[100] border-b border-slate-100/50 shadow-sm">
         <div className="max-w-7xl mx-auto h-full flex items-center justify-between px-6 md:px-10">
-          <button onClick={() => setView('landing')} className="flex items-center gap-3">
+          <button onClick={() => { setView('landing'); window.scrollTo(0,0); }} className="flex items-center gap-3">
             {tenant?.use_logo_on_web && tenant?.logo_url ? (
               <img src={tenant.logo_url} className="h-8 md:h-10 w-auto object-contain" alt={tenant?.name} />
             ) : (
               <span className="text-lg md:text-xl font-black italic tracking-tighter uppercase text-slate-900">{tenant?.name}</span>
             )}
           </button>
-          <div className="flex items-center gap-4">
-              <select value={language} onChange={(e) => setLanguage(e.target.value as any)} className="bg-transparent text-[11px] font-black uppercase text-slate-400 outline-none cursor-pointer">
-                 <option value="es">ES</option>
-                 <option value="ca">CA</option>
-              </select>
+
+          {/* Links Centrales (Desktop) */}
+          <div className="hidden md:flex items-center gap-10">
+            <button onClick={() => { setView('landing'); window.scrollTo(0,0); }} className="text-[11px] font-black uppercase tracking-widest text-slate-500 hover:text-blue-600 transition-colors">{tt('nav_home')}</button>
+            <button onClick={() => document.getElementById('catalog')?.scrollIntoView({ behavior: 'smooth' })} className="text-[11px] font-black uppercase tracking-widest text-slate-500 hover:text-blue-600 transition-colors">{tt('nav_products')}</button>
+            <button onClick={() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })} className="text-[11px] font-black uppercase tracking-widest text-slate-500 hover:text-blue-600 transition-colors">{tt('nav_contact')}</button>
+          </div>
+
+          <div className="flex items-center gap-4 md:gap-8">
+              {/* Selector de Idioma con Icono Mundo */}
+              <div className="flex items-center gap-2.5 bg-slate-100/50 px-3.5 py-2 rounded-full border border-slate-200/50 group hover:bg-slate-100 transition-colors">
+                <svg className="w-4 h-4 text-slate-400 group-hover:text-blue-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+                </svg>
+                <select value={language} onChange={(e) => setLanguage(e.target.value as any)} className="bg-transparent text-[10px] font-black uppercase text-slate-600 outline-none cursor-pointer pr-1">
+                   <option value="es">ES</option>
+                   <option value="ca">CA</option>
+                </select>
+              </div>
+
+              {/* Icono de Administración (Tuerca) */}
+              <a href="#/login" className="w-10 h-10 flex items-center justify-center rounded-2xl bg-slate-900 text-white hover:bg-blue-600 transition-all shadow-xl shadow-slate-900/20 active:scale-95 group" title="Administración">
+                <svg className="w-5 h-5 group-hover:rotate-45 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+              </a>
           </div>
         </div>
       </nav>
@@ -315,105 +350,110 @@ export const PublicTenantWebsite = () => {
       {view === 'landing' ? (
         <main className="pb-20 pt-20">
           <div className="px-4 md:px-8 pt-8">
-            <section className="max-w-7xl mx-auto relative rounded-[2.5rem] h-[400px] md:h-[550px] overflow-hidden flex items-center bg-slate-900 shadow-xl">
-              <img src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?q=80&w=2070&auto=format&fit=crop" className="absolute inset-0 w-full h-full object-cover opacity-60" alt="" />
-              <div className="relative px-8 md:px-20 max-w-4xl z-10 text-left">
-                <h1 className="text-4xl md:text-7xl font-black text-white leading-[1.1] tracking-tighter mb-6 uppercase italic">
-                  {tt('hero_title_1')} <br/><span className="text-blue-500">{tt('hero_title_2')}</span>
+            <section className="max-w-7xl mx-auto relative rounded-[3rem] h-[450px] md:h-[600px] overflow-hidden flex items-center bg-slate-900 shadow-2xl group">
+              <img src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?q=80&w=2070&auto=format&fit=crop" className="absolute inset-0 w-full h-full object-cover opacity-50 group-hover:scale-105 transition-transform duration-[3s]" alt="" />
+              <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/40 to-transparent"></div>
+              <div className="relative px-8 md:px-24 max-w-4xl z-10 text-left">
+                <h1 className="text-5xl md:text-8xl font-black text-white leading-[1] tracking-tighter mb-8 uppercase italic animate-in slide-in-from-left-10 duration-700">
+                  {tt('hero_title_1')} <br/><span className="text-blue-500 drop-shadow-sm">{tt('hero_title_2')}</span>
                 </h1>
-                <p className="text-sm md:text-lg text-white/80 max-w-xl font-medium mb-10 italic">{tt('hero_desc')}</p>
-                <button onClick={() => document.getElementById('catalog')?.scrollIntoView({ behavior: 'smooth' })} className="px-8 py-4 bg-blue-600 text-white rounded-2xl font-black uppercase text-[11px] tracking-widest shadow-lg shadow-blue-600/20 hover:scale-105 transition-all">{tt('hero_cta_catalog')}</button>
+                <p className="text-base md:text-xl text-white/70 max-w-xl font-medium mb-12 italic animate-in slide-in-from-left-12 duration-1000 delay-150">{tt('hero_desc')}</p>
+                <button onClick={() => document.getElementById('catalog')?.scrollIntoView({ behavior: 'smooth' })} className="px-10 py-5 bg-blue-600 text-white rounded-2xl font-black uppercase text-[12px] tracking-[0.15em] shadow-2xl shadow-blue-600/30 hover:bg-blue-500 hover:scale-105 active:scale-95 transition-all animate-in zoom-in-50 duration-700 delay-300">{tt('hero_cta_catalog')}</button>
               </div>
             </section>
           </div>
 
-          <section id="catalog" className="py-20 px-4 md:px-8 scroll-mt-24">
+          <section id="catalog" className="py-24 px-4 md:px-8 scroll-mt-24">
              <div className="max-w-7xl mx-auto">
-               <div className="text-left mb-10">
-                  <h2 className="text-3xl md:text-4xl font-black tracking-tighter mb-2">{tt('catalog_title')}</h2>
-                  <p className="text-slate-400 font-medium text-sm italic">{tt('catalog_subtitle')}</p>
+               <div className="text-left mb-12">
+                  <h2 className="text-4xl md:text-5xl font-black tracking-tighter mb-3 uppercase italic text-slate-900">{tt('catalog_title')}</h2>
+                  <p className="text-slate-400 font-medium text-base italic">{tt('catalog_subtitle')}</p>
                </div>
                
-               {/* Filters */}
-               <div className="bg-white border border-gray-100 rounded-[2rem] p-6 md:p-8 mb-12 shadow-md grid grid-cols-1 md:grid-cols-12 gap-8 items-start text-left">
-                  <div className="md:col-span-12 lg:col-span-6">
-                    <label className="block text-[10px] font-black uppercase tracking-widest text-slate-300 mb-4">{tt('filter_type')}</label>
-                    <div className="flex flex-wrap lg:flex-nowrap gap-2 items-center">
+               {/* Filters - Compact and Styled */}
+               <div className="bg-white border border-slate-100 rounded-[2.5rem] p-6 md:p-8 mb-16 shadow-xl shadow-slate-200/40 grid grid-cols-1 md:grid-cols-12 gap-10 items-end text-left">
+                  <div className="md:col-span-12 lg:col-span-7">
+                    <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-5 ml-1">{tt('filter_type')}</label>
+                    <div className="flex flex-wrap gap-2.5 items-center">
                       {['all', 'aire_acondicionado', 'caldera', 'termo_electrico'].map(id => (
-                        <button key={id} onClick={() => setCategoryFilter(id)} className={`px-4 py-2 rounded-full text-[9px] font-black tracking-widest transition-all shrink-0 ${categoryFilter === id ? 'bg-blue-600 text-white shadow-lg' : 'bg-white text-slate-500 border border-slate-100'}`}>
-                          {id === 'all' ? tt('all_types') : id.replace(/_/g, ' ').toUpperCase()}
+                        <button 
+                          key={id} 
+                          onClick={() => setCategoryFilter(id)} 
+                          className={`px-3.5 py-2.5 rounded-2xl text-[9px] font-black tracking-widest transition-all shrink-0 uppercase border-2 ${categoryFilter === id ? 'bg-blue-600 border-blue-600 text-white shadow-xl shadow-blue-200' : 'bg-white text-slate-500 border-slate-100 hover:border-slate-200 hover:bg-slate-50'}`}
+                        >
+                          {id === 'all' ? tt('all_types') : id.replace(/_/g, ' ')}
                         </button>
                       ))}
                     </div>
                   </div>
-                  <div className="md:col-span-6 lg:col-span-3">
-                    <label className="block text-[10px] font-black uppercase tracking-widest text-slate-300 mb-4">{tt('filter_brand')}</label>
-                    <select value={brandFilter} onChange={(e) => setBrandFilter(e.target.value)} className="w-full h-11 px-4 rounded-xl border border-slate-100 bg-slate-50/50 text-[11px] font-black uppercase outline-none">
+                  <div className="md:col-span-6 lg:col-span-2.5">
+                    <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-4 ml-1">{tt('filter_brand')}</label>
+                    <select value={brandFilter} onChange={(e) => setBrandFilter(e.target.value)} className="w-full h-12 px-5 rounded-2xl border-2 border-slate-100 bg-slate-50/50 text-[10px] font-black uppercase outline-none focus:border-blue-500 transition-colors appearance-none cursor-pointer">
                       <option value="">{tt('all_brands')}</option>
                       {availableBrands.map(b => <option key={b} value={b}>{b}</option>)}
                     </select>
                   </div>
-                  <div className="md:col-span-6 lg:col-span-3">
-                    <div className="flex justify-between items-center mb-4">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-300">{tt('filter_price')}</label>
-                      <span className="text-[13px] font-black text-blue-600">{maxPriceFilter} €</span>
+                  <div className="md:col-span-6 lg:col-span-2.5">
+                    <div className="flex justify-between items-center mb-4 ml-1">
+                      <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">{tt('filter_price')}</label>
+                      <span className="text-[14px] font-black text-blue-600 tabular-nums">{maxPriceFilter} €</span>
                     </div>
-                    <input type="range" min="0" max={absoluteMaxPrice || 5000} step="10" value={maxPriceFilter} onChange={(e) => setMaxPriceFilter(parseInt(e.target.value))} className="w-full h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-blue-600" />
+                    <input type="range" min="0" max={absoluteMaxPrice || 5000} step="10" value={maxPriceFilter} onChange={(e) => setMaxPriceFilter(parseInt(e.target.value))} className="w-full h-2 bg-slate-100 rounded-full appearance-none cursor-pointer accent-blue-600 hover:accent-blue-500 transition-all" />
                   </div>
                </div>
 
                {/* Grid */}
-               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-10">
                   {filteredProducts.map(p => {
                     const specs = getTechSpecs(p);
                     const remainingCount = Math.max(0, specs.length - 3);
 
                     return (
-                      <div key={p.id} className="bg-white rounded-[2.5rem] border border-slate-50 shadow-sm flex flex-col overflow-hidden text-left transition-all hover:shadow-xl group">
+                      <div key={p.id} className="bg-white rounded-[3rem] border border-slate-100 shadow-sm flex flex-col overflow-hidden text-left transition-all hover:shadow-2xl hover:-translate-y-1 group relative">
                           {/* Top Section / Image */}
-                          <div className="h-64 bg-slate-50/50 flex items-center justify-center p-12 overflow-hidden relative">
+                          <div className="h-72 bg-slate-50/50 flex items-center justify-center p-14 overflow-hidden relative">
                              {/* Floating Icons */}
-                             <div className="absolute top-6 right-6 z-20 flex flex-col gap-2">
-                                <button onClick={(e) => handleShare(e, p)} className="w-9 h-9 bg-white text-slate-400 hover:text-blue-600 rounded-full flex items-center justify-center shadow-sm border border-slate-100 transition-all hover:scale-110" title="Compartir">
-                                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg>
+                             <div className="absolute top-6 right-6 z-20 flex flex-col gap-3">
+                                <button onClick={(e) => handleShare(e, p)} className="w-10 h-10 bg-white/80 backdrop-blur text-slate-400 hover:text-blue-600 rounded-full flex items-center justify-center shadow-lg border border-white transition-all hover:scale-110" title="Compartir">
+                                   <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg>
                                 </button>
                                 {p.pdf_url && (
-                                  <a href={p.pdf_url} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="w-9 h-9 bg-white text-slate-400 hover:text-red-500 rounded-full flex items-center justify-center shadow-sm border border-slate-100 transition-all hover:scale-110" title="Ficha Técnica">
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+                                  <a href={p.pdf_url} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="w-10 h-10 bg-white/80 backdrop-blur text-slate-400 hover:text-red-500 rounded-full flex items-center justify-center shadow-lg border border-white transition-all hover:scale-110" title="Ficha Técnica">
+                                    <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
                                   </a>
                                 )}
-                                <button onClick={(e) => { e.stopPropagation(); setDetailProduct(p); }} className="w-9 h-9 bg-white text-slate-400 hover:text-green-600 rounded-full flex items-center justify-center shadow-sm border border-slate-100 transition-all hover:scale-110" title="Ver características">
-                                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                                <button onClick={(e) => { e.stopPropagation(); setDetailProduct(p); }} className="w-10 h-10 bg-white/80 backdrop-blur text-slate-400 hover:text-green-600 rounded-full flex items-center justify-center shadow-lg border border-white transition-all hover:scale-110" title="Ver características">
+                                   <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
                                 </button>
                              </div>
 
                              {p.image_url ? (
-                               <img src={p.image_url} className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500" alt={p.model} />
+                               <img src={p.image_url} className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-700" alt={p.model} />
                              ) : (
                                <div className="text-slate-200 uppercase font-black text-xs italic">S/I</div>
                              )}
                           </div>
 
                           {/* Info Section */}
-                          <div className="p-8 flex flex-col flex-1">
-                              <span className="inline-block px-3 py-1 bg-blue-50 text-blue-600 text-[9px] font-black uppercase tracking-widest rounded-full self-start mb-4">
+                          <div className="p-10 flex flex-col flex-1">
+                              <span className="inline-block px-3.5 py-1.5 bg-blue-50 text-blue-600 text-[9px] font-black uppercase tracking-widest rounded-xl self-start mb-5 border border-blue-100">
                                 {p.type?.replace(/_/g, ' ')}
                               </span>
-                              <span className="text-[10px] font-black uppercase text-slate-300 tracking-widest block mb-1">{p.brand}</span>
-                              <h3 className="text-2xl font-black text-slate-900 tracking-tighter uppercase italic leading-tight mb-6">{p.model}</h3>
+                              <span className="text-[11px] font-black uppercase text-slate-300 tracking-[0.2em] block mb-1.5">{p.brand}</span>
+                              <h3 className="text-3xl font-black text-slate-900 tracking-tighter uppercase italic leading-none mb-8">{p.model}</h3>
                               
                               {/* Characteristics List */}
-                              <div className="space-y-2 mb-6 flex-1">
+                              <div className="space-y-3 mb-8 flex-1">
                                  {specs.slice(0, 3).map((s: any, i: number) => (
-                                   <div key={i} className="flex items-center gap-2 text-slate-500">
-                                      <div className="w-1 h-1 bg-slate-300 rounded-full"></div>
-                                      <span className="text-[11px] font-medium italic">{s.title}: {s.value || s.description}</span>
+                                   <div key={i} className="flex items-center gap-3 text-slate-500">
+                                      <div className="w-1 h-1 bg-blue-500 rounded-full opacity-40"></div>
+                                      <span className="text-[11px] font-bold italic tracking-wide">{s.title}: <span className="text-slate-900 not-italic">{s.value || s.description}</span></span>
                                    </div>
                                  ))}
                                  {remainingCount > 0 && (
                                    <button 
                                     onClick={(e) => { e.stopPropagation(); setDetailProduct(p); }}
-                                    className="text-[10px] font-black text-blue-600 uppercase tracking-widest hover:underline pt-2 block"
+                                    className="text-[10px] font-black text-blue-600 uppercase tracking-widest hover:text-blue-700 hover:underline pt-3 block transition-colors"
                                    >
                                       {tt('more_features', { count: remainingCount })}
                                    </button>
@@ -421,16 +461,16 @@ export const PublicTenantWebsite = () => {
                               </div>
 
                               {/* Price and Action */}
-                              <div className="flex items-center justify-between pt-6 border-t border-slate-50 mt-auto">
+                              <div className="flex items-center justify-between pt-8 border-t border-slate-50 mt-auto">
                                  <div className="flex flex-col">
-                                    <span className="text-[9px] font-black uppercase text-slate-300">{tt('since')}</span>
-                                    <span className="text-2xl font-black text-slate-900 tracking-tighter">{formatCurrency(p.price, language)}</span>
+                                    <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-0.5">{tt('since')}</span>
+                                    <span className="text-3xl font-black text-slate-900 tracking-tighter tabular-nums leading-none">{formatCurrency(p.price, language)}</span>
                                  </div>
                                  <button 
                                    onClick={() => handleOpenConfigurator(p)}
-                                   className="w-12 h-12 bg-slate-900 hover:bg-blue-600 text-white rounded-2xl flex items-center justify-center transition-all shadow-lg hover:scale-110 active:scale-95"
+                                   className="w-14 h-14 bg-slate-900 hover:bg-blue-600 text-white rounded-2xl flex items-center justify-center transition-all shadow-xl shadow-slate-900/20 hover:scale-110 active:scale-90 group/btn"
                                  >
-                                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M14 5l7 7-7 7M3 12h18"/></svg>
+                                    <svg className="w-7 h-7 group-hover/btn:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M14 5l7 7-7 7M3 12h18"/></svg>
                                  </button>
                               </div>
                           </div>
@@ -443,7 +483,7 @@ export const PublicTenantWebsite = () => {
         </main>
       ) : (
         /* CONFIGURATOR VIEW */
-        <main className="pb-24 pt-24 px-4 md:px-8">
+        <main className="pb-24 pt-24 px-4 md:px-8 bg-white min-h-screen">
            <PublicQuoteConfigurator 
               product={selectedProduct!}
               tenant={tenant}
