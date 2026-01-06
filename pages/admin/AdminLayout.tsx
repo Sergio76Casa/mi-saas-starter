@@ -1,6 +1,8 @@
 
 import React, { useEffect } from 'react';
-import { Link, useNavigate, useLocation, Outlet } from 'react-router-dom';
+// Core hooks from react-router and Link from react-router-dom
+import { Link } from 'react-router-dom';
+import { useNavigate, useLocation, Outlet } from 'react-router';
 import { useApp } from '../../AppProvider';
 import { LoadingSpinner } from '../../components/common/LoadingSpinner';
 

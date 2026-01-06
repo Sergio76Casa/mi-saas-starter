@@ -1,5 +1,6 @@
 
 import React from 'react';
+// Use the standard Link component from react-router-dom
 import { Link } from 'react-router-dom';
 import { useApp } from '../../AppProvider';
 import { LanguageSwitcher, SuperAdminFloatingBar } from '../../components/layout/CommonLayoutComponents';

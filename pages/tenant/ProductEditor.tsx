@@ -1,7 +1,8 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
 import React, { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate, useOutletContext } from 'react-router-dom';
+// Import core routing hooks from react-router to avoid dom export issues
+import { useParams, useNavigate, useOutletContext } from 'react-router';
 import { supabase } from '../../supabaseClient';
 import { Tenant } from '../../types';
 import { Input } from '../../components/common/Input';
@@ -378,7 +379,7 @@ export const ProductEditor = () => {
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <div className="text-center bg-white p-2 rounded-xl border border-slate-100"><span className="block text-[7px] font-black text-slate-400 uppercase mb-1">Meses</span><input type="number" value={f.months || 0} onChange={(e) => { const cf = [...financing]; cf[i] = { ...cf[i], months: parseInt(e.target.value) || 0 }; setFinancing(cf); }} className="w-full text-center text-[11px] font-bold outline-none border-none bg-transparent" /></div>
-                    <div className="text-center bg-white p-2 rounded-xl border border-slate-100"><span className="block text-[7px] font-black text-slate-400 uppercase mb-1">Coef.</span><input type="number" step="0.000001" value={f.coefficient || 0} onChange={(e) => { const cf = [...financing]; cf[i] = { ...cf[i], coefficient: parseFloat(e.target.value) || 0 }; setFinancing(cf); }} className="w-full text-center text-[11px] font-bold outline-none border-none bg-transparent text-blue-600" /></div>
+                    <div className="text-center bg-white p-2 rounded-xl border border-slate-100"><span className="block text-[7px] font-black text-slate-400 uppercase mb-1">Coef.</span><input type="number" step="0.000001" value={f.coefficient || 0} onChange={(e) => { const cf = [...financing]; cf[i] = { ...cf[i], months: f.months, coefficient: parseFloat(e.target.value) || 0 }; setFinancing(cf); }} className="w-full text-center text-[11px] font-bold outline-none border-none bg-transparent text-blue-600" /></div>
                   </div>
                 </div>
               ))}

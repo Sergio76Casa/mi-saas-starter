@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
+// Correct import for Link in a DOM environment
 import { Link } from 'react-router-dom';
 import { createClient } from '@supabase/supabase-js';
 import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from '../../supabaseClient';

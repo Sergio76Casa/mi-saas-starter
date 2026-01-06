@@ -1,5 +1,7 @@
+
 import React, { useState } from 'react';
-import { useNavigate, Navigate } from 'react-router-dom';
+// Use react-router for core functionality to bypass possible re-export issues in dom package
+import { useNavigate, Navigate } from 'react-router';
 import { supabase } from '../../supabaseClient';
 import { useApp } from '../../AppProvider';
 import { Input } from '../../components/common/Input';

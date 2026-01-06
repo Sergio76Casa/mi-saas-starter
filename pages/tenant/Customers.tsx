@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
-import { useOutletContext } from 'react-router-dom';
+// Import useOutletContext from react-router
+import { useOutletContext } from 'react-router';
 import { supabase } from '../../supabaseClient';
 import { Tenant, Customer } from '../../types';
 import { useApp } from '../../AppProvider';

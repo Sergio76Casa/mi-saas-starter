@@ -1,5 +1,8 @@
+
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate, useParams, useLocation, Outlet } from 'react-router-dom';
+// Correct splitting of imports: Link is DOM specific, others are Core routing
+import { Link } from 'react-router-dom';
+import { useNavigate, useParams, useLocation, Outlet } from 'react-router';
 import { supabase } from '../../supabaseClient';
 import { Tenant } from '../../types';
 import { useApp } from '../../AppProvider';

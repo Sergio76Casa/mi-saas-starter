@@ -1,5 +1,7 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
-import { useOutletContext, useNavigate, useParams } from 'react-router-dom';
+// Split imports to resolve named export errors in specific environments
+import { useOutletContext, useNavigate, useParams } from 'react-router';
 import { supabase } from '../../supabaseClient';
 import { Tenant, Product } from '../../types';
 import { useApp } from '../../AppProvider';

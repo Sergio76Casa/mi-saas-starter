@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+// Use core routing hooks from react-router
+import { useNavigate } from 'react-router';
 import { supabase } from '../../supabaseClient';
 import { Input } from '../../components/common/Input';
 

@@ -1,6 +1,8 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { useOutletContext, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+// Core hooks from react-router and SearchParams from react-router-dom
+import { useOutletContext, useNavigate, useParams } from 'react-router';
+import { useSearchParams } from 'react-router-dom';
 import { supabase } from '../../supabaseClient';
 import { Tenant, Quote, Customer, QuoteItem } from '../../types';
 import { useApp } from '../../AppProvider';

@@ -1,5 +1,6 @@
 
 import React from 'react';
+// Correct import for Link in a DOM environment
 import { Link } from 'react-router-dom';
 import { useApp } from '../../AppProvider';
 import { isConfigured } from '../../supabaseClient';
