@@ -58,7 +58,17 @@ export interface Product {
   model: string;
   type: string;
   status: 'draft' | 'active' | 'inactive';
-  pricing: Array<{ variant: string; price: number }>; 
+  /**
+   * pricing is an array of variants. 
+   * It can have a simple 'variant' string or a localized 'name' object.
+   */
+  pricing: Array<{ 
+    variant?: string; 
+    price: number; 
+    name?: { es: string; ca: string };
+    cost?: number;
+    id?: string;
+  }>; 
   description?: { es: string; ca: string };
   features?: string;
   installation_kits?: Array<{ name: string; price: number }>;
@@ -69,6 +79,10 @@ export interface Product {
   brand_logo_url?: string;
   is_deleted: boolean;
   created_at: string;
+  /**
+   * Computed field representing the minimum price among variants for display purposes.
+   */
+  price: number; 
 }
 
 export interface Customer {
