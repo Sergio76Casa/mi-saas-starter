@@ -77,7 +77,6 @@ export const ProductEditor = () => {
 
         setProductData({
           ...data,
-          // Aseguramos que descripción siempre tenga ambos campos
           description: {
             es: rawDesc.es || '',
             ca: rawDesc.ca || ''
@@ -133,6 +132,7 @@ export const ProductEditor = () => {
           ca: normalized.description?.ca || prev.description.ca
         },
         pricing: normalized.pricing || [],
+        installation_kits: normalized.installation_kits || [],
         extras: normalized.extras || [],
         pdf_url: uploadedUrl 
       }));
@@ -161,12 +161,12 @@ export const ProductEditor = () => {
         tenant_id: tenant.id,
         brand: productData.brand,
         model: productData.model,
-        type: normalizeType(productData.type), // Normalizamos antes de guardar
+        type: normalizeType(productData.type),
         status: productData.status || 'active',
         description: productData.description || { es: '', ca: '' },
-        pricing: Array.isArray(productData.pricing) ? productData.pricing : [],
-        installation_kits: Array.isArray(productData.installation_kits) ? productData.installation_kits : [],
-        extras: Array.isArray(productData.extras) ? productData.extras : [],
+        pricing: productData.pricing || [],
+        installation_kits: productData.installation_kits || [],
+        extras: productData.extras || [],
         stock: parseInt(productData.stock) || 0,
         image_url: productData.image_url || '',
         brand_logo_url: productData.brand_logo_url || '',
@@ -188,25 +188,23 @@ export const ProductEditor = () => {
     }
   };
 
-  const addExtra = () => {
-    setProductData({
-      ...productData,
-      extras: [...(productData.extras || []), { name: '', qty: 1, unit_price: 0 }]
-    });
+  // Handlers para Kits
+  const addKit = () => setProductData({ ...productData, installation_kits: [...(productData.installation_kits || []), { name: '', price: 0 }] });
+  const updateKit = (idx: number, field: string, val: any) => {
+    const kits = [...productData.installation_kits];
+    kits[idx] = { ...kits[idx], [field]: val };
+    setProductData({ ...productData, installation_kits: kits });
   };
+  const removeKit = (idx: number) => setProductData({ ...productData, installation_kits: productData.installation_kits.filter((_:any, i:number) => i !== idx) });
 
-  const updateExtra = (index: number, field: string, value: any) => {
-    const newExtras = [...productData.extras];
-    newExtras[index] = { ...newExtras[index], [field]: value };
-    setProductData({ ...productData, extras: newExtras });
+  // Handlers para Extras
+  const addExtra = () => setProductData({ ...productData, extras: [...(productData.extras || []), { name: '', qty: 1, unit_price: 0 }] });
+  const updateExtra = (idx: number, field: string, val: any) => {
+    const extras = [...productData.extras];
+    extras[idx] = { ...extras[idx], [field]: val };
+    setProductData({ ...productData, extras: extras });
   };
-
-  const removeExtra = (index: number) => {
-    setProductData({
-      ...productData,
-      extras: productData.extras.filter((_: any, i: number) => i !== index)
-    });
-  };
+  const removeExtra = (idx: number) => setProductData({ ...productData, extras: productData.extras.filter((_: any, i: number) => i !== idx) });
 
   if (loading) return <LoadingSpinner />;
 
@@ -249,6 +247,7 @@ export const ProductEditor = () => {
       
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
         <div className="lg:col-span-2 space-y-8">
+          {/* INFORMACIÓN BÁSICA */}
           <section className="bg-white p-10 rounded-[2.5rem] border border-slate-100 shadow-sm">
             <h4 className="text-[10px] font-black uppercase text-slate-400 mb-8 tracking-widest flex items-center gap-2">
               <span className="w-1.5 h-1.5 bg-blue-500 rounded-full"></span> Información del Equipo
@@ -284,42 +283,50 @@ export const ProductEditor = () => {
             </div>
           </section>
 
+          {/* PRECIOS DEL EQUIPO */}
           <section className="bg-white p-10 rounded-[2.5rem] border border-slate-100 shadow-sm">
             <h4 className="text-[10px] font-black uppercase text-slate-400 mb-8 tracking-widest flex items-center gap-2">
-              <span className="w-1.5 h-1.5 bg-orange-500 rounded-full"></span> Descripción del Catálogo
-            </h4>
-            <div className="space-y-6">
-              <div>
-                <div className="flex items-center gap-2 mb-2 ml-1"><span className="bg-slate-900 text-white text-[8px] font-black px-1.5 py-0.5 rounded">ES</span><label className="text-[9px] font-black uppercase text-slate-400">Español</label></div>
-                <textarea value={productData.description?.es || ''} onChange={(e) => setProductData({...productData, description: {...productData.description, es: e.target.value}})} className="w-full px-6 py-4 border border-slate-100 rounded-2xl bg-slate-50 text-sm font-medium h-24 resize-none focus:ring-2 focus:ring-blue-500 outline-none" />
-              </div>
-              <div>
-                <div className="flex items-center gap-2 mb-2 ml-1"><span className="bg-blue-600 text-white text-[8px] font-black px-1.5 py-0.5 rounded">CA</span><label className="text-[9px] font-black uppercase text-slate-400">Catalán</label></div>
-                <textarea value={productData.description?.ca || ''} onChange={(e) => setProductData({...productData, description: {...productData.description, ca: e.target.value}})} className="w-full px-6 py-4 border border-slate-100 rounded-2xl bg-slate-50 text-sm font-medium h-24 resize-none focus:ring-2 focus:ring-blue-500 outline-none" />
-              </div>
-            </div>
-          </section>
-
-          {/* SECCIÓN PRECIOS */}
-          <section className="bg-white p-10 rounded-[2.5rem] border border-slate-100 shadow-sm">
-            <h4 className="text-[10px] font-black uppercase text-slate-400 mb-8 tracking-widest flex items-center gap-2">
-              <span className="w-1.5 h-1.5 bg-green-500 rounded-full"></span> Variantes de Precio
+              <span className="w-1.5 h-1.5 bg-green-500 rounded-full"></span> Variantes de Precio del Equipo
             </h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {productData.pricing && Array.isArray(productData.pricing) && productData.pricing.map((p: any, i: number) => (
+              {(productData.pricing || []).map((p: any, i: number) => (
                 <div key={i} className="p-6 bg-slate-50 rounded-3xl border border-slate-100 relative group">
                   <button onClick={() => setProductData({...productData, pricing: productData.pricing.filter((_:any,idx:number)=>idx!==i)})} className="absolute top-4 right-4 w-6 h-6 flex items-center justify-center bg-white text-red-400 border border-slate-100 rounded-full text-sm font-black shadow-sm opacity-0 group-hover:opacity-100 transition-opacity">×</button>
                   <div className="space-y-4">
-                    <div className="space-y-1"><span className="text-[8px] font-black text-slate-400 uppercase ml-1">Nombre</span><input value={p.name?.es || ''} onChange={(e) => { const cp = [...productData.pricing]; cp[i].name = { es: e.target.value, ca: e.target.value }; setProductData({...productData, pricing: cp}); }} className="w-full px-3 py-2 bg-white border border-slate-100 rounded-xl text-[11px] font-bold" /></div>
-                    <div className="space-y-1"><span className="text-[8px] font-black text-slate-400 uppercase ml-1">Venta</span><input type="number" value={p.price} onChange={(e) => { const cp = [...productData.pricing]; cp[i].price = parseFloat(e.target.value); setProductData({...productData, pricing: cp}); }} className="w-full px-3 py-2 bg-white border border-slate-100 rounded-xl text-[13px] font-black text-blue-600" /></div>
+                    <div className="space-y-1"><span className="text-[8px] font-black text-slate-400 uppercase ml-1">Nombre Variante</span><input value={p.name?.es || ''} onChange={(e) => { const cp = [...productData.pricing]; cp[i].name = { es: e.target.value, ca: e.target.value }; setProductData({...productData, pricing: cp}); }} className="w-full px-3 py-2 bg-white border border-slate-100 rounded-xl text-[11px] font-bold" /></div>
+                    <div className="space-y-1"><span className="text-[8px] font-black text-slate-400 uppercase ml-1">Precio Venta</span><input type="number" value={p.price} onChange={(e) => { const cp = [...productData.pricing]; cp[i].price = parseFloat(e.target.value); setProductData({...productData, pricing: cp}); }} className="w-full px-3 py-2 bg-white border border-slate-100 rounded-xl text-[13px] font-black text-blue-600" /></div>
                   </div>
                 </div>
               ))}
-              <button onClick={() => setProductData({...productData, pricing: [...(Array.isArray(productData.pricing) ? productData.pricing : []), { name: {es:'Variante',ca:'Variant'}, price: 0, cost: 0 }]})} className="h-full min-h-[140px] flex flex-col items-center justify-center border-2 border-dashed border-slate-100 rounded-3xl text-slate-300 hover:text-blue-500 hover:border-blue-200 transition-all group"><span className="text-2xl mb-1 group-hover:scale-125 transition-transform">+</span><span className="text-[9px] font-black uppercase tracking-widest text-center px-4">Añadir Precio</span></button>
+              <button onClick={() => setProductData({...productData, pricing: [...(productData.pricing || []), { name: {es:'Variante',ca:'Variant'}, price: 0 }]})} className="h-full min-h-[120px] flex flex-col items-center justify-center border-2 border-dashed border-slate-100 rounded-3xl text-slate-300 hover:text-blue-500 hover:border-blue-200 transition-all group"><span className="text-2xl mb-1 group-hover:scale-125 transition-transform">+</span><span className="text-[9px] font-black uppercase tracking-widest">Añadir Variante</span></button>
             </div>
           </section>
 
-          {/* SECCIÓN EXTRAS (NUEVA) */}
+          {/* KITS DE INSTALACIÓN */}
+          <section className="bg-white p-10 rounded-[2.5rem] border border-slate-100 shadow-sm">
+            <div className="flex justify-between items-center mb-8">
+              <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-widest flex items-center gap-2">
+                <span className="w-1.5 h-1.5 bg-orange-500 rounded-full"></span> Kits de Instalación
+              </h4>
+              <button onClick={addKit} className="text-[9px] font-black uppercase bg-orange-50 text-orange-600 px-4 py-2 rounded-full hover:bg-orange-100 transition-colors">+ Añadir Kit</button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {(productData.installation_kits || []).map((k: any, i: number) => (
+                <div key={i} className="p-6 bg-slate-50 rounded-3xl border border-slate-100 relative group animate-in slide-in-from-left-2 duration-300">
+                  <button onClick={() => removeKit(i)} className="absolute top-4 right-4 text-slate-300 hover:text-red-500 transition-colors px-1 font-black">×</button>
+                  <div className="space-y-4">
+                    <div className="space-y-1"><label className="text-[8px] font-black uppercase text-slate-400 ml-1">Nombre del Kit</label><input value={k.name} onChange={(e) => updateKit(i, 'name', e.target.value)} className="w-full px-3 py-2 bg-white border border-slate-100 rounded-xl text-[11px] font-bold outline-none focus:ring-1 focus:ring-orange-500" /></div>
+                    <div className="space-y-1"><label className="text-[8px] font-black uppercase text-slate-400 ml-1">Precio Kit</label><input type="number" value={k.price} onChange={(e) => updateKit(i, 'price', parseFloat(e.target.value))} className="w-full px-3 py-2 bg-white border border-slate-100 rounded-xl text-[13px] font-black text-orange-600 outline-none focus:ring-1 focus:ring-orange-500" /></div>
+                  </div>
+                </div>
+              ))}
+              {(!productData.installation_kits || productData.installation_kits.length === 0) && (
+                <div className="md:col-span-2 py-10 border-2 border-dashed border-slate-100 rounded-[2rem] text-center"><p className="text-[10px] font-black uppercase text-slate-300 italic">No hay kits configurados</p></div>
+              )}
+            </div>
+          </section>
+
+          {/* MATERIALES Y EXTRAS */}
           <section className="bg-white p-10 rounded-[2.5rem] border border-slate-100 shadow-sm">
             <div className="flex justify-between items-center mb-8">
               <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-widest flex items-center gap-2">
@@ -327,45 +334,34 @@ export const ProductEditor = () => {
               </h4>
               <button onClick={addExtra} className="text-[9px] font-black uppercase bg-blue-50 text-blue-600 px-4 py-2 rounded-full hover:bg-blue-100 transition-colors">+ Añadir Extra</button>
             </div>
-            
             <div className="space-y-3">
               {(productData.extras || []).map((extra: any, i: number) => (
                 <div key={i} className="flex flex-col md:flex-row items-end gap-4 p-5 bg-slate-50 rounded-2xl border border-slate-100 relative group animate-in slide-in-from-left-2 duration-300">
-                  <button onClick={() => removeExtra(i)} className="absolute top-4 right-4 text-slate-300 hover:text-red-500 transition-colors">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
-                  </button>
-                  
-                  <div className="flex-1 w-full space-y-1">
-                    <label className="text-[8px] font-black uppercase text-slate-400 ml-1">Concepto / Material</label>
-                    <input value={extra.name} onChange={(e) => updateExtra(i, 'name', e.target.value)} className="w-full px-4 py-2.5 bg-white border border-slate-100 rounded-xl text-xs font-bold focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Ej: Metro lineal tubería" />
-                  </div>
-                  
-                  <div className="w-24 space-y-1">
-                    <label className="text-[8px] font-black uppercase text-slate-400 ml-1 text-center block">Cant.</label>
-                    <input type="number" value={extra.qty} onChange={(e) => updateExtra(i, 'qty', parseFloat(e.target.value))} className="w-full px-4 py-2.5 bg-white border border-slate-100 rounded-xl text-xs font-bold text-center focus:ring-2 focus:ring-blue-500 outline-none" />
-                  </div>
-                  
-                  <div className="w-32 space-y-1">
-                    <label className="text-[8px] font-black uppercase text-slate-400 ml-1 text-center block">Precio Unidad</label>
-                    <input type="number" value={extra.unit_price} onChange={(e) => updateExtra(i, 'unit_price', parseFloat(e.target.value))} className="w-full px-4 py-2.5 bg-white border border-slate-100 rounded-xl text-xs font-black text-center text-blue-600 focus:ring-2 focus:ring-blue-500 outline-none" />
-                  </div>
-
-                  <div className="w-28 space-y-1 pb-3 text-right">
-                    <label className="text-[7px] font-black uppercase text-slate-300 mb-1 block">Total Línea</label>
-                    <span className="text-xs font-black text-slate-900">{formatCurrency((extra.qty || 0) * (extra.unit_price || 0), language)}</span>
-                  </div>
+                  <button onClick={() => removeExtra(i)} className="absolute top-4 right-4 text-slate-300 hover:text-red-500 transition-colors"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12"/></svg></button>
+                  <div className="flex-1 w-full space-y-1"><label className="text-[8px] font-black uppercase text-slate-400 ml-1">Concepto / Material</label><input value={extra.name} onChange={(e) => updateExtra(i, 'name', e.target.value)} className="w-full px-4 py-2.5 bg-white border border-slate-100 rounded-xl text-xs font-bold focus:ring-2 focus:ring-blue-500 outline-none" /></div>
+                  <div className="w-24 space-y-1"><label className="text-[8px] font-black uppercase text-slate-400 ml-1 text-center block">Cant.</label><input type="number" value={extra.qty} onChange={(e) => updateExtra(i, 'qty', parseFloat(e.target.value))} className="w-full px-4 py-2.5 bg-white border border-slate-100 rounded-xl text-xs font-bold text-center focus:ring-2 focus:ring-blue-500 outline-none" /></div>
+                  <div className="w-32 space-y-1"><label className="text-[8px] font-black uppercase text-slate-400 ml-1 text-center block">Precio Ud.</label><input type="number" value={extra.unit_price} onChange={(e) => updateExtra(i, 'unit_price', parseFloat(e.target.value))} className="w-full px-4 py-2.5 bg-white border border-slate-100 rounded-xl text-xs font-black text-center text-blue-600 focus:ring-2 focus:ring-blue-500 outline-none" /></div>
+                  <div className="w-28 space-y-1 pb-3 text-right"><label className="text-[7px] font-black uppercase text-slate-300 mb-1 block">Total Línea</label><span className="text-xs font-black text-slate-900">{formatCurrency((extra.qty || 0) * (extra.unit_price || 0), language)}</span></div>
                 </div>
               ))}
               {(!productData.extras || productData.extras.length === 0) && (
-                <div className="py-12 border-2 border-dashed border-slate-100 rounded-[2rem] text-center">
-                   <p className="text-[10px] font-black uppercase text-slate-300 italic">No hay extras extraídos o añadidos</p>
-                </div>
+                <div className="py-12 border-2 border-dashed border-slate-100 rounded-[2rem] text-center"><p className="text-[10px] font-black uppercase text-slate-300 italic">No hay materiales extras configurados</p></div>
               )}
             </div>
           </section>
         </div>
 
         <aside className="space-y-8">
+          {/* DESCRIPCIÓN CATÁLOGO */}
+          <section className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm">
+            <h4 className="text-[10px] font-black uppercase text-slate-400 mb-6 tracking-widest">Descripción Catálogo</h4>
+            <div className="space-y-4">
+              <div className="space-y-1"><label className="text-[8px] font-black uppercase text-slate-400 ml-1">Español</label><textarea value={productData.description?.es || ''} onChange={(e) => setProductData({...productData, description: {...productData.description, es: e.target.value}})} className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-xs font-medium h-20 resize-none outline-none focus:ring-2 focus:ring-blue-500" /></div>
+              <div className="space-y-1"><label className="text-[8px] font-black uppercase text-slate-400 ml-1">Catalán</label><textarea value={productData.description?.ca || ''} onChange={(e) => setProductData({...productData, description: {...productData.description, ca: e.target.value}})} className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-xs font-medium h-20 resize-none outline-none focus:ring-2 focus:ring-blue-500" /></div>
+            </div>
+          </section>
+
+          {/* FINANCIACIÓN */}
           <section className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm">
             <h4 className="text-[10px] font-black uppercase text-slate-400 mb-6 tracking-widest flex items-center gap-2">
               <span className="w-1.5 h-1.5 bg-purple-500 rounded-full"></span> Financiación
@@ -387,6 +383,7 @@ export const ProductEditor = () => {
             </div>
           </section>
 
+          {/* FICHA TÉCNICA */}
           <section className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm">
             <h4 className="text-[10px] font-black uppercase text-slate-400 mb-6 tracking-widest flex items-center gap-2">
               <span className="w-1.5 h-1.5 bg-amber-500 rounded-full"></span> Ficha Técnica
