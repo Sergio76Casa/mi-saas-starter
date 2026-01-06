@@ -48,7 +48,12 @@ const LOCAL_I18N = {
     all_brands: 'Todas las marcas',
     filter_price: 'Precio máximo',
     link_install: 'Instalación',
-    link_maint: 'Mantenimiento'
+    link_maint: 'Mantenimiento',
+    link_repair: 'Reparación',
+    link_warranty: 'Garantías',
+    link_privacy: 'Privacidad',
+    link_cookies: 'Cookies',
+    link_legal: 'Aviso Legal'
   },
   ca: {
     nav_home: 'Inici',
@@ -89,7 +94,12 @@ const LOCAL_I18N = {
     all_brands: 'Totes les marques',
     filter_price: 'Preu màxim',
     link_install: 'Instal·lació',
-    link_maint: 'Manteniment'
+    link_maint: 'Manteniment',
+    link_repair: 'Reparació',
+    link_warranty: 'Garanties',
+    link_privacy: 'Privacitat',
+    link_cookies: 'Cookies',
+    link_legal: 'Avís Legal'
   }
 } as const;
 
@@ -108,6 +118,46 @@ const FOOTER_MODAL_CONTENT: Record<string, any> = {
     desc: {
       es: 'Revisiones periódicas para alargar la vida útil del equipo, mejorar el rendimiento y reducir el consumo.',
       ca: 'Revisions periòdiques per allargar la vida útil de l’equip, millorar el rendiment i reduir el consum.'
+    }
+  },
+  reparacion: {
+    title: { es: 'Reparación', ca: 'Reparació' },
+    img: 'https://images.unsplash.com/photo-1504328345606-18bbc8c9d7d1?q=80&w=2070&auto=format&fit=crop',
+    desc: {
+      es: 'Diagnóstico rápido y reparación con repuestos de calidad. Solucionamos averías para que recuperes el confort cuanto antes.',
+      ca: 'Diagnosi ràpida i reparació amb recanvis de qualitat. Resolem avaries perquè recuperis el confort com més aviat millor.'
+    }
+  },
+  garantias: {
+    title: { es: 'Garantías', ca: 'Garanties' },
+    img: 'https://images.unsplash.com/photo-1450101499163-c8848c66ca85?q=80&w=2070&auto=format&fit=crop',
+    desc: {
+      es: 'Cobertura y tranquilidad. Gestionamos garantías y te acompañamos ante cualquier incidencia del equipo o la instalación.',
+      ca: 'Cobertura i tranquil·litat. Gestionem garanties i t’acompanyem davant qualsevol incidència de l’equip o la instal·lació.'
+    }
+  },
+  privacidad: {
+    title: { es: 'Privacidad', ca: 'Privacitat' },
+    img: 'https://images.unsplash.com/photo-1563986768609-322da13575f3?q=80&w=2070&auto=format&fit=crop',
+    desc: {
+      es: 'Tratamos tus datos con responsabilidad y solo para ofrecerte el servicio. Puedes solicitar acceso, rectificación o eliminación cuando lo necesites.',
+      ca: 'Tractem les teves dades amb responsabilitat i només per oferir-te el servei. Pots sol·licitar accés, rectificació o eliminació quan ho necessitis.'
+    }
+  },
+  cookies: {
+    title: { es: 'Cookies', ca: 'Cookies' },
+    img: 'https://images.unsplash.com/photo-1516321497487-e288fb19713f?q=80&w=2070&auto=format&fit=crop',
+    desc: {
+      es: 'Utilizamos cookies para mejorar tu experiencia y analizar el uso del sitio. Puedes aceptar, rebutjar o configurar tus preferencias.',
+      ca: 'Utilitzem cookies per millorar la teva experiència i analitzar l’ús del lloc. Pots acceptar, rebutjar o configurar les teves preferències.'
+    }
+  },
+  aviso_legal: {
+    title: { es: 'Aviso Legal', ca: 'Avís Legal' },
+    img: 'https://images.unsplash.com/photo-1450101499163-c8848c66ca85?q=80&w=2070&auto=format&fit=crop',
+    desc: {
+      es: 'Aquí encontrarás la información legal del sitio, condiciones de uso y responsabilidades. Si tienes dudas, contáctanos.',
+      ca: 'Aquí trobaràs la informació legal del lloc, condicions d’ús i responsabilitats. Si tens dubtes, contacta amb nosaltres.'
     }
   }
 };
@@ -301,7 +351,7 @@ export const PublicTenantWebsite = () => {
         </div>
       )}
 
-      {/* Footer Modal (Instalación/Mantenimiento) */}
+      {/* Footer Modal (All sections) */}
       {activeFooterModal && FOOTER_MODAL_CONTENT[activeFooterModal] && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 md:p-10 animate-in fade-in duration-300">
            <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setActiveFooterModal(null)}></div>
@@ -483,7 +533,7 @@ export const PublicTenantWebsite = () => {
         </main>
       )}
 
-      {/* Footer */}
+      {/* Footer Completo Restaurado */}
       <footer className="bg-gradient-to-br from-slate-900 via-slate-950 to-black text-white pt-24 pb-12 border-t border-white/5 relative overflow-hidden">
         <div className="absolute top-0 right-0 w-96 h-96 bg-blue-600/5 blur-[120px] rounded-full -translate-y-1/2 translate-x-1/2"></div>
         <div className="max-w-7xl mx-auto px-6 md:px-10 relative z-10">
@@ -508,6 +558,22 @@ export const PublicTenantWebsite = () => {
               <ul className="space-y-4">
                 <li><button onClick={() => setActiveFooterModal('instalacion')} className="text-slate-400 hover:text-white text-[13px] font-bold uppercase tracking-widest italic">{tt('link_install')}</button></li>
                 <li><button onClick={() => setActiveFooterModal('mantenimiento')} className="text-slate-400 hover:text-white text-[13px] font-bold uppercase tracking-widest italic">{tt('link_maint')}</button></li>
+                <li><button onClick={() => setActiveFooterModal('reparacion')} className="text-slate-400 hover:text-white text-[13px] font-bold uppercase tracking-widest italic">{tt('link_repair')}</button></li>
+              </ul>
+            </div>
+            <div className="space-y-8 text-left">
+              <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-blue-500">Empresa</h4>
+              <ul className="space-y-4">
+                <li><button onClick={() => setActiveFooterModal('garantias')} className="text-slate-400 hover:text-white text-[13px] font-bold uppercase tracking-widest italic">{tt('link_warranty')}</button></li>
+                <li><button onClick={() => document.getElementById('catalog')?.scrollIntoView({ behavior: 'smooth' })} className="text-slate-400 hover:text-white text-[13px] font-bold uppercase tracking-widest italic">{tt('nav_products')}</button></li>
+              </ul>
+            </div>
+            <div className="space-y-8 text-left">
+              <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-blue-500">Legal</h4>
+              <ul className="space-y-4">
+                <li><button onClick={() => setActiveFooterModal('privacidad')} className="text-slate-400 hover:text-white text-[13px] font-bold uppercase tracking-widest italic">{tt('link_privacy')}</button></li>
+                <li><button onClick={() => setActiveFooterModal('cookies')} className="text-slate-400 hover:text-white text-[13px] font-bold uppercase tracking-widest italic">{tt('link_cookies')}</button></li>
+                <li><button onClick={() => setActiveFooterModal('aviso_legal')} className="text-slate-400 hover:text-white text-[13px] font-bold uppercase tracking-widest italic">{tt('link_legal')}</button></li>
               </ul>
             </div>
           </div>
