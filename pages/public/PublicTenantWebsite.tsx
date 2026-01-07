@@ -1,12 +1,12 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-// Standardize imports from react-router-dom
 import { useParams } from 'react-router-dom';
 import { supabase, isConfigured } from '../../supabaseClient';
 import { Tenant, Branch, Product } from '../../types';
 import { formatCurrency } from '../../i18n';
 import { useApp } from '../../AppProvider';
 import { LoadingSpinner } from '../../components/common/LoadingSpinner';
+import { Input } from '../../components/common/Input';
 import { PublicQuoteConfigurator } from './PublicQuoteConfigurator';
 import { PublicFooter } from '../../components/public/PublicFooter';
 
@@ -49,6 +49,7 @@ const LOCAL_I18N = {
     filter_brand: 'Marca',
     all_brands: 'Todas las marcas',
     filter_price: 'Precio máximo',
+    filter_search: 'Buscar por modelo',
     link_install: 'Instalación',
     link_maint: 'Mantenimiento',
     link_repair: 'Reparación',
@@ -95,6 +96,7 @@ const LOCAL_I18N = {
     filter_brand: 'Marca',
     all_brands: 'Totes les marques',
     filter_price: 'Preu màxim',
+    filter_search: 'Cercar per model',
     link_install: 'Instal·lació',
     link_maint: 'Manteniment',
     link_repair: 'Reparació',
@@ -119,13 +121,14 @@ export const PublicTenantWebsite = () => {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [showToast, setShowToast] = useState(false);
   
+  const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [brandFilter, setBrandFilter] = useState('');
   const [maxPriceFilter, setMaxPriceFilter] = useState<number>(5000);
 
   const tt = (key: keyof typeof LOCAL_I18N['es'], params?: Record<string, any>) => {
     let msg = (LOCAL_I18N[language] as any)?.[key] ?? (LOCAL_I18N.es as any)[key];
-    if (!msg) return key; // Safety: return key if translation is missing
+    if (!msg) return key;
 
     if (params) {
       Object.entries(params).forEach(([k, v]) => {
@@ -151,7 +154,6 @@ export const PublicTenantWebsite = () => {
         if (tError || !tData) { setIsError(true); return; }
         setTenant(tData as any);
         
-        // Fetch branches
         const { data: bData } = await supabase
           .from('tenant_branches')
           .select('*')
@@ -211,9 +213,11 @@ export const PublicTenantWebsite = () => {
       const matchesType = categoryFilter === 'all' || p.type === categoryFilter;
       const matchesBrand = !brandFilter || p.brand === brandFilter;
       const matchesPrice = p.price <= maxPriceFilter;
-      return matchesType && matchesBrand && matchesPrice;
+      const matchesSearch = p.model.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                           p.brand.toLowerCase().includes(searchTerm.toLowerCase());
+      return matchesType && matchesBrand && matchesPrice && matchesSearch;
     });
-  }, [dbProducts, categoryFilter, brandFilter, maxPriceFilter]);
+  }, [dbProducts, categoryFilter, brandFilter, maxPriceFilter, searchTerm]);
 
   const handleOpenConfigurator = (product: Product) => {
     setSelectedProduct(product);
@@ -244,17 +248,26 @@ export const PublicTenantWebsite = () => {
 
   if (!isDataReady) return <LoadingSpinner />;
 
+  if (isError || !tenant) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 text-center p-10">
+        <div>
+          <h1 className="text-4xl font-black uppercase italic tracking-tighter text-slate-900 mb-4">{tt('error_404_msg')}</h1>
+          <button onClick={() => window.location.href = '/'} className="px-8 py-3 bg-blue-600 text-white rounded-xl font-black uppercase text-[10px] tracking-widest">{tt('error_404_btn')}</button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 selection:bg-blue-600/20 overflow-x-hidden transition-all duration-500">
       
-      {/* Toast Notification */}
       {showToast && (
         <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[300] bg-slate-900 text-white px-6 py-3 rounded-full text-[10px] font-black uppercase tracking-widest shadow-2xl animate-in fade-in slide-in-from-bottom-4">
           {tt('share_msg')}
         </div>
       )}
 
-      {/* Detail Modal (Characteristics) */}
       {detailProduct && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 md:p-10 animate-in fade-in duration-300">
            <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setDetailProduct(null)}></div>
@@ -316,7 +329,6 @@ export const PublicTenantWebsite = () => {
         </div>
       )}
 
-      {/* Navbar Premium Tech */}
       <nav className="fixed top-0 left-0 right-0 h-20 bg-white/80 backdrop-blur-md z-[100] border-b border-slate-200 transition-all duration-300">
         <div className="max-w-7xl mx-auto h-full flex items-center justify-between px-6 md:px-10">
           <button onClick={() => { setView('landing'); window.scrollTo(0,0); }} className="flex items-center gap-3 hover:scale-105 transition-transform">
@@ -379,25 +391,32 @@ export const PublicTenantWebsite = () => {
                   <p className="text-slate-500 font-medium text-lg italic">{tt('catalog_subtitle')}</p>
                </div>
                
-               {/* Filters - EcoQuote Premium Style */}
                <div className="bg-white border border-slate-200 rounded-2xl p-8 mb-16 shadow-sm grid grid-cols-1 md:grid-cols-12 gap-10 items-end text-left transition-all duration-300 hover:shadow-md">
-                  <div className="md:col-span-12 lg:col-span-7">
+                  <div className="md:col-span-12 lg:col-span-4">
+                    <Input 
+                        label={tt('filter_search')} 
+                        placeholder="Ej: Comfee..." 
+                        value={searchTerm} 
+                        onChange={(e: any) => setSearchTerm(e.target.value)} 
+                    />
+                  </div>
+                  <div className="md:col-span-12 lg:col-span-3">
                     <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-5">{tt('filter_type')}</label>
-                    <div className="flex flex-wrap gap-3 items-center">
+                    <div className="flex flex-wrap gap-2 items-center">
                       {['all', 'aire_acondicionado', 'caldera', 'termo_electrico'].map(id => (
                         <button 
                           key={id} 
                           onClick={() => setCategoryFilter(id)} 
-                          className={`px-5 py-3 rounded-xl text-[10px] font-black tracking-widest transition-all uppercase border-2 ${categoryFilter === id ? 'bg-blue-600 border-blue-600 text-white shadow-xl shadow-blue-900/20' : 'bg-white text-slate-500 border-slate-100 hover:border-slate-300 hover:bg-slate-50'}`}
+                          className={`px-4 py-2 rounded-xl text-[9px] font-black tracking-widest transition-all uppercase border-2 ${categoryFilter === id ? 'bg-blue-600 border-blue-600 text-white shadow-xl shadow-blue-900/20' : 'bg-white text-slate-500 border-slate-100 hover:border-slate-300 hover:bg-slate-50'}`}
                         >
-                          {id === 'all' ? tt('all_types') : id.replace(/_/g, ' ')}
+                          {id === 'all' ? tt('all_types').split(' ')[0] : id.split('_')[0]}
                         </button>
                       ))}
                     </div>
                   </div>
                   <div className="md:col-span-6 lg:col-span-2.5">
                     <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-4">{tt('filter_brand')}</label>
-                    <select value={brandFilter} onChange={(e) => setBrandFilter(e.target.value)} className="w-full h-14 px-5 rounded-xl border-2 border-slate-100 bg-slate-50/30 text-[10px] font-black uppercase outline-none focus:border-blue-600 transition-colors appearance-none cursor-pointer">
+                    <select value={brandFilter} onChange={(e) => setBrandFilter(e.target.value)} className="w-full h-11 px-4 rounded-xl border-2 border-slate-100 bg-slate-50/30 text-[10px] font-black uppercase outline-none focus:border-blue-600 transition-colors appearance-none cursor-pointer">
                       <option value="">{tt('all_brands')}</option>
                       {availableBrands.map(b => <option key={b} value={b}>{b}</option>)}
                     </select>
@@ -411,7 +430,6 @@ export const PublicTenantWebsite = () => {
                   </div>
                </div>
 
-               {/* Grid with Premium Tech style */}
                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-10">
                   {filteredProducts.map(p => {
                     const specs = getTechSpecs(p);
@@ -419,9 +437,7 @@ export const PublicTenantWebsite = () => {
 
                     return (
                       <div key={p.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col overflow-hidden text-left transition-all duration-300 hover:shadow-xl hover:shadow-blue-900/10 hover:scale-[1.03] group relative animate-in fade-in slide-in-from-bottom-4 duration-500">
-                          {/* Top Section / Image */}
                           <div className="h-80 bg-slate-50/50 flex items-center justify-center p-12 overflow-hidden relative">
-                             {/* Floating Icons */}
                              <div className="absolute top-6 right-6 z-20 flex flex-col gap-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300 translate-x-4 group-hover:translate-x-0">
                                 <button onClick={(e) => handleShare(e, p)} className="w-10 h-10 bg-white text-slate-400 hover:text-blue-600 rounded-full flex items-center justify-center shadow-md border border-slate-100 transition-all hover:scale-110" title="Compartir">
                                    <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg>
@@ -438,7 +454,6 @@ export const PublicTenantWebsite = () => {
                              )}
                           </div>
 
-                          {/* Info Section */}
                           <div className="p-8 flex flex-col flex-1">
                               <div className="flex justify-between items-start mb-4">
                                 <span className="inline-block px-3 py-1 bg-blue-50 text-blue-700 text-[9px] font-black uppercase tracking-widest rounded-full border border-blue-100">
@@ -448,7 +463,6 @@ export const PublicTenantWebsite = () => {
                               </div>
                               <h3 className="text-3xl font-black text-slate-900 tracking-tighter uppercase italic leading-none mb-6 min-h-[64px] line-clamp-2">{p.model}</h3>
                               
-                              {/* Characteristics List */}
                               <div className="space-y-3 mb-8 flex-1">
                                  {specs.slice(0, 3).map((s: any, i: number) => (
                                    <div key={i} className="flex items-center gap-3 text-slate-500">
@@ -466,7 +480,6 @@ export const PublicTenantWebsite = () => {
                                  )}
                               </div>
 
-                              {/* Price and Action */}
                               <div className="flex items-center justify-between pt-6 border-t border-slate-100 mt-auto">
                                  <div className="flex flex-col">
                                     <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">{tt('since')}</span>
@@ -488,7 +501,6 @@ export const PublicTenantWebsite = () => {
           </section>
         </main>
       ) : (
-        /* CONFIGURATOR VIEW - Premium Tech Integrated */
         <main className="pb-24 pt-32 px-6 md:px-10 bg-slate-50 min-h-screen animate-in fade-in duration-500">
            <PublicQuoteConfigurator 
               product={selectedProduct!}
@@ -500,7 +512,6 @@ export const PublicTenantWebsite = () => {
         </main>
       )}
 
-      {/* Footer Premium Style */}
       <PublicFooter 
         tenant={tenant} 
         branches={branches}

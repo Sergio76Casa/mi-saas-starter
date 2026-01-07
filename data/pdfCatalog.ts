@@ -1,3 +1,4 @@
+
 // --- PDF Specific Data ---
 export const PDF_PRODUCTS = [
   { id: 'cf09', name: 'COMFEE CF 09', price: 829.00, desc: 'Eficiencia A++ en refrigeración, ideal para estancias pequeñas.' },

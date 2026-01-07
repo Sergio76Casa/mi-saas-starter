@@ -1,6 +1,5 @@
 
 import React from 'react';
-// Import everything from react-router-dom to avoid module duplication crashes
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AppProvider } from './AppProvider';
 
