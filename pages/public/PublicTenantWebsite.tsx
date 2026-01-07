@@ -109,6 +109,7 @@ export const PublicTenantWebsite = () => {
   const { slug } = useParams();
   const { language, setLanguage } = useApp();
   const [tenant, setTenant] = useState<Tenant | null>(null);
+  const [branches, setBranches] = useState<Branch[]>([]);
   const [dbProducts, setDbProducts] = useState<Product[]>([]);
   const [isDataReady, setIsDataReady] = useState(false);
   const [isError, setIsError] = useState(false);
@@ -150,6 +151,15 @@ export const PublicTenantWebsite = () => {
         if (tError || !tData) { setIsError(true); return; }
         setTenant(tData as any);
         
+        // Fetch branches
+        const { data: bData } = await supabase
+          .from('tenant_branches')
+          .select('*')
+          .eq('tenant_id', tData.id)
+          .eq('is_active', true)
+          .order('sort_order', { ascending: true });
+        if (bData) setBranches(bData);
+
         if (tData.status === 'active') {
           const { data: pData } = await supabase
             .from('products')
@@ -493,6 +503,7 @@ export const PublicTenantWebsite = () => {
       {/* Footer Premium Style */}
       <PublicFooter 
         tenant={tenant} 
+        branches={branches}
         language={language} 
         translations={LOCAL_I18N} 
       />

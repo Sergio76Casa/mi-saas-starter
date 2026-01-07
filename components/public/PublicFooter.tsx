@@ -1,9 +1,10 @@
 
 import React, { useState } from 'react';
-import { Tenant, Language } from '../../types';
+import { Tenant, Branch, Language } from '../../types';
 
 interface PublicFooterProps {
   tenant: Tenant | null;
+  branches: Branch[];
   language: Language;
   translations: any;
 }
@@ -67,7 +68,7 @@ const FOOTER_MODAL_CONTENT: Record<string, any> = {
   }
 };
 
-export const PublicFooter: React.FC<PublicFooterProps> = ({ tenant, language, translations }) => {
+export const PublicFooter: React.FC<PublicFooterProps> = ({ tenant, branches, language, translations }) => {
   const [activeModal, setActiveModal] = useState<string | null>(null);
 
   const tt = (key: string) => {
@@ -77,6 +78,8 @@ export const PublicFooter: React.FC<PublicFooterProps> = ({ tenant, language, tr
   };
   
   const modalContent = activeModal ? FOOTER_MODAL_CONTENT[activeModal] : null;
+
+  const currentYear = new Date().getFullYear();
 
   return (
     <>
@@ -105,11 +108,11 @@ export const PublicFooter: React.FC<PublicFooterProps> = ({ tenant, language, tr
         </div>
       )}
 
-      <footer className="bg-gradient-to-br from-slate-900 via-slate-950 to-black text-white pt-24 pb-12 border-t border-white/5 relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-blue-600/5 blur-[120px] rounded-full -translate-y-1/2 translate-x-1/2"></div>
+      <footer className="bg-slate-950 text-white pt-24 pb-12 relative overflow-hidden text-left">
         <div className="max-w-7xl mx-auto px-6 md:px-10 relative z-10">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-20 text-left">
-            <div className="space-y-8 text-left">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-20">
+            {/* Columna 1: Branding */}
+            <div className="space-y-8">
               <div className="flex items-center gap-3">
                 {tenant?.use_logo_on_web && tenant?.logo_url ? (
                   <img src={tenant.logo_url} className="h-10 w-auto object-contain brightness-0 invert" alt={tenant?.name} />
@@ -117,47 +120,125 @@ export const PublicFooter: React.FC<PublicFooterProps> = ({ tenant, language, tr
                   <span className="text-2xl font-black italic tracking-tighter uppercase text-white">{tenant?.name || 'EMPRESA'}</span>
                 )}
               </div>
-              <p className="text-slate-400 text-[13px] font-medium leading-relaxed max-w-xs italic">
+              <p className="text-slate-400 text-[14px] font-medium leading-relaxed max-w-xs italic">
                 {language === 'ca' 
-                  ? (tenant?.footer_description_ca || tenant?.footer_description_es || "Som experts en solucions de climatització.")
-                  : (tenant?.footer_description_es || tenant?.footer_description_ca || "Expertos en climatización.")
+                  ? (tenant?.footer_description_ca || tenant?.footer_description_es || "Som experts en solucions de climatització eficient.")
+                  : (tenant?.footer_description_es || tenant?.footer_description_ca || "Somo Expertos en soluciones de climatización eficiente. Presupuestos transparentes, instalación profesional y las mejores marcas del mercado.")
                 }
               </p>
+              
+              <div className="flex gap-4">
+                {tenant?.social_facebook && (
+                  <a href={tenant.social_facebook} target="_blank" rel="noreferrer" className="w-10 h-10 bg-white/5 hover:bg-white/10 text-white rounded-xl flex items-center justify-center transition-all">
+                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M22 12c0-5.523-4.477-10-10-10S2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.878v-6.987h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.988C18.343 21.128 22 16.991 22 12z"/></svg>
+                  </a>
+                )}
+                {tenant?.social_instagram && (
+                  <a href={tenant.social_instagram} target="_blank" rel="noreferrer" className="w-10 h-10 bg-white/5 hover:bg-white/10 text-white rounded-xl flex items-center justify-center transition-all">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2"><path d="M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zm0 8.2a3.2 3.2 0 1 1 0-6.4 3.2 3.2 0 0 1 0 6.4zM16.5 5c-.44 0-.8.36-.8.8s.36.8.8.8.8-.36.8-.8-.36-.8-.8-.8zm1.5 2.5v9c0 2.48-2.02 4.5-4.5 4.5h-3C8.02 21 6 18.98 6 16.5v-9C6 5.02 8.02 3 10.5 3h3c2.48 0 4.5 2.02 4.5 4.5z"/></svg>
+                  </a>
+                )}
+              </div>
             </div>
             
-            <div className="space-y-8 text-left">
-              <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-blue-500">Servicios</h4>
-              <ul className="space-y-4">
-                <li><button onClick={() => setActiveModal('instalacion')} className="text-slate-400 hover:text-white text-[13px] font-bold uppercase tracking-widest italic transition-colors">{tt('link_install')}</button></li>
-                <li><button onClick={() => setActiveModal('mantenimiento')} className="text-slate-400 hover:text-white text-[13px] font-bold uppercase tracking-widest italic transition-colors">{tt('link_maint')}</button></li>
-                <li><button onClick={() => setActiveModal('reparacion')} className="text-slate-400 hover:text-white text-[13px] font-bold uppercase tracking-widest italic transition-colors">{tt('link_repair')}</button></li>
+            {/* Columna 2: Servicios */}
+            <div className="space-y-8">
+              <h4 className="text-xl font-bold text-white tracking-tight">Servicios</h4>
+              <ul className="space-y-5">
+                <li>
+                  <button onClick={() => setActiveModal('instalacion')} className="flex items-center gap-3 text-slate-400 hover:text-white group transition-colors">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.77 3.77z"/></svg>
+                    <span className="text-[14px] font-bold italic tracking-wide">{tt('link_install')}</span>
+                  </button>
+                </li>
+                <li>
+                  <button onClick={() => setActiveModal('mantenimiento')} className="flex items-center gap-3 text-slate-400 hover:text-white group transition-colors">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2m-6 9l2 2 4-4"/></svg>
+                    <span className="text-[14px] font-bold italic tracking-wide">{tt('link_maint')}</span>
+                  </button>
+                </li>
+                <li>
+                  <button onClick={() => setActiveModal('reparacion')} className="flex items-center gap-3 text-slate-400 hover:text-white group transition-colors">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.77 3.77z"/></svg>
+                    <span className="text-[14px] font-bold italic tracking-wide">{tt('link_repair')}</span>
+                  </button>
+                </li>
+                <li>
+                  <button onClick={() => setActiveModal('garantias')} className="flex items-center gap-3 text-slate-400 hover:text-white group transition-colors">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                    <span className="text-[14px] font-bold italic tracking-wide">{tt('link_warranty')}</span>
+                  </button>
+                </li>
               </ul>
             </div>
 
-            <div className="space-y-8 text-left">
-              <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-blue-500">Empresa</h4>
-              <ul className="space-y-4">
-                <li><button onClick={() => setActiveModal('garantias')} className="text-slate-400 hover:text-white text-[13px] font-bold uppercase tracking-widest italic transition-colors">{tt('link_warranty')}</button></li>
-                <li><button onClick={() => {
-                  const el = document.getElementById('catalog');
-                  if (el) el.scrollIntoView({ behavior: 'smooth' });
-                }} className="text-slate-400 hover:text-white text-[13px] font-bold uppercase tracking-widest italic transition-colors">{tt('nav_products')}</button></li>
+            {/* Columna 3: Legal */}
+            <div className="space-y-8">
+              <h4 className="text-xl font-bold text-white tracking-tight">Legal</h4>
+              <ul className="space-y-5">
+                <li>
+                  <button onClick={() => setActiveModal('privacidad')} className="flex items-center gap-3 text-slate-400 hover:text-white group transition-colors">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                    <span className="text-[14px] font-bold italic tracking-wide">{tt('link_privacy')}</span>
+                  </button>
+                </li>
+                <li>
+                  <button onClick={() => setActiveModal('cookies')} className="flex items-center gap-3 text-slate-400 hover:text-white group transition-colors">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path d="M12 8a3.97 3.97 0 0 0 3-1.35 3.97 3.97 0 0 0 1.35 3 3.97 3.97 0 0 0-1.35 3 3.97 3.97 0 0 0-3 1.35 3.97 3.97 0 0 0-3-1.35 3.97 3.97 0 0 0-1.35-3 3.97 3.97 0 0 0 1.35-3A3.97 3.97 0 0 0 12 8zM12 2C6.47 2 2 6.47 2 12s4.47 10 10 10 10-4.47 10-10S17.53 2 12 2z"/></svg>
+                    <span className="text-[14px] font-bold italic tracking-wide">{tt('link_cookies')}</span>
+                  </button>
+                </li>
+                <li>
+                  <button onClick={() => setActiveModal('aviso_legal')} className="flex items-center gap-3 text-slate-400 hover:text-white group transition-colors">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3"/></svg>
+                    <span className="text-[14px] font-bold italic tracking-wide">{tt('link_legal')}</span>
+                  </button>
+                </li>
               </ul>
             </div>
 
-            <div className="space-y-8 text-left">
-              <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-blue-500">Legal</h4>
-              <ul className="space-y-4">
-                <li><button onClick={() => setActiveModal('privacidad')} className="text-slate-400 hover:text-white text-[13px] font-bold uppercase tracking-widest italic transition-colors">{tt('link_privacy')}</button></li>
-                <li><button onClick={() => setActiveModal('cookies')} className="text-slate-400 hover:text-white text-[13px] font-bold uppercase tracking-widest italic transition-colors">{tt('link_cookies')}</button></li>
-                <li><button onClick={() => setActiveModal('aviso_legal')} className="text-slate-400 hover:text-white text-[13px] font-bold uppercase tracking-widest italic transition-colors">{tt('link_legal')}</button></li>
-              </ul>
+            {/* Columna 4: Contacto */}
+            <div className="space-y-8">
+              <h4 className="text-xl font-bold text-white tracking-tight">Contacto</h4>
+              
+              <div className="space-y-8">
+                {branches.length > 0 ? branches.map((branch) => (
+                  <div key={branch.id} className="flex gap-3 items-start">
+                    <svg className="w-5 h-5 text-blue-500 mt-1 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                    <div className="flex flex-col">
+                      <span className="text-[12px] font-black uppercase text-white mb-1 tracking-wider">{branch.name}</span>
+                      <p className="text-slate-400 text-[13px] font-medium leading-relaxed whitespace-pre-line">
+                        {branch.address}
+                      </p>
+                    </div>
+                  </div>
+                )) : (
+                  <p className="text-[12px] font-medium text-slate-500 italic">No hay sucursales configuradas.</p>
+                )}
+
+                {(tenant?.phone || tenant?.email) && (
+                  <div className="pt-4 space-y-4">
+                    {tenant?.phone && (
+                      <div className="flex gap-3 items-center text-slate-400">
+                        <svg className="w-5 h-5 text-blue-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>
+                        <span className="text-[15px] font-bold">{tenant.phone}</span>
+                      </div>
+                    )}
+                    {tenant?.email && (
+                      <div className="flex gap-3 items-center text-slate-400">
+                        <svg className="w-5 h-5 text-blue-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                        <span className="text-[15px] font-bold">{tenant.email}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
-          <div className="pt-12 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-6">
-            <div className="text-[9px] font-black uppercase tracking-[0.3em] text-slate-500 italic">
-              © 2025 · {tenant?.name || 'EcoQuote'} · {tt('footer_copy')}
+          <div className="pt-12 border-t border-white/10 flex justify-center">
+            <div className="text-[11px] font-medium text-slate-500 italic">
+              © {currentYear} {tenant?.name || 'ecoefficient'} Todos los derechos reservados.
             </div>
           </div>
         </div>
