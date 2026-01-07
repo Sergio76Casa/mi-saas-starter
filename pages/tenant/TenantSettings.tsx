@@ -66,6 +66,7 @@ export const TenantSettings = () => {
 
   useEffect(() => {
     const fetchBranches = async () => {
+      if (!tenant.id) return;
       const { data, error } = await supabase
         .from('tenant_branches')
         .select('*')
@@ -122,15 +123,15 @@ export const TenantSettings = () => {
 
   const handleSave = async () => {
     setSaving(true);
-    console.log("DIAGNOSTICO: Iniciando guardado de configuración para Tenant", tenant.id);
+    console.log("DIAGNOSTICO: Iniciando guardado...");
     
     try {
       let finalLogoUrl = logoPreview;
       if (logoFile) {
-        console.log("DIAGNOSTICO: Subiendo nuevo logo...");
         finalLogoUrl = await uploadLogo(logoFile);
       }
 
+      // 1. Guardar datos principales del Tenant (incluyendo Redes Sociales)
       const updatePayload = { 
         name,
         phone,
@@ -142,42 +143,57 @@ export const TenantSettings = () => {
         use_logo_on_web: useLogo
       };
 
-      console.log("DIAGNOSTICO: Payload enviado a Supabase:", updatePayload);
+      console.log("DIAGNOSTICO: Payload Tenant:", updatePayload);
 
-      const { data, error: tenantError } = await supabase
+      const { error: tenantError } = await supabase
         .from('tenants')
         .update(updatePayload)
-        .eq('id', tenant.id)
-        .select();
+        .eq('id', tenant.id);
 
       if (tenantError) {
-        console.error("DIAGNOSTICO: Error de Supabase al guardar tenant:", tenantError);
+        console.error("DIAGNOSTICO: Error al guardar tenant:", tenantError);
         throw tenantError;
       }
 
-      console.log("DIAGNOSTICO: Respuesta exitosa de Supabase:", data);
+      // 2. Guardar sucursales (solo si hay datos)
+      const branchesToSave = branches
+        .filter(b => b.name?.trim() || b.address?.trim()) // Solo las que no están vacías
+        .map(b => {
+          const cleaned: any = { 
+            name: b.name?.trim() || 'Sucursal sin nombre',
+            address: b.address?.trim() || '',
+            tenant_id: tenant.id,
+            is_active: b.is_active ?? true,
+            sort_order: b.sort_order ?? 0
+          };
+          
+          // CRÍTICO: Si el id es nulo o vacío, NO enviarlo para que Supabase lo genere
+          if (b.id && b.id !== "") {
+            cleaned.id = b.id;
+          }
+          
+          return cleaned;
+        });
 
-      if (branches.length > 0) {
-        console.log("DIAGNOSTICO: Guardando sucursales...");
-        const { error: branchesError } = await supabase.from('tenant_branches').upsert(
-          branches.map(b => ({
-            ...b,
-            tenant_id: tenant.id
-          }))
-        );
+      console.log("DIAGNOSTICO: Payload Sucursales limpiado:", branchesToSave);
+
+      if (branchesToSave.length > 0) {
+        const { error: branchesError } = await supabase
+          .from('tenant_branches')
+          .upsert(branchesToSave);
+          
         if (branchesError) {
            console.error("DIAGNOSTICO: Error al guardar sucursales:", branchesError);
-           throw branchesError;
+           alert("Se han guardado los ajustes generales, pero hubo un problema con las sucursales: " + branchesError.message);
         }
       }
 
-      // IMPORTANTE: Refrescar el perfil global para que el contexto de TenantLayout tenga los nuevos datos
-      console.log("DIAGNOSTICO: Refrescando perfil global...");
+      // 3. Refrescar contexto global
       await refreshProfile();
-      
       alert("Ajustes guardados correctamente");
+      
     } catch (err: any) {
-      console.error("DIAGNOSTICO: Fallo crítico en handleSave:", err);
+      console.error("DIAGNOSTICO: Fallo crítico:", err);
       alert("Error al guardar: " + err.message);
     } finally {
       setSaving(false);
@@ -185,8 +201,8 @@ export const TenantSettings = () => {
   };
 
   const updateSocial = (key: keyof typeof socials, val: string) => {
-    // Normalización básica de URL
     let url = val.trim();
+    // Normalización: si pega algo tipo "facebook.com/user" le ponemos https://
     if (url && !url.startsWith('http') && !url.startsWith('//')) {
       url = `https://${url}`;
     }

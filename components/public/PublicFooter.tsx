@@ -78,7 +78,6 @@ export const PublicFooter: React.FC<PublicFooterProps> = ({ tenant, branches, la
   };
   
   const modalContent = activeModal ? FOOTER_MODAL_CONTENT[activeModal] : null;
-
   const currentYear = new Date().getFullYear();
 
   return (
@@ -232,7 +231,7 @@ export const PublicFooter: React.FC<PublicFooterProps> = ({ tenant, branches, la
               <h4 className="text-xl font-bold text-white tracking-tight">Contacto</h4>
               
               <div className="space-y-8">
-                {branches.length > 0 ? branches.map((branch) => (
+                {branches && branches.length > 0 ? branches.map((branch) => (
                   <div key={branch.id} className="flex gap-3 items-start">
                     <svg className="w-5 h-5 text-blue-500 mt-1 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
                     <div className="flex flex-col">
