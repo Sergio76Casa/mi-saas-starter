@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-// Core hooks imported from react-router to resolve export errors
-import { useParams } from 'react-router';
+// Standardize imports from react-router-dom
+import { useParams } from 'react-router-dom';
 import { supabase, isConfigured } from '../../supabaseClient';
 import { Tenant, Branch, Product } from '../../types';
 import { formatCurrency } from '../../i18n';
@@ -124,9 +124,11 @@ export const PublicTenantWebsite = () => {
 
   const tt = (key: keyof typeof LOCAL_I18N['es'], params?: Record<string, any>) => {
     let msg = (LOCAL_I18N[language] as any)?.[key] ?? (LOCAL_I18N.es as any)[key];
+    if (!msg) return key; // Safety: return key if translation is missing
+
     if (params) {
       Object.entries(params).forEach(([k, v]) => {
-        msg = msg.replace(`{${k}}`, v);
+        msg = msg.replace(`{${k}}`, String(v));
       });
     }
     return msg;

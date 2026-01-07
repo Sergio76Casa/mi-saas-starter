@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Tenant, Language } from '../types';
+import { Tenant, Language } from '../../types';
 
 interface PublicFooterProps {
   tenant: Tenant | null;
@@ -70,26 +70,35 @@ const FOOTER_MODAL_CONTENT: Record<string, any> = {
 export const PublicFooter: React.FC<PublicFooterProps> = ({ tenant, language, translations }) => {
   const [activeModal, setActiveModal] = useState<string | null>(null);
 
-  const tt = (key: string) => translations[language]?.[key] || translations['es']?.[key] || key;
+  const tt = (key: string) => {
+    if (!translations || !translations[language]) return key;
+    return translations[language][key] || translations['es']?.[key] || key;
+  };
+  
+  const modalContent = activeModal ? FOOTER_MODAL_CONTENT[activeModal] : null;
 
   return (
     <>
-      {/* Footer Modal */}
-      {activeModal && FOOTER_MODAL_CONTENT[activeModal] && (
+      {/* Footer Modal with safety checks */}
+      {activeModal && modalContent && (
         <div className="fixed inset-0 z-[250] flex items-center justify-center p-4 md:p-10 animate-in fade-in duration-300">
           <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setActiveModal(null)}></div>
           <div className="relative bg-white w-full max-w-xl overflow-hidden rounded-[2.5rem] shadow-2xl flex flex-col animate-in zoom-in-95">
-            <button onClick={() => setActiveModal(null)} className="absolute top-6 right-6 w-10 h-10 flex items-center justify-center rounded-full bg-white/20 backdrop-blur text-white hover:bg-white/40 z-10">
+            <button onClick={() => setActiveModal(null)} className="absolute top-6 right-6 w-10 h-10 flex items-center justify-center rounded-full bg-white/20 backdrop-blur text-white hover:bg-white/40 z-10 transition-colors">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
-            <div className="h-48 relative overflow-hidden">
-              <img src={FOOTER_MODAL_CONTENT[activeModal].img} className="w-full h-full object-cover" alt="" />
+            <div className="h-48 relative overflow-hidden bg-slate-100">
+              {modalContent.img && <img src={modalContent.img} className="w-full h-full object-cover" alt="" />}
               <div className="absolute inset-0 bg-gradient-to-t from-white via-transparent text-white"></div>
             </div>
             <div className="p-10 md:p-12 text-center">
-              <h3 className="text-3xl font-black tracking-tighter uppercase italic text-slate-900 mb-6">{FOOTER_MODAL_CONTENT[activeModal].title[language]}</h3>
-              <p className="text-slate-500 font-medium leading-relaxed italic text-lg">{FOOTER_MODAL_CONTENT[activeModal].desc[language]}</p>
-              <button onClick={() => setActiveModal(null)} className="mt-10 px-10 py-4 bg-slate-900 text-white rounded-2xl font-black uppercase text-[11px] tracking-widest hover:bg-black transition-all">{tt('modal_close')}</button>
+              <h3 className="text-3xl font-black tracking-tighter uppercase italic text-slate-900 mb-6">
+                {modalContent.title?.[language] || modalContent.title?.['es'] || 'Información'}
+              </h3>
+              <p className="text-slate-500 font-medium leading-relaxed italic text-lg">
+                {modalContent.desc?.[language] || modalContent.desc?.['es'] || ''}
+              </p>
+              <button onClick={() => setActiveModal(null)} className="mt-10 px-10 py-4 bg-slate-900 text-white rounded-2xl font-black uppercase text-[11px] tracking-widest hover:bg-black transition-all active:scale-95">{tt('modal_close')}</button>
             </div>
           </div>
         </div>
@@ -104,7 +113,7 @@ export const PublicFooter: React.FC<PublicFooterProps> = ({ tenant, language, tr
                 {tenant?.use_logo_on_web && tenant?.logo_url ? (
                   <img src={tenant.logo_url} className="h-10 w-auto object-contain brightness-0 invert" alt={tenant?.name} />
                 ) : (
-                  <span className="text-2xl font-black italic tracking-tighter uppercase text-white">{tenant?.name}</span>
+                  <span className="text-2xl font-black italic tracking-tighter uppercase text-white">{tenant?.name || 'EMPRESA'}</span>
                 )}
               </div>
               <p className="text-slate-400 text-[13px] font-medium leading-relaxed max-w-xs italic">
@@ -118,36 +127,36 @@ export const PublicFooter: React.FC<PublicFooterProps> = ({ tenant, language, tr
             <div className="space-y-8 text-left">
               <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-blue-500">Servicios</h4>
               <ul className="space-y-4">
-                <li><button onClick={() => setActiveModal('instalacion')} className="text-slate-400 hover:text-white text-[13px] font-bold uppercase tracking-widest italic">{tt('link_install')}</button></li>
-                <li><button onClick={() => setActiveModal('mantenimiento')} className="text-slate-400 hover:text-white text-[13px] font-bold uppercase tracking-widest italic">{tt('link_maint')}</button></li>
-                <li><button onClick={() => setActiveModal('reparacion')} className="text-slate-400 hover:text-white text-[13px] font-bold uppercase tracking-widest italic">{tt('link_repair')}</button></li>
+                <li><button onClick={() => setActiveModal('instalacion')} className="text-slate-400 hover:text-white text-[13px] font-bold uppercase tracking-widest italic transition-colors">{tt('link_install')}</button></li>
+                <li><button onClick={() => setActiveModal('mantenimiento')} className="text-slate-400 hover:text-white text-[13px] font-bold uppercase tracking-widest italic transition-colors">{tt('link_maint')}</button></li>
+                <li><button onClick={() => setActiveModal('reparacion')} className="text-slate-400 hover:text-white text-[13px] font-bold uppercase tracking-widest italic transition-colors">{tt('link_repair')}</button></li>
               </ul>
             </div>
 
             <div className="space-y-8 text-left">
               <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-blue-500">Empresa</h4>
               <ul className="space-y-4">
-                <li><button onClick={() => setActiveModal('garantias')} className="text-slate-400 hover:text-white text-[13px] font-bold uppercase tracking-widest italic">{tt('link_warranty')}</button></li>
+                <li><button onClick={() => setActiveModal('garantias')} className="text-slate-400 hover:text-white text-[13px] font-bold uppercase tracking-widest italic transition-colors">{tt('link_warranty')}</button></li>
                 <li><button onClick={() => {
                   const el = document.getElementById('catalog');
                   if (el) el.scrollIntoView({ behavior: 'smooth' });
-                }} className="text-slate-400 hover:text-white text-[13px] font-bold uppercase tracking-widest italic">{tt('nav_products')}</button></li>
+                }} className="text-slate-400 hover:text-white text-[13px] font-bold uppercase tracking-widest italic transition-colors">{tt('nav_products')}</button></li>
               </ul>
             </div>
 
             <div className="space-y-8 text-left">
               <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-blue-500">Legal</h4>
               <ul className="space-y-4">
-                <li><button onClick={() => setActiveModal('privacidad')} className="text-slate-400 hover:text-white text-[13px] font-bold uppercase tracking-widest italic">{tt('link_privacy')}</button></li>
-                <li><button onClick={() => setActiveModal('cookies')} className="text-slate-400 hover:text-white text-[13px] font-bold uppercase tracking-widest italic">{tt('link_cookies')}</button></li>
-                <li><button onClick={() => setActiveModal('aviso_legal')} className="text-slate-400 hover:text-white text-[13px] font-bold uppercase tracking-widest italic">{tt('link_legal')}</button></li>
+                <li><button onClick={() => setActiveModal('privacidad')} className="text-slate-400 hover:text-white text-[13px] font-bold uppercase tracking-widest italic transition-colors">{tt('link_privacy')}</button></li>
+                <li><button onClick={() => setActiveModal('cookies')} className="text-slate-400 hover:text-white text-[13px] font-bold uppercase tracking-widest italic transition-colors">{tt('link_cookies')}</button></li>
+                <li><button onClick={() => setActiveModal('aviso_legal')} className="text-slate-400 hover:text-white text-[13px] font-bold uppercase tracking-widest italic transition-colors">{tt('link_legal')}</button></li>
               </ul>
             </div>
           </div>
 
           <div className="pt-12 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-6">
             <div className="text-[9px] font-black uppercase tracking-[0.3em] text-slate-500 italic">
-              © 2025 · {tenant?.name} · {tt('footer_copy')}
+              © 2025 · {tenant?.name || 'EcoQuote'} · {tt('footer_copy')}
             </div>
           </div>
         </div>

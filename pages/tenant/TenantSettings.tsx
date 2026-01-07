@@ -199,7 +199,7 @@ export const TenantSettings = () => {
                       <label className="text-[8px] font-black uppercase text-slate-400 ml-1">Dirección Completa</label>
                       <textarea 
                         value={branch.address} 
-                        onChange={(e) => setFooterEs(e.target.value)}
+                        onChange={(e) => updateBranch(index, 'address', e.target.value)}
                         className="w-full px-4 py-2.5 bg-white border border-slate-100 rounded-xl text-xs font-medium h-20 resize-none focus:ring-2 focus:ring-brand-500 outline-none" 
                         placeholder="Calle, Número, Ciudad, CP..."
                       />

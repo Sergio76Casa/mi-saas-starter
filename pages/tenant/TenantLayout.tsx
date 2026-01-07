@@ -1,8 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
-// Correct splitting of imports: Link is DOM specific, others are Core routing
-import { Link } from 'react-router-dom';
-import { useNavigate, useParams, useLocation, Outlet } from 'react-router';
+// Correct splitting of imports: use react-router-dom for all web hooks
+import { Link, useNavigate, useParams, useLocation, Outlet } from 'react-router-dom';
 import { supabase } from '../../supabaseClient';
 import { Tenant } from '../../types';
 import { useApp } from '../../AppProvider';

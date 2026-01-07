@@ -1,8 +1,7 @@
 
 import React from 'react';
-// Split imports to resolve named export errors in specific environments
-import { HashRouter } from 'react-router-dom';
-import { Routes, Route, Navigate } from 'react-router';
+// Import everything from react-router-dom to avoid module duplication crashes
+import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AppProvider } from './AppProvider';
 
 // Pages
