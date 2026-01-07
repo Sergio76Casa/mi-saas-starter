@@ -24,6 +24,25 @@
         }
       }
     </script>
+    <!-- Script de diagnóstico global para el Preview de IA Studio -->
+    <script>
+      window.addEventListener('error', function(event) {
+        const root = document.getElementById('root');
+        if (root && root.innerHTML === '') {
+          root.innerHTML = `
+            <div style="padding: 40px; color: #1e293b; font-family: sans-serif; background: #fff1f2; border: 2px solid #fda4af; border-radius: 20px; margin: 20px;">
+              <h1 style="color: #be123c; font-weight: 900; text-transform: uppercase;">Runtime Error (Pre-Mount)</h1>
+              <p style="font-weight: bold;">${event.message}</p>
+              <p style="font-size: 12px; color: #9f1239;">File: ${event.filename} | Line: ${event.lineno}:${event.colno}</p>
+              <pre style="background: white; padding: 15px; border-radius: 10px; overflow: auto; font-size: 11px; margin-top: 15px; border: 1px solid #fecdd3;">${event.error ? event.error.stack : 'No stack trace available'}</pre>
+            </div>
+          `;
+        }
+      });
+      window.addEventListener('unhandledrejection', function(event) {
+        console.error('Unhandled Rejection:', event.reason);
+      });
+    </script>
     <script type="importmap">
 {
   "imports": {

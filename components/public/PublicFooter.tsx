@@ -71,8 +71,9 @@ export const PublicFooter: React.FC<PublicFooterProps> = ({ tenant, language, tr
   const [activeModal, setActiveModal] = useState<string | null>(null);
 
   const tt = (key: string) => {
-    if (!translations || !translations[language]) return key;
-    return translations[language][key] || translations['es']?.[key] || key;
+    if (!translations) return key;
+    const langSet = translations[language] || translations['es'] || {};
+    return langSet[key] || translations['es']?.[key] || key;
   };
   
   const modalContent = activeModal ? FOOTER_MODAL_CONTENT[activeModal] : null;

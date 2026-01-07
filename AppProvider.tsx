@@ -35,14 +35,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [loading, setLoading] = useState(true);
   const [dbHealthy, setDbHealthy] = useState<boolean | null>(null);
   const [language, setLanguageState] = useState<Language>(() => {
-    const saved = localStorage.getItem('app_lang');
-    if (saved === 'es' || saved === 'ca') return saved;
+    try {
+      const saved = localStorage.getItem('app_lang');
+      if (saved === 'es' || saved === 'ca') return saved;
+    } catch (e) {}
     return 'es';
   });
 
   const setLanguage = (lang: Language) => { 
     setLanguageState(lang); 
-    localStorage.setItem('app_lang', lang); 
+    try {
+      localStorage.setItem('app_lang', lang); 
+    } catch (e) {}
   };
   
   const t_func = (key: keyof typeof translations['es']) => {
@@ -50,8 +54,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return (langSet as any)[key] || (translations['es'] as any)[key] || key;
   };
 
+  // Verificación de conectividad inicial
   useEffect(() => {
-    if (!isConfigured) { 
+    if (!supabase || !isConfigured) { 
       setDbHealthy(false); 
       setLoading(false);
       return; 
@@ -59,7 +64,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     
     const checkConnectivity = async () => {
       try {
-        const { error } = await supabase.from('tenants').select('count', { count: 'exact', head: true });
+        const { error } = await supabase!.from('tenants').select('count', { count: 'exact', head: true });
         if (error) {
           const status = (error as any).status;
           const isAuthOrPermissionError = status === 401 || status === 403 || error.code?.startsWith('PGRST');
@@ -68,7 +73,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           setDbHealthy(true);
         }
       } catch (e) {
-        console.warn("Database connectivity check failed (expected if not logged in)");
         setDbHealthy(false);
       }
     };
@@ -76,11 +80,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, []);
 
   const fetchProfileData = async (userId: string) => {
-    if (!isConfigured) return;
+    if (!supabase || !isConfigured) return;
     try {
-      const { data: profileData } = await supabase.from('profiles').select('*').eq('id', userId).single();
+      const { data: profileData } = await supabase!.from('profiles').select('*').eq('id', userId).single();
       if (profileData) setProfile(profileData);
-      const { data: membershipData } = await supabase.from('memberships').select('*, tenant:tenants(*)').eq('user_id', userId);
+      
+      const { data: membershipData } = await supabase!.from('memberships').select('*, tenant:tenants(*)').eq('user_id', userId);
       if (membershipData) setMemberships(membershipData as any);
     } catch (e) {
       console.error("Error fetching profile data:", e);
@@ -88,14 +93,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   useEffect(() => {
-    if (!isConfigured) return;
+    if (!supabase || !isConfigured) {
+      setLoading(false);
+      return;
+    }
 
     supabase.auth.getSession().then(({ data: { session } }) => {
         setSession(session);
         if (session) fetchProfileData(session.user.id).finally(() => setLoading(false));
         else setLoading(false);
     }).catch(err => {
-        console.error("Auth session check failed:", err);
         setLoading(false);
     });
     
@@ -113,7 +120,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
   
   const signOut = async () => { 
-    if (isConfigured) await supabase.auth.signOut(); 
+    if (supabase && isConfigured) await supabase.auth.signOut(); 
     setSession(null); 
     setProfile(null); 
     setMemberships([]); 
