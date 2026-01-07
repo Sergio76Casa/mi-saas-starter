@@ -20,15 +20,17 @@ export const TenantSettings = () => {
   const [footerEs, setFooterEs] = useState(tenant.footer_description_es || '');
   const [footerCa, setFooterCa] = useState(tenant.footer_description_ca || '');
   
-  // Redes Sociales
-  const [socialInsta, setSocialInsta] = useState(tenant.social_instagram || '');
-  const [socialFb, setSocialFb] = useState(tenant.social_facebook || '');
-  const [socialTiktok, setSocialTiktok] = useState(tenant.social_tiktok || '');
-  const [socialYoutube, setSocialYoutube] = useState(tenant.social_youtube || '');
-  const [socialX, setSocialX] = useState(tenant.social_x || '');
-  const [socialLinkedin, setSocialLinkedin] = useState(tenant.social_linkedin || '');
-  const [socialWhatsapp, setSocialWhatsapp] = useState(tenant.social_whatsapp || '');
-  const [socialTelegram, setSocialTelegram] = useState(tenant.social_telegram || '');
+  // Estado unificado para Redes Sociales para facilitar el mapeo y guardado
+  const [socials, setSocials] = useState({
+    social_instagram: tenant.social_instagram || '',
+    social_facebook: tenant.social_facebook || '',
+    social_tiktok: tenant.social_tiktok || '',
+    social_youtube: tenant.social_youtube || '',
+    social_x: tenant.social_x || '',
+    social_linkedin: tenant.social_linkedin || '',
+    social_whatsapp: tenant.social_whatsapp || '',
+    social_telegram: tenant.social_telegram || ''
+  });
 
   const [useLogo, setUseLogo] = useState(tenant.use_logo_on_web ?? false);
   const [logoPreview, setLogoPreview] = useState(tenant.logo_url || '');
@@ -40,6 +42,27 @@ export const TenantSettings = () => {
   const [loadingBranches, setLoadingBranches] = useState(true);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Sincronizar estado local cuando el tenant del contexto cambie (post-save)
+  useEffect(() => {
+    setName(tenant.name);
+    setPhone(tenant.phone || '');
+    setEmail(tenant.email || '');
+    setFooterEs(tenant.footer_description_es || '');
+    setFooterCa(tenant.footer_description_ca || '');
+    setSocials({
+      social_instagram: tenant.social_instagram || '',
+      social_facebook: tenant.social_facebook || '',
+      social_tiktok: tenant.social_tiktok || '',
+      social_youtube: tenant.social_youtube || '',
+      social_x: tenant.social_x || '',
+      social_linkedin: tenant.social_linkedin || '',
+      social_whatsapp: tenant.social_whatsapp || '',
+      social_telegram: tenant.social_telegram || ''
+    });
+    setUseLogo(tenant.use_logo_on_web ?? false);
+    setLogoPreview(tenant.logo_url || '');
+  }, [tenant]);
 
   useEffect(() => {
     const fetchBranches = async () => {
@@ -99,49 +122,75 @@ export const TenantSettings = () => {
 
   const handleSave = async () => {
     setSaving(true);
+    console.log("DIAGNOSTICO: Iniciando guardado de configuración para Tenant", tenant.id);
+    
     try {
-      let finalLogoUrl = tenant.logo_url;
+      let finalLogoUrl = logoPreview;
       if (logoFile) {
+        console.log("DIAGNOSTICO: Subiendo nuevo logo...");
         finalLogoUrl = await uploadLogo(logoFile);
       }
 
-      const { error: tenantError } = await supabase.from('tenants').update({ 
+      const updatePayload = { 
         name,
         phone,
         email,
         footer_description_es: footerEs,
         footer_description_ca: footerCa,
-        social_instagram: socialInsta,
-        social_facebook: socialFb,
-        social_tiktok: socialTiktok,
-        social_youtube: socialYoutube,
-        social_x: socialX,
-        social_linkedin: socialLinkedin,
-        social_whatsapp: socialWhatsapp,
-        social_telegram: socialTelegram,
+        ...socials,
         logo_url: finalLogoUrl,
         use_logo_on_web: useLogo
-      }).eq('id', tenant.id);
+      };
 
-      if (tenantError) throw tenantError;
+      console.log("DIAGNOSTICO: Payload enviado a Supabase:", updatePayload);
+
+      const { data, error: tenantError } = await supabase
+        .from('tenants')
+        .update(updatePayload)
+        .eq('id', tenant.id)
+        .select();
+
+      if (tenantError) {
+        console.error("DIAGNOSTICO: Error de Supabase al guardar tenant:", tenantError);
+        throw tenantError;
+      }
+
+      console.log("DIAGNOSTICO: Respuesta exitosa de Supabase:", data);
 
       if (branches.length > 0) {
+        console.log("DIAGNOSTICO: Guardando sucursales...");
         const { error: branchesError } = await supabase.from('tenant_branches').upsert(
           branches.map(b => ({
             ...b,
             tenant_id: tenant.id
           }))
         );
-        if (branchesError) throw branchesError;
+        if (branchesError) {
+           console.error("DIAGNOSTICO: Error al guardar sucursales:", branchesError);
+           throw branchesError;
+        }
       }
 
+      // IMPORTANTE: Refrescar el perfil global para que el contexto de TenantLayout tenga los nuevos datos
+      console.log("DIAGNOSTICO: Refrescando perfil global...");
       await refreshProfile();
+      
       alert("Ajustes guardados correctamente");
     } catch (err: any) {
+      console.error("DIAGNOSTICO: Fallo crítico en handleSave:", err);
       alert("Error al guardar: " + err.message);
     } finally {
       setSaving(false);
     }
+  };
+
+  const updateSocial = (key: keyof typeof socials, val: string) => {
+    // Normalización básica de URL
+    let url = val.trim();
+    if (url && !url.startsWith('http') && !url.startsWith('//')) {
+      url = `https://${url}`;
+    }
+    setSocials(prev => ({ ...prev, [key]: url }));
   };
 
   return (
@@ -251,14 +300,14 @@ export const TenantSettings = () => {
           <div className="pt-8 border-t border-gray-50">
             <h5 className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-6">Enlaces a Redes Sociales</h5>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2">
-              <Input label="Instagram" value={socialInsta} onChange={(e:any) => setSocialInsta(e.target.value)} placeholder="https://..." />
-              <Input label="Facebook" value={socialFb} onChange={(e:any) => setSocialFb(e.target.value)} placeholder="https://..." />
-              <Input label="TikTok" value={socialTiktok} onChange={(e:any) => setSocialTiktok(e.target.value)} placeholder="https://..." />
-              <Input label="YouTube" value={socialYoutube} onChange={(e:any) => setSocialYoutube(e.target.value)} placeholder="https://..." />
-              <Input label="X (Twitter)" value={socialX} onChange={(e:any) => setSocialX(e.target.value)} placeholder="https://..." />
-              <Input label="LinkedIn" value={socialLinkedin} onChange={(e:any) => setSocialLinkedin(e.target.value)} placeholder="https://..." />
-              <Input label="WhatsApp (Enlace)" value={socialWhatsapp} onChange={(e:any) => setSocialWhatsapp(e.target.value)} placeholder="https://wa.me/..." />
-              <Input label="Telegram" value={socialTelegram} onChange={(e:any) => setSocialTelegram(e.target.value)} placeholder="https://t.me/..." />
+              <Input label="Instagram" value={socials.social_instagram} onChange={(e:any) => updateSocial('social_instagram', e.target.value)} placeholder="https://instagram.com/..." />
+              <Input label="Facebook" value={socials.social_facebook} onChange={(e:any) => updateSocial('social_facebook', e.target.value)} placeholder="https://facebook.com/..." />
+              <Input label="TikTok" value={socials.social_tiktok} onChange={(e:any) => updateSocial('social_tiktok', e.target.value)} placeholder="https://tiktok.com/@..." />
+              <Input label="YouTube" value={socials.social_youtube} onChange={(e:any) => updateSocial('social_youtube', e.target.value)} placeholder="https://youtube.com/..." />
+              <Input label="X (Twitter)" value={socials.social_x} onChange={(e:any) => updateSocial('social_x', e.target.value)} placeholder="https://x.com/..." />
+              <Input label="LinkedIn" value={socials.social_linkedin} onChange={(e:any) => updateSocial('social_linkedin', e.target.value)} placeholder="https://linkedin.com/..." />
+              <Input label="WhatsApp (Enlace)" value={socials.social_whatsapp} onChange={(e:any) => updateSocial('social_whatsapp', e.target.value)} placeholder="https://wa.me/..." />
+              <Input label="Telegram" value={socials.social_telegram} onChange={(e:any) => updateSocial('social_telegram', e.target.value)} placeholder="https://t.me/..." />
             </div>
           </div>
         </div>
