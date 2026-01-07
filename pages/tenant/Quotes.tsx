@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
-// Core hooks imported from react-router
-import { useOutletContext, useNavigate } from 'react-router';
+// Use react-router-dom for all web hooks
+import { useOutletContext, useNavigate } from 'react-router-dom';
 import { supabase } from '../../supabaseClient';
 import { Tenant, Quote } from '../../types';
 import { useApp } from '../../AppProvider';

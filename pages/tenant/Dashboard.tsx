@@ -1,7 +1,7 @@
 
 import React from 'react';
-// Core hooks imported from react-router
-import { useOutletContext } from 'react-router';
+// Use react-router-dom for all web hooks
+import { useOutletContext } from 'react-router-dom';
 import { Tenant } from '../../types';
 import { useApp } from '../../AppProvider';
 

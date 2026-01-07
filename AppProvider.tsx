@@ -34,14 +34,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [memberships, setMemberships] = useState<Membership[]>([]);
   const [loading, setLoading] = useState(true);
   const [dbHealthy, setDbHealthy] = useState<boolean | null>(null);
-  const [language, setLanguageState] = useState<Language>(() => (localStorage.getItem('app_lang') as Language) || 'es');
+  const [language, setLanguageState] = useState<Language>(() => {
+    const saved = localStorage.getItem('app_lang');
+    if (saved === 'es' || saved === 'ca') return saved;
+    return 'es';
+  });
 
   const setLanguage = (lang: Language) => { 
     setLanguageState(lang); 
     localStorage.setItem('app_lang', lang); 
   };
   
-  const t_func = (key: keyof typeof translations['es']) => (translations[language] as any)[key] || key;
+  const t_func = (key: keyof typeof translations['es']) => {
+    const langSet = translations[language] || translations['es'];
+    return (langSet as any)[key] || (translations['es'] as any)[key] || key;
+  };
 
   useEffect(() => {
     if (!isConfigured) { 
@@ -54,12 +61,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       try {
         const { error } = await supabase.from('tenants').select('count', { count: 'exact', head: true });
         if (error) {
-          const isAuthOrPermissionError = (error as any).status === 401 || (error as any).status === 403 || error.code?.startsWith('PGRST');
+          const status = (error as any).status;
+          const isAuthOrPermissionError = status === 401 || status === 403 || error.code?.startsWith('PGRST');
           setDbHealthy(isAuthOrPermissionError || !error);
         } else {
           setDbHealthy(true);
         }
       } catch (e) {
+        console.warn("Database connectivity check failed (expected if not logged in)");
         setDbHealthy(false);
       }
     };
@@ -85,6 +94,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setSession(session);
         if (session) fetchProfileData(session.user.id).finally(() => setLoading(false));
         else setLoading(false);
+    }).catch(err => {
+        console.error("Auth session check failed:", err);
+        setLoading(false);
     });
     
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {

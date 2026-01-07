@@ -1,8 +1,7 @@
 
 import React, { useEffect } from 'react';
-// Core hooks from react-router and Link from react-router-dom
-import { Link } from 'react-router-dom';
-import { useNavigate, useLocation, Outlet } from 'react-router';
+// Correct splitting of imports: use react-router-dom for all web hooks
+import { Link, useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { useApp } from '../../AppProvider';
 import { LoadingSpinner } from '../../components/common/LoadingSpinner';
 
