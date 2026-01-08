@@ -20,7 +20,7 @@ export const TenantSettings = () => {
   const [footerEs, setFooterEs] = useState(tenant.footer_description_es || '');
   const [footerCa, setFooterCa] = useState(tenant.footer_description_ca || '');
   
-  // Estado unificado para Redes Sociales
+  // Estado unificado para Redes Sociales (Mapeo 1:1 con columnas de DB)
   const [socials, setSocials] = useState({
     social_instagram: tenant.social_instagram || '',
     social_facebook: tenant.social_facebook || '',
@@ -43,7 +43,7 @@ export const TenantSettings = () => {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Sincronizar estado local cuando el tenant del contexto cambie (post-save o reload)
+  // Sincronizar estado local cuando el tenant del contexto cambie (hidratación post-save)
   useEffect(() => {
     if (!tenant) return;
     setName(tenant.name);
@@ -124,7 +124,7 @@ export const TenantSettings = () => {
 
   const handleSave = async () => {
     setSaving(true);
-    console.log("CONFIG_SAVE: Iniciando guardado para Tenant:", tenant.id);
+    console.log("CONFIG_SAVE: Iniciando guardado...");
     
     try {
       let finalLogoUrl = logoPreview;
@@ -132,7 +132,7 @@ export const TenantSettings = () => {
         finalLogoUrl = await uploadLogo(logoFile);
       }
 
-      // 1. Guardar datos principales del Tenant (incluyendo Redes Sociales y Footer)
+      // 1. Guardar datos principales del Tenant (RRSS, Contacto, Footer)
       const updatePayload = { 
         name,
         phone: phone.trim(),
@@ -144,7 +144,7 @@ export const TenantSettings = () => {
         use_logo_on_web: useLogo
       };
 
-      console.log("CONFIG_SAVE: Payload enviado:", updatePayload);
+      console.log("CONFIG_SAVE: Payload Tenant:", updatePayload);
 
       const { error: tenantError } = await supabase
         .from('tenants')
@@ -153,10 +153,10 @@ export const TenantSettings = () => {
 
       if (tenantError) {
         console.error("CONFIG_SAVE_ERROR (Tenants):", tenantError);
-        throw new Error(`Error al guardar datos básicos: ${tenantError.message}`);
+        throw new Error(`Fallo al guardar ajustes: ${tenantError.message}`);
       }
 
-      // 2. Guardar sucursales
+      // 2. Guardar sucursales (separado para evitar bloqueos)
       const branchesToSave = branches
         .filter(b => b.name?.trim() || b.address?.trim())
         .map(b => {
@@ -167,8 +167,10 @@ export const TenantSettings = () => {
             is_active: b.is_active ?? true,
             sort_order: b.sort_order ?? 0
           };
-          // CRÍTICO: No enviar id si es nulo/vacío para evitar error de base de datos
-          if (b.id && b.id !== "") cleaned.id = b.id;
+          // FIX CRÍTICO: Eliminar 'id' si está vacío para evitar violación de NOT NULL
+          if (b.id && b.id !== "") {
+            cleaned.id = b.id;
+          }
           return cleaned;
         });
 
@@ -179,18 +181,17 @@ export const TenantSettings = () => {
           
         if (branchesError) {
            console.error("CONFIG_SAVE_ERROR (Branches):", branchesError);
-           // Notificamos pero no lanzamos error fatal si los datos principales se guardaron
-           alert("Datos de empresa guardados, pero hubo un error con las sucursales: " + branchesError.message);
+           alert("Se guardaron los ajustes principales, pero hubo un error con las sucursales: " + branchesError.message);
         }
       }
 
-      // 3. Refrescar contexto global para que el Layout y otros componentes vean los cambios
+      // 3. Refrescar perfil global para disparar la re-hidratación de la UI
       await refreshProfile();
       alert("Configuración actualizada correctamente.");
       
     } catch (err: any) {
       console.error("CONFIG_SAVE_FATAL:", err);
-      alert("Error crítico al guardar: " + err.message);
+      alert("No se pudo completar el guardado: " + err.message);
     } finally {
       setSaving(false);
     }
@@ -198,6 +199,7 @@ export const TenantSettings = () => {
 
   const updateSocial = (key: keyof typeof socials, val: string) => {
     let url = val.trim();
+    // Auto-formateo a HTTPS si es necesario
     if (url && !url.startsWith('http') && !url.startsWith('//')) {
       url = `https://${url}`;
     }
