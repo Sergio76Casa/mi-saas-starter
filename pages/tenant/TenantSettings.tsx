@@ -39,7 +39,7 @@ export const TenantSettings = () => {
   useEffect(() => {
     if (!tenant || saving) return;
     
-    setName(tenant.name);
+    setName(tenant.name || '');
     setPhone(tenant.phone || '');
     setEmail(tenant.email || '');
     setFooterEs(tenant.footer_description_es || '');
@@ -155,6 +155,11 @@ export const TenantSettings = () => {
 
   return (
     <div className="max-w-3xl animate-in fade-in duration-500 mx-auto md:mx-0 pb-20 text-left">
+      {/* Marcador de Depuración Temporal */}
+      <div className="inline-block px-2 py-0.5 bg-red-600 text-white text-[8px] font-black rounded mb-4 animate-pulse">
+        DEBUG_SETTINGS_RENDER_OK
+      </div>
+      
       <h3 className="text-3xl font-black text-gray-900 tracking-tighter mb-10 uppercase italic">{t('settings')}</h3>
       
       <div className="space-y-8">

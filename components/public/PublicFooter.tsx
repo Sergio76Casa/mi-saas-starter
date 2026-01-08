@@ -80,10 +80,15 @@ export const PublicFooter: React.FC<PublicFooterProps> = ({ tenant, branches, la
   const modalContent = activeModal ? FOOTER_MODAL_CONTENT[activeModal] : null;
   const currentYear = new Date().getFullYear();
 
-  // Resolución de descripción del footer con fallback bilingüe
+  // Resolución de descripción del footer con lógica de validación de contenido real
   const footerDescription = (() => {
-    if (language === 'ca') return tenant?.footer_description_ca || tenant?.footer_description_es || "Som experts en solucions de climatització eficient.";
-    return tenant?.footer_description_es || tenant?.footer_description_ca || "Somo Expertos en soluciones de climatización eficiente. Presupuestos transparentes, instalación profesional y las mejores marcas del mercado.";
+    const descEs = (tenant?.footer_description_es || '').trim();
+    const descCa = (tenant?.footer_description_ca || '').trim();
+
+    if (language === 'ca') {
+      return descCa || descEs || "Som experts en solucions de climatització eficient.";
+    }
+    return descEs || descCa || "Somo Expertos en soluciones de climatización eficiente. Presupuestos transparentes, instalación profesional y las mejores marcas del mercado.";
   })();
 
   return (
@@ -115,6 +120,12 @@ export const PublicFooter: React.FC<PublicFooterProps> = ({ tenant, branches, la
 
       <footer className="bg-slate-950 text-white pt-24 pb-12 relative overflow-hidden text-left">
         <div className="max-w-7xl mx-auto px-6 md:px-10 relative z-10">
+          
+          {/* Marcador de Depuración Temporal */}
+          <div className="inline-block px-2 py-0.5 bg-red-600 text-white text-[8px] font-black rounded mb-8 animate-pulse">
+            DEBUG_PUBLIC_RENDER_OK
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-20">
             {/* Columna 1: Branding */}
             <div className="space-y-8">
