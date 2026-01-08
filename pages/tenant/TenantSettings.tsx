@@ -20,7 +20,7 @@ export const TenantSettings = () => {
   const [footerEs, setFooterEs] = useState(tenant.footer_description_es || '');
   const [footerCa, setFooterCa] = useState(tenant.footer_description_ca || '');
   
-  // Estado unificado para Redes Sociales para facilitar el mapeo y guardado
+  // Estado unificado para Redes Sociales
   const [socials, setSocials] = useState({
     social_instagram: tenant.social_instagram || '',
     social_facebook: tenant.social_facebook || '',
@@ -43,8 +43,9 @@ export const TenantSettings = () => {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Sincronizar estado local cuando el tenant del contexto cambie (post-save)
+  // Sincronizar estado local cuando el tenant del contexto cambie (post-save o reload)
   useEffect(() => {
+    if (!tenant) return;
     setName(tenant.name);
     setPhone(tenant.phone || '');
     setEmail(tenant.email || '');
@@ -123,7 +124,7 @@ export const TenantSettings = () => {
 
   const handleSave = async () => {
     setSaving(true);
-    console.log("DIAGNOSTICO: Iniciando guardado...");
+    console.log("CONFIG_SAVE: Iniciando guardado para Tenant:", tenant.id);
     
     try {
       let finalLogoUrl = logoPreview;
@@ -131,19 +132,19 @@ export const TenantSettings = () => {
         finalLogoUrl = await uploadLogo(logoFile);
       }
 
-      // 1. Guardar datos principales del Tenant (incluyendo Redes Sociales)
+      // 1. Guardar datos principales del Tenant (incluyendo Redes Sociales y Footer)
       const updatePayload = { 
         name,
-        phone,
-        email,
-        footer_description_es: footerEs,
-        footer_description_ca: footerCa,
+        phone: phone.trim(),
+        email: email.trim(),
+        footer_description_es: footerEs.trim(),
+        footer_description_ca: footerCa.trim(),
         ...socials,
         logo_url: finalLogoUrl,
         use_logo_on_web: useLogo
       };
 
-      console.log("DIAGNOSTICO: Payload Tenant:", updatePayload);
+      console.log("CONFIG_SAVE: Payload enviado:", updatePayload);
 
       const { error: tenantError } = await supabase
         .from('tenants')
@@ -151,31 +152,25 @@ export const TenantSettings = () => {
         .eq('id', tenant.id);
 
       if (tenantError) {
-        console.error("DIAGNOSTICO: Error al guardar tenant:", tenantError);
-        throw tenantError;
+        console.error("CONFIG_SAVE_ERROR (Tenants):", tenantError);
+        throw new Error(`Error al guardar datos básicos: ${tenantError.message}`);
       }
 
-      // 2. Guardar sucursales (solo si hay datos)
+      // 2. Guardar sucursales
       const branchesToSave = branches
-        .filter(b => b.name?.trim() || b.address?.trim()) // Solo las que no están vacías
+        .filter(b => b.name?.trim() || b.address?.trim())
         .map(b => {
           const cleaned: any = { 
-            name: b.name?.trim() || 'Sucursal sin nombre',
+            name: b.name?.trim() || 'Sucursal',
             address: b.address?.trim() || '',
             tenant_id: tenant.id,
             is_active: b.is_active ?? true,
             sort_order: b.sort_order ?? 0
           };
-          
-          // CRÍTICO: Si el id es nulo o vacío, NO enviarlo para que Supabase lo genere
-          if (b.id && b.id !== "") {
-            cleaned.id = b.id;
-          }
-          
+          // CRÍTICO: No enviar id si es nulo/vacío para evitar error de base de datos
+          if (b.id && b.id !== "") cleaned.id = b.id;
           return cleaned;
         });
-
-      console.log("DIAGNOSTICO: Payload Sucursales limpiado:", branchesToSave);
 
       if (branchesToSave.length > 0) {
         const { error: branchesError } = await supabase
@@ -183,18 +178,19 @@ export const TenantSettings = () => {
           .upsert(branchesToSave);
           
         if (branchesError) {
-           console.error("DIAGNOSTICO: Error al guardar sucursales:", branchesError);
-           alert("Se han guardado los ajustes generales, pero hubo un problema con las sucursales: " + branchesError.message);
+           console.error("CONFIG_SAVE_ERROR (Branches):", branchesError);
+           // Notificamos pero no lanzamos error fatal si los datos principales se guardaron
+           alert("Datos de empresa guardados, pero hubo un error con las sucursales: " + branchesError.message);
         }
       }
 
-      // 3. Refrescar contexto global
+      // 3. Refrescar contexto global para que el Layout y otros componentes vean los cambios
       await refreshProfile();
-      alert("Ajustes guardados correctamente");
+      alert("Configuración actualizada correctamente.");
       
     } catch (err: any) {
-      console.error("DIAGNOSTICO: Fallo crítico:", err);
-      alert("Error al guardar: " + err.message);
+      console.error("CONFIG_SAVE_FATAL:", err);
+      alert("Error crítico al guardar: " + err.message);
     } finally {
       setSaving(false);
     }
@@ -202,7 +198,6 @@ export const TenantSettings = () => {
 
   const updateSocial = (key: keyof typeof socials, val: string) => {
     let url = val.trim();
-    // Normalización: si pega algo tipo "facebook.com/user" le ponemos https://
     if (url && !url.startsWith('http') && !url.startsWith('//')) {
       url = `https://${url}`;
     }
@@ -272,11 +267,6 @@ export const TenantSettings = () => {
                   </div>
                 </div>
               ))}
-              {branches.length === 0 && (
-                <div className="text-center py-10 border-2 border-dashed border-slate-100 rounded-[1.8rem]">
-                  <p className="text-[10px] font-black uppercase text-slate-300 italic">No hay sucursales configuradas</p>
-                </div>
-              )}
             </div>
           </div>
         </div>
