@@ -48,7 +48,7 @@ export async function extractProductWithGemini(file: File): Promise<any> {
       }
 
       if (code === "KEY_MISSING") {
-        throw new Error(`Error de configuración: API_KEY no configurada en el servidor.${rid}`);
+        throw new Error(`Error de configuración: VITE_GEMINI_API_KEY no configurada en el servidor.${rid}`);
       }
 
       throw new Error(data?.error || `Error en el servidor (${response.status}).${rid}`);

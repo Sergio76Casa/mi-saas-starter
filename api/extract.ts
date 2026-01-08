@@ -72,10 +72,10 @@ export default async function handler(req: any, res: any) {
     return res.status(405).json({ error: "Método no permitido", requestId, code: "METHOD_NOT_ALLOWED" });
   }
 
-  // Las directrices exigen el uso exclusivo de process.env.API_KEY
-  if (!process.env.API_KEY) {
+  // Las directrices exigen el uso exclusivo de process.env.VITE_GEMINI_API_KEY
+  if (!process.env.VITE_GEMINI_API_KEY) {
     return res.status(500).json({ 
-      error: "La variable de entorno API_KEY no está configurada en el proyecto de Vercel.", 
+      error: "La variable de entorno VITE_GEMINI_API_KEY no está configurada en el proyecto de Vercel.", 
       code: "KEY_MISSING", 
       requestId 
     });
@@ -88,7 +88,7 @@ export default async function handler(req: any, res: any) {
       return res.status(413).json({ error: "Archivo demasiado grande (máx 4.5MB)", code: "FILE_TOO_LARGE", requestId });
     }
 
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = new GoogleGenAI({ apiKey: process.env.VITE_GEMINI_API_KEY });
     
     const systemInstruction = `HVAC Expert. Extract technical data to JSON. 
     RULES: 
