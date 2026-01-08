@@ -35,8 +35,7 @@ export const TenantSettings = () => {
   const [branches, setBranches] = useState<Partial<Branch>[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Sincronizar solo cuando cambia el tenant fundamental (ID) o carga inicial
-  // Evitamos sincronizar si estamos en proceso de guardado para no pisar cambios locales
+  // Sincronizar estado local cuando el objeto tenant del contexto cambie (hidratación real-time)
   useEffect(() => {
     if (!tenant || saving) return;
     
@@ -57,7 +56,7 @@ export const TenantSettings = () => {
     });
     setUseLogo(tenant.use_logo_on_web ?? false);
     setLogoPreview(tenant.logo_url || '');
-  }, [tenant.id]); // Solo dependemos del ID para la hidratación principal
+  }, [tenant]); // Escuchar cambios en el objeto completo para re-hidratar tras refreshProfile
 
   useEffect(() => {
     const fetchBranches = async () => {
@@ -93,7 +92,6 @@ export const TenantSettings = () => {
         finalLogoUrl = publicUrl;
       }
 
-      // Limpiar y formatear redes sociales antes de enviar
       const cleanedSocials = {
         social_instagram: sanitizeUrl(socials.social_instagram),
         social_facebook: sanitizeUrl(socials.social_facebook),
@@ -116,8 +114,6 @@ export const TenantSettings = () => {
         use_logo_on_web: useLogo
       };
 
-      console.log("CONFIG_SAVE_PAYLOAD:", updatePayload);
-
       const { error: tenantError } = await supabase
         .from('tenants')
         .update(updatePayload)
@@ -125,7 +121,10 @@ export const TenantSettings = () => {
 
       if (tenantError) throw tenantError;
 
-      // Guardar sucursales
+      // Verificación inmediata post-update
+      const { data: verifyData } = await supabase.from('tenants').select('*').eq('id', tenant.id).single();
+      console.log("CONFIG_SAVE_VERIFIED_IN_DB:", verifyData);
+
       const branchesToSave = branches
         .filter(b => b.name?.trim() || b.address?.trim())
         .map(b => {

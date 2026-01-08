@@ -80,6 +80,12 @@ export const PublicFooter: React.FC<PublicFooterProps> = ({ tenant, branches, la
   const modalContent = activeModal ? FOOTER_MODAL_CONTENT[activeModal] : null;
   const currentYear = new Date().getFullYear();
 
+  // Resolución de descripción del footer con fallback bilingüe
+  const footerDescription = (() => {
+    if (language === 'ca') return tenant?.footer_description_ca || tenant?.footer_description_es || "Som experts en solucions de climatització eficient.";
+    return tenant?.footer_description_es || tenant?.footer_description_ca || "Somo Expertos en soluciones de climatización eficiente. Presupuestos transparentes, instalación profesional y las mejores marcas del mercado.";
+  })();
+
   return (
     <>
       {/* Footer Modal with safety checks */}
@@ -120,10 +126,7 @@ export const PublicFooter: React.FC<PublicFooterProps> = ({ tenant, branches, la
                 )}
               </div>
               <p className="text-slate-400 text-[14px] font-medium leading-relaxed max-w-xs italic">
-                {language === 'ca' 
-                  ? (tenant?.footer_description_ca || tenant?.footer_description_es || "Som experts en solucions de climatització eficient.")
-                  : (tenant?.footer_description_es || tenant?.footer_description_ca || "Somo Expertos en soluciones de climatización eficiente. Presupuestos transparentes, instalación profesional y las mejores marcas del mercado.")
-                }
+                {footerDescription}
               </p>
               
               <div className="flex flex-wrap gap-4">
@@ -182,7 +185,7 @@ export const PublicFooter: React.FC<PublicFooterProps> = ({ tenant, branches, la
                 </li>
                 <li>
                   <button onClick={() => setActiveModal('mantenimiento')} className="flex items-center gap-3 text-slate-400 hover:text-white group transition-colors">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2m-6 9l2 2 4-4"/></svg>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2m-6 9l2 2 4-4"/></svg>
                     <span className="text-[14px] font-bold italic tracking-wide">{tt('link_maint')}</span>
                   </button>
                 </li>
@@ -255,7 +258,7 @@ export const PublicFooter: React.FC<PublicFooterProps> = ({ tenant, branches, la
                     )}
                     {tenant?.email && (
                       <div className="flex gap-3 items-center text-slate-400">
-                        <svg className="w-5 h-5 text-blue-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                        <svg className="w-5 h-5 text-blue-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2-2v10a2 2 0 002 2z"/></svg>
                         <span className="text-[15px] font-bold">{tenant.email}</span>
                       </div>
                     )}
