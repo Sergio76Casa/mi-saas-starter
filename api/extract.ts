@@ -72,9 +72,13 @@ export default async function handler(req: any, res: any) {
     return res.status(405).json({ error: "Método no permitido", requestId, code: "METHOD_NOT_ALLOWED" });
   }
 
-  // Fix: According to GenAI guidelines, we must use process.env.API_KEY exclusively
+  // Las directrices exigen el uso exclusivo de process.env.API_KEY
   if (!process.env.API_KEY) {
-    return res.status(500).json({ error: "API_KEY no configurada", code: "KEY_MISSING", requestId });
+    return res.status(500).json({ 
+      error: "La variable de entorno API_KEY no está configurada en el proyecto de Vercel.", 
+      code: "KEY_MISSING", 
+      requestId 
+    });
   }
 
   try {
@@ -84,7 +88,6 @@ export default async function handler(req: any, res: any) {
       return res.status(413).json({ error: "Archivo demasiado grande (máx 4.5MB)", code: "FILE_TOO_LARGE", requestId });
     }
 
-    // Fix: Initialization must use { apiKey: process.env.API_KEY }
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     
     const systemInstruction = `HVAC Expert. Extract technical data to JSON. 
@@ -168,7 +171,6 @@ export default async function handler(req: any, res: any) {
     );
 
     const result = (await Promise.race([geminiCall, timeoutPromise])) as any;
-    // Fix: Access the .text property directly (not as a method)
     const raw = JSON.parse(result.text || "{}");
 
     const normalized = {
