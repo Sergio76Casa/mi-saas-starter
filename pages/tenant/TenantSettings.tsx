@@ -27,13 +27,25 @@ export const TenantSettings = () => {
     social_telegram: tenant.social_telegram || ''
   });
 
-  const [partners, setPartners] = useState({
-    partner_logo_1_url: tenant.partner_logo_1_url || '',
+  // Links de los partners
+  const [partnerLinks, setPartnerLinks] = useState({
     partner_logo_1_link: tenant.partner_logo_1_link || '',
-    partner_logo_iso9001_url: tenant.partner_logo_iso9001_url || '',
     partner_logo_iso9001_link: tenant.partner_logo_iso9001_link || '',
-    partner_logo_2_url: tenant.partner_logo_2_url || '',
     partner_logo_2_link: tenant.partner_logo_2_link || ''
+  });
+
+  // URLs de los logos (para preview y estado final)
+  const [partnerUrls, setPartnerUrls] = useState({
+    partner_logo_1_url: tenant.partner_logo_1_url || '',
+    partner_logo_iso9001_url: tenant.partner_logo_iso9001_url || '',
+    partner_logo_2_url: tenant.partner_logo_2_url || ''
+  });
+
+  // Archivos locales para subir
+  const [partnerFiles, setPartnerFiles] = useState<{ [key: string]: File | null }>({
+    partner_logo_1: null,
+    partner_logo_iso9001: null,
+    partner_logo_2: null
   });
 
   const [useLogo, setUseLogo] = useState(tenant.use_logo_on_web ?? false);
@@ -41,7 +53,11 @@ export const TenantSettings = () => {
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
   const [branches, setBranches] = useState<Partial<Branch>[]>([]);
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const p1Ref = useRef<HTMLInputElement>(null);
+  const pIsoRef = useRef<HTMLInputElement>(null);
+  const p2Ref = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!tenant || saving) return;
@@ -60,13 +76,15 @@ export const TenantSettings = () => {
       social_whatsapp: tenant.social_whatsapp || '',
       social_telegram: tenant.social_telegram || ''
     });
-    setPartners({
-      partner_logo_1_url: tenant.partner_logo_1_url || '',
+    setPartnerLinks({
       partner_logo_1_link: tenant.partner_logo_1_link || '',
-      partner_logo_iso9001_url: tenant.partner_logo_iso9001_url || '',
       partner_logo_iso9001_link: tenant.partner_logo_iso9001_link || '',
-      partner_logo_2_url: tenant.partner_logo_2_url || '',
       partner_logo_2_link: tenant.partner_logo_2_link || ''
+    });
+    setPartnerUrls({
+      partner_logo_1_url: tenant.partner_logo_1_url || '',
+      partner_logo_iso9001_url: tenant.partner_logo_iso9001_url || '',
+      partner_logo_2_url: tenant.partner_logo_2_url || ''
     });
     setUseLogo(tenant.use_logo_on_web ?? false);
     setLogoPreview(tenant.logo_url || '');
@@ -92,9 +110,22 @@ export const TenantSettings = () => {
     return `https://${trimmed}`;
   };
 
+  const handlePartnerFileChange = (key: string, file: File | null) => {
+    if (file) {
+      setPartnerFiles(prev => ({ ...prev, [key]: file }));
+      setPartnerUrls(prev => ({ ...prev, [`${key}_url`]: URL.createObjectURL(file) }));
+    }
+  };
+
+  const removePartnerLogo = (key: string) => {
+    setPartnerFiles(prev => ({ ...prev, [key]: null }));
+    setPartnerUrls(prev => ({ ...prev, [`${key}_url`]: '' }));
+  };
+
   const handleSave = async () => {
     setSaving(true);
     try {
+      // 1. Subida de logo principal
       let finalLogoUrl = logoPreview;
       if (logoFile) {
         const fileExt = logoFile.name.split('.').pop();
@@ -104,6 +135,27 @@ export const TenantSettings = () => {
         const { data: { publicUrl } } = supabase.storage.from('products').getPublicUrl(path);
         finalLogoUrl = publicUrl;
       }
+
+      // 2. Subida de logos de partners
+      const finalPartnerUrls = { ...partnerUrls };
+      
+      const uploadPartner = async (key: string) => {
+        const file = partnerFiles[key];
+        if (file) {
+          const fileExt = file.name.split('.').pop();
+          const fileName = `${key}_${Date.now()}.${fileExt}`;
+          const path = `${tenant.id}/partners/${fileName}`;
+          await supabase.storage.from('products').upload(path, file);
+          const { data: { publicUrl } } = supabase.storage.from('products').getPublicUrl(path);
+          finalPartnerUrls[`${key}_url` as keyof typeof partnerUrls] = publicUrl;
+        }
+      };
+
+      await Promise.all([
+        uploadPartner('partner_logo_1'),
+        uploadPartner('partner_logo_iso9001'),
+        uploadPartner('partner_logo_2')
+      ]);
 
       const updatePayload = { 
         name,
@@ -119,12 +171,13 @@ export const TenantSettings = () => {
         social_linkedin: sanitizeUrl(socials.social_linkedin),
         social_whatsapp: sanitizeUrl(socials.social_whatsapp),
         social_telegram: sanitizeUrl(socials.social_telegram),
-        partner_logo_1_url: sanitizeUrl(partners.partner_logo_1_url),
-        partner_logo_1_link: sanitizeUrl(partners.partner_logo_1_link),
-        partner_logo_iso9001_url: sanitizeUrl(partners.partner_logo_iso9001_url),
-        partner_logo_iso9001_link: sanitizeUrl(partners.partner_logo_iso9001_link),
-        partner_logo_2_url: sanitizeUrl(partners.partner_logo_2_url),
-        partner_logo_2_link: sanitizeUrl(partners.partner_logo_2_link),
+        // Logos
+        partner_logo_1_url: finalPartnerUrls.partner_logo_1_url,
+        partner_logo_1_link: sanitizeUrl(partnerLinks.partner_logo_1_link),
+        partner_logo_iso9001_url: finalPartnerUrls.partner_logo_iso9001_url,
+        partner_logo_iso9001_link: sanitizeUrl(partnerLinks.partner_logo_iso9001_link),
+        partner_logo_2_url: finalPartnerUrls.partner_logo_2_url,
+        partner_logo_2_link: sanitizeUrl(partnerLinks.partner_logo_2_link),
         logo_url: finalLogoUrl,
         use_logo_on_web: useLogo
       };
@@ -195,7 +248,7 @@ export const TenantSettings = () => {
               <label className="text-[9px] font-black uppercase text-gray-400 ml-1">Logo de Empresa</label>
               <div 
                 onClick={() => fileInputRef.current?.click()}
-                className="w-40 h-40 bg-gray-50 border-2 border-dashed border-gray-100 rounded-[2rem] flex items-center justify-center cursor-pointer overflow-hidden group hover:bg-gray-100 transition-all"
+                className="w-40 h-40 bg-gray-50 border-2 border-dashed border-gray-100 rounded-[2rem] flex items-center justify-center cursor-pointer overflow-hidden group hover:bg-gray-100 transition-all relative"
               >
                 {logoPreview ? (
                   <img src={logoPreview} className="w-full h-full object-contain p-4" alt="Logo preview" />
@@ -232,22 +285,64 @@ export const TenantSettings = () => {
           <h4 className="text-[10px] font-black uppercase text-gray-400 tracking-[0.2em] italic">Logos Partner / Certificaciones</h4>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="space-y-4 p-5 bg-slate-50 rounded-2xl border border-slate-100">
-              <span className="text-[9px] font-black text-slate-400 uppercase block border-b border-slate-200 pb-2 mb-2">Partner / Certificación 1</span>
-              <Input label="URL del logo (imagen)" value={partners.partner_logo_1_url} onChange={(e:any) => setPartners({...partners, partner_logo_1_url: e.target.value})} />
-              <Input label="URL destino (al hacer clic)" value={partners.partner_logo_1_link} onChange={(e:any) => setPartners({...partners, partner_logo_1_link: e.target.value})} />
+            {/* Logo 1 */}
+            <div className="space-y-4 p-5 bg-slate-50 rounded-2xl border border-slate-100 flex flex-col items-center">
+              <span className="text-[9px] font-black text-slate-400 uppercase block border-b border-slate-200 pb-2 mb-2 w-full text-center">Partner 1</span>
+              <div 
+                onClick={() => p1Ref.current?.click()}
+                className="w-24 h-24 bg-white border-2 border-dashed border-slate-200 rounded-full flex items-center justify-center cursor-pointer overflow-hidden group hover:border-blue-400 transition-all relative mb-2"
+              >
+                {partnerUrls.partner_logo_1_url ? (
+                  <img src={partnerUrls.partner_logo_1_url} className="w-full h-full object-contain p-3" alt="Partner 1" />
+                ) : (
+                  <svg className="w-6 h-6 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4" strokeWidth="2.5" strokeLinecap="round"/></svg>
+                )}
+                <input type="file" ref={p1Ref} className="hidden" accept="image/*" onChange={(e) => handlePartnerFileChange('partner_logo_1', e.target.files?.[0] || null)} />
+              </div>
+              {partnerUrls.partner_logo_1_url && (
+                <button onClick={(e) => { e.stopPropagation(); removePartnerLogo('partner_logo_1'); }} className="text-[8px] font-black uppercase text-red-500 hover:underline mb-4">Quitar imagen</button>
+              )}
+              <Input label="URL destino" value={partnerLinks.partner_logo_1_link} onChange={(e:any) => setPartnerLinks({...partnerLinks, partner_logo_1_link: e.target.value})} />
             </div>
             
-            <div className="space-y-4 p-5 bg-slate-50 rounded-2xl border border-slate-100">
-              <span className="text-[9px] font-black text-slate-400 uppercase block border-b border-slate-200 pb-2 mb-2">Certificado ISO 9001</span>
-              <Input label="URL del logo (imagen)" value={partners.partner_logo_iso9001_url} onChange={(e:any) => setPartners({...partners, partner_logo_iso9001_url: e.target.value})} />
-              <Input label="URL destino (al hacer clic)" value={partners.partner_logo_iso9001_link} onChange={(e:any) => setPartners({...partners, partner_logo_iso9001_link: e.target.value})} />
+            {/* ISO 9001 */}
+            <div className="space-y-4 p-5 bg-slate-50 rounded-2xl border border-slate-100 flex flex-col items-center">
+              <span className="text-[9px] font-black text-slate-400 uppercase block border-b border-slate-200 pb-2 mb-2 w-full text-center">ISO 9001</span>
+              <div 
+                onClick={() => pIsoRef.current?.click()}
+                className="w-24 h-24 bg-white border-2 border-dashed border-slate-200 rounded-full flex items-center justify-center cursor-pointer overflow-hidden group hover:border-blue-400 transition-all relative mb-2"
+              >
+                {partnerUrls.partner_logo_iso9001_url ? (
+                  <img src={partnerUrls.partner_logo_iso9001_url} className="w-full h-full object-contain p-3" alt="ISO 9001" />
+                ) : (
+                  <svg className="w-6 h-6 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4" strokeWidth="2.5" strokeLinecap="round"/></svg>
+                )}
+                <input type="file" ref={pIsoRef} className="hidden" accept="image/*" onChange={(e) => handlePartnerFileChange('partner_logo_iso9001', e.target.files?.[0] || null)} />
+              </div>
+              {partnerUrls.partner_logo_iso9001_url && (
+                <button onClick={(e) => { e.stopPropagation(); removePartnerLogo('partner_logo_iso9001'); }} className="text-[8px] font-black uppercase text-red-500 hover:underline mb-4">Quitar imagen</button>
+              )}
+              <Input label="URL destino" value={partnerLinks.partner_logo_iso9001_link} onChange={(e:any) => setPartnerLinks({...partnerLinks, partner_logo_iso9001_link: e.target.value})} />
             </div>
 
-            <div className="space-y-4 p-5 bg-slate-50 rounded-2xl border border-slate-100">
-              <span className="text-[9px] font-black text-slate-400 uppercase block border-b border-slate-200 pb-2 mb-2">Partner 2 / Adicional</span>
-              <Input label="URL del logo (imagen)" value={partners.partner_logo_2_url} onChange={(e:any) => setPartners({...partners, partner_logo_2_url: e.target.value})} />
-              <Input label="URL destino (al hacer clic)" value={partners.partner_logo_2_link} onChange={(e:any) => setPartners({...partners, partner_logo_2_link: e.target.value})} />
+            {/* Logo 2 */}
+            <div className="space-y-4 p-5 bg-slate-50 rounded-2xl border border-slate-100 flex flex-col items-center">
+              <span className="text-[9px] font-black text-slate-400 uppercase block border-b border-slate-200 pb-2 mb-2 w-full text-center">Partner 2</span>
+              <div 
+                onClick={() => p2Ref.current?.click()}
+                className="w-24 h-24 bg-white border-2 border-dashed border-slate-200 rounded-full flex items-center justify-center cursor-pointer overflow-hidden group hover:border-blue-400 transition-all relative mb-2"
+              >
+                {partnerUrls.partner_logo_2_url ? (
+                  <img src={partnerUrls.partner_logo_2_url} className="w-full h-full object-contain p-3" alt="Partner 2" />
+                ) : (
+                  <svg className="w-6 h-6 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4" strokeWidth="2.5" strokeLinecap="round"/></svg>
+                )}
+                <input type="file" ref={p2Ref} className="hidden" accept="image/*" onChange={(e) => handlePartnerFileChange('partner_logo_2', e.target.files?.[0] || null)} />
+              </div>
+              {partnerUrls.partner_logo_2_url && (
+                <button onClick={(e) => { e.stopPropagation(); removePartnerLogo('partner_logo_2'); }} className="text-[8px] font-black uppercase text-red-500 hover:underline mb-4">Quitar imagen</button>
+              )}
+              <Input label="URL destino" value={partnerLinks.partner_logo_2_link} onChange={(e:any) => setPartnerLinks({...partnerLinks, partner_logo_2_link: e.target.value})} />
             </div>
           </div>
         </div>
