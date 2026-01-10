@@ -37,6 +37,8 @@ export interface Branch {
   tenant_id: string;
   name: string;
   address: string;
+  phone?: string;
+  email?: string;
   sort_order: number;
   is_active: boolean;
   created_at?: string;
@@ -58,10 +60,6 @@ export interface Product {
   model: string;
   type: string;
   status: 'draft' | 'active' | 'inactive';
-  /**
-   * pricing is an array of variants. 
-   * It can have a simple 'variant' string or a localized 'name' object.
-   */
   pricing: Array<{ 
     variant?: string; 
     price: number; 
@@ -79,9 +77,6 @@ export interface Product {
   brand_logo_url?: string;
   is_deleted: boolean;
   created_at: string;
-  /**
-   * Computed field representing the minimum price among variants for display purposes.
-   */
   price: number; 
 }
 
@@ -119,7 +114,6 @@ export interface Quote {
   financing_months?: number;
   financing_fee?: number;
   items?: QuoteItem[];
-  // Added maintenance_no to support maintenance or repair identification in quotes
   maintenance_no?: string;
 }
 

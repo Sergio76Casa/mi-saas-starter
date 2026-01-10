@@ -10,7 +10,6 @@ export const TenantSettings = () => {
   const { tenant } = useOutletContext<{ tenant: Tenant }>();
   const { t, refreshProfile } = useApp();
   
-  // Estados Locales para el Tenant
   const [name, setName] = useState(tenant.name);
   const [phone, setPhone] = useState(tenant.phone || '');
   const [email, setEmail] = useState(tenant.email || '');
@@ -32,10 +31,9 @@ export const TenantSettings = () => {
   const [logoPreview, setLogoPreview] = useState(tenant.logo_url || '');
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
-  const [branches, setBranches] = useState<Partial<Branch & { phone: string; email: string }>[]>([]);
+  const [branches, setBranches] = useState<Partial<Branch>[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Sincronizar estado local cuando cambia el tenant (ej. tras refreshProfile)
   useEffect(() => {
     if (!tenant || saving) return;
     setName(tenant.name || '');
@@ -57,7 +55,6 @@ export const TenantSettings = () => {
     setLogoPreview(tenant.logo_url || '');
   }, [tenant]);
 
-  // Cargar sucursales
   useEffect(() => {
     const fetchBranches = async () => {
       if (!tenant.id) return;
@@ -66,7 +63,7 @@ export const TenantSettings = () => {
         .select('*')
         .eq('tenant_id', tenant.id)
         .order('sort_order', { ascending: true });
-      if (data) setBranches(data as any);
+      if (data) setBranches(data);
     };
     fetchBranches();
   }, [tenant.id]);
@@ -80,6 +77,7 @@ export const TenantSettings = () => {
 
   const handleSave = async () => {
     setSaving(true);
+    let tenantSuccess = false;
     try {
       let finalLogoUrl = logoPreview;
       if (logoFile) {
@@ -115,41 +113,40 @@ export const TenantSettings = () => {
         .eq('id', tenant.id);
 
       if (tenantError) throw tenantError;
+      tenantSuccess = true;
 
-      // --- DIAGNÓSTICO: Verificación de guardado real ---
-      const { data: verifyData } = await supabase.from('tenants').select('*').eq('id', tenant.id).single();
-      console.log("[DIAGNOSTIC_DB_STATE] Actual status in DB:", {
-        id: verifyData.id,
-        slug: verifyData.slug,
-        phone: verifyData.phone,
-        email: verifyData.email,
-        footer_es: verifyData.footer_description_es,
-        social_insta: !!verifyData.social_instagram
-      });
-
-      // Upsert Sucursales
-      if (branches.length > 0) {
-        const branchesToSave = branches.map((b, idx) => ({
-          ...b,
-          tenant_id: tenant.id,
-          sort_order: idx,
-          is_active: b.is_active ?? true
-        }));
-        await supabase.from('tenant_branches').upsert(branchesToSave);
+      // Guardado Robusto de Sucursales
+      try {
+        if (branches.length > 0) {
+          const branchesToSave = branches.map((b, idx) => ({
+            id: b.id,
+            tenant_id: tenant.id,
+            name: b.name?.trim() || 'Sucursal',
+            address: b.address?.trim() || '',
+            phone: b.phone?.trim() || '',
+            email: b.email?.trim() || '',
+            sort_order: idx,
+            is_active: b.is_active ?? true
+          }));
+          const { error: branchError } = await supabase.from('tenant_branches').upsert(branchesToSave);
+          if (branchError) throw branchError;
+        }
+      } catch (branchErr: any) {
+        console.error("BRANCH_SAVE_ERROR:", branchErr);
+        alert("⚠️ Datos de empresa guardados, pero hubo un problema con las sucursales: " + branchErr.message);
       }
 
       await refreshProfile();
-      alert("✅ Configuración guardada correctamente.");
+      if (tenantSuccess) alert("✅ Configuración actualizada con éxito.");
     } catch (err: any) {
-      console.error("SAVE_ERROR:", err);
-      alert("❌ Error: " + err.message);
+      alert("❌ Error al guardar datos de empresa: " + err.message);
     } finally {
       setSaving(false);
     }
   };
 
   const addBranch = () => setBranches([...branches, { name: '', address: '', phone: '', email: '', is_active: true }]);
-  const updateBranch = (idx: number, field: string, val: any) => {
+  const updateBranch = (idx: number, field: keyof Branch, val: any) => {
     const updated = [...branches];
     updated[idx] = { ...updated[idx], [field]: val };
     setBranches(updated);
