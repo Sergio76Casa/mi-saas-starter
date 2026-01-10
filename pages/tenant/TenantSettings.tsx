@@ -106,7 +106,6 @@ export const TenantSettings = () => {
         use_logo_on_web: useLogo
       };
 
-      // Realizamos el UPDATE con .select().single() para verificar el impacto real de la RLS
       const { data: updatedTenant, error: updateError } = await supabase
         .from('tenants')
         .update(updatePayload)
@@ -116,12 +115,10 @@ export const TenantSettings = () => {
 
       if (updateError) throw updateError;
       
-      // Si no hay error pero no hay data, es un bloqueo de RLS (0 filas afectadas)
       if (!updatedTenant) {
         throw new Error("No tienes permisos para actualizar la empresa (RLS).");
       }
 
-      // Guardado de Sucursales (independiente)
       if (branches.length > 0) {
         const branchesToSave = branches.map((b, idx) => ({
           id: b.id,
@@ -153,20 +150,70 @@ export const TenantSettings = () => {
     setBranches(updated);
   };
 
+  const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setLogoFile(file);
+      setLogoPreview(URL.createObjectURL(file));
+    }
+  };
+
   return (
     <div className="max-w-3xl animate-in fade-in duration-500 mx-auto md:mx-0 pb-20 text-left">
       <h3 className="text-3xl font-black text-gray-900 tracking-tighter mb-10 uppercase italic">{t('settings')}</h3>
       
       <div className="space-y-8">
+        {/* IDENTIDAD VISUAL */}
         <div className="bg-white p-6 md:p-10 rounded-[1.5rem] md:rounded-[2.8rem] border border-gray-100 shadow-sm space-y-8">
-          <h4 className="text-[10px] font-black uppercase text-gray-400 tracking-[0.2em] italic">Datos de la Empresa</h4>
-          <Input label="Nombre Comercial" value={name} onChange={(e:any) => setName(e.target.value)} />
+          <h4 className="text-[10px] font-black uppercase text-gray-400 tracking-[0.2em] italic">Identidad Visual</h4>
+          
+          <div className="flex flex-col md:flex-row gap-8 items-start">
+            <div className="space-y-3">
+              <label className="text-[9px] font-black uppercase text-gray-400 ml-1">Logo de Empresa</label>
+              <div 
+                onClick={() => fileInputRef.current?.click()}
+                className="w-40 h-40 bg-gray-50 border-2 border-dashed border-gray-100 rounded-[2rem] flex items-center justify-center cursor-pointer overflow-hidden group hover:bg-gray-100 transition-all"
+              >
+                {logoPreview ? (
+                  <img src={logoPreview} className="w-full h-full object-contain p-4" alt="Logo preview" />
+                ) : (
+                  <div className="text-center opacity-30 group-hover:opacity-50 transition-opacity">
+                    <svg className="w-8 h-8 mx-auto mb-1 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                    <span className="text-[8px] font-black uppercase">Subir Logo</span>
+                  </div>
+                )}
+                <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleLogoChange} />
+              </div>
+            </div>
+
+            <div className="flex-1 space-y-6">
+              <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100">
+                <label className="flex items-center gap-4 cursor-pointer">
+                  <div className="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" checked={useLogo} onChange={(e) => setUseLogo(e.target.checked)} className="sr-only peer" />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-[11px] font-black uppercase tracking-widest text-slate-900">Mostrar Logo en la Web</span>
+                    <span className="text-[9px] text-slate-400 font-bold uppercase italic">Si está desactivado, se mostrará el nombre comercial</span>
+                  </div>
+                </label>
+              </div>
+              <Input label="Nombre Comercial" value={name} onChange={(e:any) => setName(e.target.value)} />
+            </div>
+          </div>
+        </div>
+
+        {/* DATOS DE CONTACTO */}
+        <div className="bg-white p-6 md:p-10 rounded-[1.5rem] md:rounded-[2.8rem] border border-gray-100 shadow-sm space-y-8">
+          <h4 className="text-[10px] font-black uppercase text-gray-400 tracking-[0.2em] italic">Datos de Contacto</h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Input label="Teléfono de Contacto" value={phone} onChange={(e:any) => setPhone(e.target.value)} />
             <Input label="Email Público" value={email} onChange={(e:any) => setEmail(e.target.value)} />
           </div>
         </div>
 
+        {/* SUCURSALES */}
         <div className="bg-white p-6 md:p-10 rounded-[1.5rem] md:rounded-[2.8rem] border border-gray-100 shadow-sm space-y-8">
           <div className="flex justify-between items-center">
             <h4 className="text-[10px] font-black uppercase text-gray-400 tracking-[0.2em] italic">Sucursales</h4>
@@ -187,6 +234,7 @@ export const TenantSettings = () => {
           </div>
         </div>
 
+        {/* CONTENIDO DEL FOOTER */}
         <div className="bg-white p-6 md:p-10 rounded-[1.5rem] md:rounded-[2.8rem] border border-gray-100 shadow-sm space-y-8">
           <h4 className="text-[10px] font-black uppercase text-gray-400 tracking-[0.2em] italic">Contenido del Footer</h4>
           <div className="space-y-6">
@@ -201,12 +249,17 @@ export const TenantSettings = () => {
           </div>
         </div>
 
+        {/* REDES SOCIALES */}
         <div className="bg-white p-6 md:p-10 rounded-[1.5rem] md:rounded-[2.8rem] border border-gray-100 shadow-sm space-y-8">
           <h4 className="text-[10px] font-black uppercase text-gray-400 tracking-[0.2em] italic">Redes Sociales (URLs)</h4>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2">
             <Input label="Instagram" value={socials.social_instagram} onChange={(e:any) => setSocials({...socials, social_instagram: e.target.value})} />
             <Input label="Facebook" value={socials.social_facebook} onChange={(e:any) => setSocials({...socials, social_facebook: e.target.value})} />
+            <Input label="TikTok" value={socials.social_tiktok} onChange={(e:any) => setSocials({...socials, social_tiktok: e.target.value})} />
+            <Input label="YouTube" value={socials.social_youtube} onChange={(e:any) => setSocials({...socials, social_youtube: e.target.value})} />
             <Input label="WhatsApp" value={socials.social_whatsapp} onChange={(e:any) => setSocials({...socials, social_whatsapp: e.target.value})} />
+            <Input label="Telegram" value={socials.social_telegram} onChange={(e:any) => setSocials({...socials, social_telegram: e.target.value})} />
+            <Input label="X (Twitter)" value={socials.social_x} onChange={(e:any) => setSocials({...socials, social_x: e.target.value})} />
             <Input label="LinkedIn" value={socials.social_linkedin} onChange={(e:any) => setSocials({...socials, social_linkedin: e.target.value})} />
           </div>
         </div>
