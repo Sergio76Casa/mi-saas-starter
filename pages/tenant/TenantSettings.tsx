@@ -35,7 +35,7 @@ export const TenantSettings = () => {
   const [branches, setBranches] = useState<Partial<Branch>[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Sincronizar estado local cuando el objeto tenant del contexto cambie (hidratación real-time)
+  // Sincronizar estado local cuando el objeto tenant cambie (hidratación real-time post-refresh)
   useEffect(() => {
     if (!tenant || saving) return;
     
@@ -56,8 +56,9 @@ export const TenantSettings = () => {
     });
     setUseLogo(tenant.use_logo_on_web ?? false);
     setLogoPreview(tenant.logo_url || '');
-  }, [tenant]); // Escuchar cambios en el objeto completo para re-hidratar tras refreshProfile
+  }, [tenant]);
 
+  // Cargar sucursales existentes
   useEffect(() => {
     const fetchBranches = async () => {
       if (!tenant.id) return;
@@ -121,19 +122,16 @@ export const TenantSettings = () => {
 
       if (tenantError) throw tenantError;
 
-      // Verificación inmediata post-update
-      const { data: verifyData } = await supabase.from('tenants').select('*').eq('id', tenant.id).single();
-      console.log("CONFIG_SAVE_VERIFIED_IN_DB:", verifyData);
-
+      // Guardar sucursales
       const branchesToSave = branches
         .filter(b => b.name?.trim() || b.address?.trim())
-        .map(b => {
+        .map((b, idx) => {
           const cleaned: any = { 
             name: b.name?.trim() || 'Sucursal',
             address: b.address?.trim() || '',
             tenant_id: tenant.id,
             is_active: b.is_active ?? true,
-            sort_order: b.sort_order ?? 0
+            sort_order: idx
           };
           if (b.id && b.id !== "") cleaned.id = b.id;
           return cleaned;
@@ -144,18 +142,31 @@ export const TenantSettings = () => {
       }
 
       await refreshProfile();
-      alert("Configuración actualizada correctamente.");
+      alert("✅ Configuración actualizada correctamente.");
     } catch (err: any) {
       console.error("SAVE_ERROR:", err);
-      alert("Error al guardar: " + err.message);
+      alert("❌ Error al guardar: " + err.message);
     } finally {
       setSaving(false);
     }
   };
 
+  const addBranch = () => {
+    setBranches([...branches, { name: '', address: '', is_active: true }]);
+  };
+
+  const removeBranch = (idx: number) => {
+    setBranches(branches.filter((_, i) => i !== idx));
+  };
+
+  const updateBranch = (idx: number, field: keyof Branch, val: any) => {
+    const updated = [...branches];
+    updated[idx] = { ...updated[idx], [field]: val };
+    setBranches(updated);
+  };
+
   return (
     <div className="max-w-3xl animate-in fade-in duration-500 mx-auto md:mx-0 pb-20 text-left">
-      {/* Marcador de Depuración Temporal */}
       <div className="inline-block px-2 py-0.5 bg-red-600 text-white text-[8px] font-black rounded mb-4 animate-pulse">
         DEBUG_SETTINGS_RENDER_OK
       </div>
@@ -168,8 +179,30 @@ export const TenantSettings = () => {
           <h4 className="text-[10px] font-black uppercase text-gray-400 tracking-[0.2em] italic">Datos de la Empresa</h4>
           <Input label="Nombre de la Empresa" value={name} onChange={(e:any) => setName(e.target.value)} />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Input label="Teléfono" value={phone} onChange={(e:any) => setPhone(e.target.value)} placeholder="+34 ..." />
+            <Input label="Teléfono General" value={phone} onChange={(e:any) => setPhone(e.target.value)} placeholder="+34 ..." />
             <Input label="Email de contacto" value={email} onChange={(e:any) => setEmail(e.target.value)} placeholder="info@empresa.com" />
+          </div>
+        </div>
+
+        {/* SUCURSALES (RESTAURADA) */}
+        <div className="bg-white p-6 md:p-10 rounded-[1.5rem] md:rounded-[2.8rem] border border-gray-100 shadow-sm space-y-8">
+          <div className="flex justify-between items-center">
+            <h4 className="text-[10px] font-black uppercase text-gray-400 tracking-[0.2em] italic">Sucursales / Ubicaciones</h4>
+            <button onClick={addBranch} className="text-[9px] font-black uppercase bg-blue-50 text-blue-600 px-4 py-2 rounded-full hover:bg-blue-100 transition-colors">+ Añadir Sucursal</button>
+          </div>
+          <div className="space-y-6">
+            {branches.map((branch, idx) => (
+              <div key={idx} className="p-6 bg-gray-50 rounded-2xl border border-gray-100 relative group">
+                <button onClick={() => removeBranch(idx)} className="absolute top-4 right-4 text-slate-300 hover:text-red-500 transition-colors font-black">×</button>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Input label="Nombre de la Sucursal" value={branch.name} onChange={(e:any) => updateBranch(idx, 'name', e.target.value)} placeholder="Ej: Oficina Central" />
+                  <Input label="Dirección Completa" value={branch.address} onChange={(e:any) => updateBranch(idx, 'address', e.target.value)} placeholder="Calle, Número, Ciudad..." />
+                </div>
+              </div>
+            ))}
+            {branches.length === 0 && (
+              <p className="text-center py-6 text-slate-300 font-black text-[9px] uppercase italic tracking-widest">No hay sucursales configuradas.</p>
+            )}
           </div>
         </div>
 

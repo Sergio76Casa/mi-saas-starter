@@ -80,7 +80,7 @@ export const PublicFooter: React.FC<PublicFooterProps> = ({ tenant, branches, la
   const modalContent = activeModal ? FOOTER_MODAL_CONTENT[activeModal] : null;
   const currentYear = new Date().getFullYear();
 
-  // Resolución de descripción del footer con lógica de validación de contenido real
+  // Resolución robusta de descripción del footer: contenido DB > fallback idioma
   const footerDescription = (() => {
     const descEs = (tenant?.footer_description_es || '').trim();
     const descCa = (tenant?.footer_description_ca || '').trim();
@@ -93,7 +93,6 @@ export const PublicFooter: React.FC<PublicFooterProps> = ({ tenant, branches, la
 
   return (
     <>
-      {/* Footer Modal with safety checks */}
       {activeModal && modalContent && (
         <div className="fixed inset-0 z-[250] flex items-center justify-center p-4 md:p-10 animate-in fade-in duration-300">
           <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setActiveModal(null)}></div>
@@ -121,7 +120,6 @@ export const PublicFooter: React.FC<PublicFooterProps> = ({ tenant, branches, la
       <footer className="bg-slate-950 text-white pt-24 pb-12 relative overflow-hidden text-left">
         <div className="max-w-7xl mx-auto px-6 md:px-10 relative z-10">
           
-          {/* Marcador de Depuración Temporal */}
           <div className="inline-block px-2 py-0.5 bg-red-600 text-white text-[8px] font-black rounded mb-8 animate-pulse">
             DEBUG_PUBLIC_RENDER_OK
           </div>
@@ -153,7 +151,7 @@ export const PublicFooter: React.FC<PublicFooterProps> = ({ tenant, branches, la
                 )}
                 {tenant?.social_tiktok && (
                   <a href={tenant.social_tiktok} target="_blank" rel="noopener noreferrer" className="w-10 h-10 bg-white/5 hover:bg-white/10 text-white rounded-xl flex items-center justify-center transition-all shadow-sm">
-                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12.53.02C13.84 0 15.14.01 16.44 0c.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.28-2.26.74-4.63 2.58-5.91 1.08-.78 2.36-1.21 3.71-1.28.1-.01.2-.01.3-.01.01 1.34 0 2.68 0 4.02-.63.02-1.26.22-1.78.58-.85.55-1.37 1.51-1.38 2.53-.02 1.4.92 2.72 2.26 3.1 1.15.36 2.49.12 3.42-.65.65-.54 1.05-1.34 1.06-2.2 0-3.33 0-6.66.01-9.99z"/></svg>
+                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12.53.02C13.84 0 15.14.01 16.44 0c.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.34-3.37-3.65-5.71-.28-2.26.74-4.63 2.58-5.91 1.08-.78 2.36-1.21 3.71-1.28.1-.01.2-.01.3-.01.01 1.34 0 2.68 0 4.02-.63.02-1.26.22-1.78.58-.85.55-1.37 1.51-1.38 2.53-.02 1.4.92 2.72 2.26 3.1 1.15.36 2.49.12 3.42-.65.65-.54 1.05-1.34 1.06-2.2 0-3.33 0-6.66.01-9.99z"/></svg>
                   </a>
                 )}
                 {tenant?.social_youtube && (
@@ -260,7 +258,7 @@ export const PublicFooter: React.FC<PublicFooterProps> = ({ tenant, branches, la
                 )}
 
                 {(tenant?.phone || tenant?.email) && (
-                  <div className="pt-4 space-y-4">
+                  <div className="pt-4 border-t border-white/10 mt-4 space-y-4">
                     {tenant?.phone && (
                       <div className="flex gap-3 items-center text-slate-400">
                         <svg className="w-5 h-5 text-blue-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>
