@@ -236,12 +236,12 @@ export const TenantSettings = () => {
 
   return (
     <div className="max-w-3xl animate-in fade-in duration-500 mx-auto md:mx-0 pb-20 text-left">
-      <h3 className="text-3xl font-black text-gray-900 tracking-tighter mb-10 uppercase italic">{t('settings')}</h3>
+      <h3 className="text-3xl md:text-4xl font-black text-slate-900 tracking-tighter uppercase italic mb-10">{t('settings')}</h3>
       
       <div className="space-y-8">
         {/* IDENTIDAD VISUAL */}
         <div className="bg-white p-6 md:p-10 rounded-[1.5rem] md:rounded-[2.8rem] border border-gray-100 shadow-sm space-y-8">
-          <h4 className="text-[10px] font-black uppercase text-gray-400 tracking-[0.2em] italic">{t('settings_visual_id')}</h4>
+          <h4 className="text-[10px] font-black uppercase text-gray-400 tracking-[0.2em] italic text-left">{t('settings_visual_id')}</h4>
           
           <div className="flex flex-col md:flex-row gap-8 items-start">
             <div className="space-y-3">
@@ -262,14 +262,14 @@ export const TenantSettings = () => {
               </div>
             </div>
 
-            <div className="flex-1 space-y-6">
+            <div className="flex-1 space-y-6 w-full">
               <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100">
                 <label className="flex items-center gap-4 cursor-pointer">
                   <div className="relative inline-flex items-center cursor-pointer">
                     <input type="checkbox" checked={useLogo} onChange={(e) => setUseLogo(e.target.checked)} className="sr-only peer" />
                     <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
                   </div>
-                  <div className="flex flex-col">
+                  <div className="flex flex-col text-left">
                     <span className="text-[11px] font-black uppercase tracking-widest text-slate-900">{t('settings_logo_show_web')}</span>
                     <span className="text-[9px] text-slate-400 font-bold uppercase italic">{t('settings_logo_hint')}</span>
                   </div>
@@ -282,7 +282,7 @@ export const TenantSettings = () => {
 
         {/* LOGOS PARTNER / CERTIFICACIONES */}
         <div className="bg-white p-6 md:p-10 rounded-[1.5rem] md:rounded-[2.8rem] border border-gray-100 shadow-sm space-y-8">
-          <h4 className="text-[10px] font-black uppercase text-gray-400 tracking-[0.2em] italic">{t('settings_partners_title')}</h4>
+          <h4 className="text-[10px] font-black uppercase text-gray-400 tracking-[0.2em] italic text-left">{t('settings_partners_title')}</h4>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {/* Logo 1 */}
@@ -349,7 +349,7 @@ export const TenantSettings = () => {
 
         {/* DATOS DE CONTACTO */}
         <div className="bg-white p-6 md:p-10 rounded-[1.5rem] md:rounded-[2.8rem] border border-gray-100 shadow-sm space-y-8">
-          <h4 className="text-[10px] font-black uppercase text-gray-400 tracking-[0.2em] italic">{t('settings_contact_title')}</h4>
+          <h4 className="text-[10px] font-black uppercase text-gray-400 tracking-[0.2em] italic text-left">{t('settings_contact_title')}</h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Input label={t('settings_contact_phone')} value={phone} onChange={(e:any) => setPhone(e.target.value)} />
             <Input label={t('settings_contact_email')} value={email} onChange={(e:any) => setEmail(e.target.value)} />
@@ -359,12 +359,12 @@ export const TenantSettings = () => {
         {/* SUCURSALES */}
         <div className="bg-white p-6 md:p-10 rounded-[1.5rem] md:rounded-[2.8rem] border border-gray-100 shadow-sm space-y-8">
           <div className="flex justify-between items-center">
-            <h4 className="text-[10px] font-black uppercase text-gray-400 tracking-[0.2em] italic">{t('settings_branches_title')}</h4>
+            <h4 className="text-[10px] font-black uppercase text-gray-400 tracking-[0.2em] italic text-left">{t('settings_branches_title')}</h4>
             <button onClick={addBranch} className="text-[9px] font-black bg-slate-900 text-white px-4 py-2 rounded-full uppercase tracking-widest">{t('settings_branches_add')}</button>
           </div>
           <div className="space-y-6">
             {branches.map((b, i) => (
-              <div key={i} className="p-6 bg-gray-50 rounded-2xl border-gray-100 border relative">
+              <div key={i} className="p-6 bg-gray-50 rounded-2xl border-gray-100 border relative text-left">
                 <button onClick={() => setBranches(branches.filter((_, idx)=>idx!==i))} className="absolute top-4 right-4 text-red-400 font-bold text-xl">×</button>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="md:col-span-2"><Input label={t('settings_branch_name')} value={b.name} onChange={(e:any)=>updateBranch(i,'name',e.target.value)} /></div>
@@ -379,13 +379,13 @@ export const TenantSettings = () => {
 
         {/* CONTENIDO DEL FOOTER */}
         <div className="bg-white p-6 md:p-10 rounded-[1.5rem] md:rounded-[2.8rem] border border-gray-100 shadow-sm space-y-8">
-          <h4 className="text-[10px] font-black uppercase text-gray-400 tracking-[0.2em] italic">{t('settings_footer_title')}</h4>
+          <h4 className="text-[10px] font-black uppercase text-gray-400 tracking-[0.2em] italic text-left">{t('settings_footer_title')}</h4>
           <div className="space-y-6">
-             <div className="space-y-1.5">
+             <div className="space-y-1.5 text-left">
                <label className="text-[10px] font-black uppercase text-gray-400">{t('settings_footer_desc_es')}</label>
                <textarea value={footerEs} onChange={(e) => setFooterEs(e.target.value)} className="w-full p-4 bg-gray-50 border border-gray-100 rounded-xl text-sm min-h-[100px]" />
              </div>
-             <div className="space-y-1.5">
+             <div className="space-y-1.5 text-left">
                <label className="text-[10px] font-black uppercase text-gray-400">{t('settings_footer_desc_ca')}</label>
                <textarea value={footerCa} onChange={(e) => setFooterCa(e.target.value)} className="w-full p-4 bg-gray-50 border border-gray-100 rounded-xl text-sm min-h-[100px]" />
              </div>
@@ -394,7 +394,7 @@ export const TenantSettings = () => {
 
         {/* REDES SOCIALES */}
         <div className="bg-white p-6 md:p-10 rounded-[1.5rem] md:rounded-[2.8rem] border border-gray-100 shadow-sm space-y-8">
-          <h4 className="text-[10px] font-black uppercase text-gray-400 tracking-[0.2em] italic">{t('settings_social_title')}</h4>
+          <h4 className="text-[10px] font-black uppercase text-gray-400 tracking-[0.2em] italic text-left">{t('settings_social_title')}</h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2">
             <Input label="Instagram" value={socials.social_instagram} onChange={(e:any) => setSocials({...socials, social_instagram: e.target.value})} />
             <Input label="Facebook" value={socials.social_facebook} onChange={(e:any) => setSocials({...socials, social_facebook: e.target.value})} />

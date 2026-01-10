@@ -1,6 +1,5 @@
 
 import React, { useState, useEffect } from 'react';
-// Correct splitting of imports: use react-router-dom for all web hooks
 import { Link, useNavigate, useParams, useLocation, Outlet } from 'react-router-dom';
 import { supabase } from '../../supabaseClient';
 import { Tenant } from '../../types';
@@ -10,7 +9,7 @@ import { SuperAdminFloatingBar } from '../../components/layout/CommonLayoutCompo
 
 export const TenantLayout = () => {
   const { slug } = useParams();
-  const { memberships, signOut, loading, t, profile, session, dbHealthy, refreshProfile } = useApp();
+  const { memberships, signOut, loading, t, profile, session, dbHealthy, refreshProfile, language, setLanguage } = useApp();
   const navigate = useNavigate();
   const location = useLocation();
   const [impersonatedTenant, setImpersonatedTenant] = useState<Tenant | null>(null);
@@ -26,7 +25,6 @@ export const TenantLayout = () => {
       setCheckingAccess(true);
       
       try {
-        // 1. Intentar obtener el tenant por su slug
         const { data: tenantData, error: tError } = await supabase
           .from('tenants')
           .select('*')
@@ -41,10 +39,7 @@ export const TenantLayout = () => {
 
         setImpersonatedTenant(tenantData);
 
-        // 2. Si es Superadmin y NO tiene membresía, crearla automáticamente para habilitar RLS
         if (profile?.is_superadmin && !currentMembership) {
-          console.log(`Superadmin detectado sin membresía en ${slug}. Creando acceso de base de datos...`);
-          
           const { error: mError } = await supabase
             .from('memberships')
             .insert([{ 
@@ -54,10 +49,7 @@ export const TenantLayout = () => {
             }]);
 
           if (!mError || mError.message.includes('unique_user_tenant')) {
-            // Refrescamos el perfil global para que memberships contenga el nuevo vínculo
             await refreshProfile();
-          } else {
-            console.error("Error al auto-vincular superadmin:", mError.message);
           }
         }
       } catch (err) {
@@ -97,12 +89,16 @@ export const TenantLayout = () => {
 
   const isActive = (path: string) => location.pathname.includes(path);
 
+  const toggleLanguage = () => {
+    setLanguage(language === 'es' ? 'ca' : 'es');
+  };
+
   return (
     <div className="flex flex-col lg:flex-row min-h-screen bg-[#fcfcfc] font-sans">
       <aside className="w-full lg:w-80 bg-white border-b lg:border-r border-gray-100 flex flex-col shrink-0 z-30">
         <div className="p-6 md:p-8 h-20 md:h-24 flex items-center justify-between font-black text-xl text-brand-600 uppercase italic truncate">{currentTenant.name}</div>
         <nav className="p-4 md:p-6 flex flex-row lg:flex-col gap-2 overflow-x-auto lg:overflow-x-visible">
-          <Link to={`/t/${slug}/dashboard`} className={`flex items-center gap-3 px-5 py-3 md:py-4 rounded-xl md:rounded-[1.8rem] font-black text-[10px] uppercase tracking-widest transition-all shrink-0 ${isActive('dashboard') ? 'bg-brand-600 text-white shadow-xl' : 'text-gray-400 hover:bg-gray-50'}`}>📊 Panel</Link>
+          <Link to={`/t/${slug}/dashboard`} className={`flex items-center gap-3 px-5 py-3 md:py-4 rounded-xl md:rounded-[1.8rem] font-black text-[10px] uppercase tracking-widest transition-all shrink-0 ${isActive('dashboard') ? 'bg-brand-600 text-white shadow-xl' : 'text-gray-400 hover:bg-gray-50'}`}>📊 {t('dashboard')}</Link>
           <Link to={`/t/${slug}/customers`} className={`flex items-center gap-3 px-5 py-3 md:py-4 rounded-xl md:rounded-[1.8rem] font-black text-[10px] uppercase tracking-widest transition-all shrink-0 ${isActive('customers') ? 'bg-brand-600 text-white shadow-xl' : 'text-gray-400 hover:bg-gray-50'}`}>👥 {t('customers')}</Link>
           <Link to={`/t/${slug}/products`} className={`flex items-center gap-3 px-5 py-3 md:py-4 rounded-xl md:rounded-[1.8rem] font-black text-[10px] uppercase tracking-widest transition-all shrink-0 ${isActive('products') ? 'bg-brand-600 text-white shadow-xl' : 'text-gray-400 hover:bg-gray-50'}`}>📦 Inventario</Link>
           <Link to={`/t/${slug}/quotes`} className={`flex items-center gap-3 px-5 py-3 md:py-4 rounded-xl md:rounded-[1.8rem] font-black text-[10px] uppercase tracking-widest transition-all shrink-0 ${isActive('quotes') ? 'bg-brand-600 text-white shadow-xl' : 'text-gray-400 hover:bg-gray-50'}`}>📄 {t('quotes')}</Link>
@@ -112,15 +108,50 @@ export const TenantLayout = () => {
       </aside>
       <main className="flex-1 flex flex-col h-screen overflow-hidden">
         <header className="h-20 md:h-24 bg-white border-b border-gray-100 flex items-center justify-between px-6 md:px-12 shrink-0">
-          <div className="flex flex-col">
-            <h2 className="text-lg md:text-2xl font-black text-gray-900 tracking-tight leading-none uppercase italic">{currentTenant.name}</h2>
+          <div className="flex flex-col overflow-hidden mr-4">
+            <h2 className="text-base md:text-2xl font-black text-gray-900 tracking-tight leading-none uppercase italic truncate">{currentTenant.name}</h2>
             {profile?.is_superadmin && !currentMembership && (
               <span className="text-[9px] font-black text-amber-500 uppercase tracking-widest mt-1 animate-pulse">⚠️ Acceso via Superadmin</span>
             )}
           </div>
-          <div className="flex gap-2 md:gap-4">
-            <a href={`#/c/${slug}`} target="_blank" rel="noreferrer" className="hidden sm:flex px-4 py-2 bg-gray-50 text-gray-400 text-[9px] font-black uppercase rounded-full border border-gray-100 hover:text-gray-900 transition-all">Web ↗</a>
-            {profile?.is_superadmin && <Link to="/admin/dashboard" className="px-3 md:px-4 py-2 bg-slate-900 text-white text-[9px] font-black uppercase rounded-full shadow-lg">ADMIN</Link>}
+          <div className="flex items-center gap-2 md:gap-4 shrink-0">
+            {/* Idioma Switcher Compacto */}
+            <button 
+              onClick={toggleLanguage}
+              className="flex items-center justify-center w-10 h-10 md:w-auto md:px-4 md:py-2 bg-gray-50 text-gray-500 text-[9px] font-black uppercase rounded-xl border border-gray-100 hover:bg-blue-50 hover:text-blue-600 transition-all group"
+              title={language === 'es' ? 'Cambiar a Catalán' : 'Canviar a Espanyol'}
+            >
+              <svg className="w-4 h-4 md:mr-2 group-hover:rotate-12 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/></svg>
+              <span className="hidden md:inline">{language.toUpperCase()}</span>
+            </button>
+
+            {/* Ver Web */}
+            <a 
+              href={`#/c/${slug}`} 
+              target="_blank" 
+              rel="noreferrer" 
+              className="flex items-center justify-center w-10 h-10 md:w-auto md:px-4 md:py-2 bg-gray-50 text-gray-500 text-[9px] font-black uppercase rounded-xl border border-gray-100 hover:bg-blue-50 hover:text-blue-600 transition-all group"
+              title="Ver Web Pública"
+            >
+              <svg className="w-4 h-4 md:mr-2 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+              <span className="hidden md:inline">Web ↗</span>
+            </a>
+
+            {/* Logout Mobile Only (Visible en barra superior) */}
+            <button 
+              onClick={signOut}
+              className="lg:hidden flex items-center justify-center w-10 h-10 bg-red-50 text-red-500 rounded-xl border border-red-100 hover:bg-red-100 transition-all"
+              title={t('logout')}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+            </button>
+
+            {profile?.is_superadmin && (
+              <Link to="/admin/dashboard" className="flex items-center justify-center w-10 h-10 md:w-auto md:px-4 md:py-2 bg-slate-900 text-white text-[9px] font-black uppercase rounded-xl shadow-lg hover:bg-black transition-all">
+                <svg className="w-4 h-4 md:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                <span className="hidden md:inline">ADMIN</span>
+              </Link>
+            )}
           </div>
         </header>
         <div className="flex-1 overflow-auto p-6 md:p-12"><Outlet context={{ tenant: currentTenant }} /></div>

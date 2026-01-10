@@ -1,6 +1,5 @@
 
 import React, { useState, useEffect } from 'react';
-// Use react-router-dom for all web hooks
 import { useOutletContext, useNavigate } from 'react-router-dom';
 import { supabase } from '../../supabaseClient';
 import { Tenant, Quote } from '../../types';
@@ -21,10 +20,10 @@ export const Quotes = () => {
   useEffect(() => { fetchQuotes(); }, [tenant.id]);
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <h3 className="text-3xl font-black text-gray-900 tracking-tighter">{t('quotes')}</h3>
-        <button onClick={() => navigate(`/t/${tenant.slug}/quotes/new`)} className="w-full md:w-auto px-6 py-3 bg-brand-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg">+ Crear Presupuesto</button>
+    <div className="space-y-8 animate-in fade-in duration-500 text-left">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 mb-10">
+        <h3 className="text-3xl md:text-4xl font-black text-slate-900 tracking-tighter uppercase italic">{t('quotes')}</h3>
+        <button onClick={() => navigate(`/t/${tenant.slug}/quotes/new`)} className="w-full md:w-auto px-8 py-3.5 bg-brand-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg hover:bg-brand-700 hover:scale-[1.02] transition-all">+ Crear Presupuesto</button>
       </div>
 
       <div className="bg-white border border-gray-100 rounded-[1.5rem] md:rounded-[2.8rem] overflow-hidden shadow-sm overflow-x-auto">
@@ -34,10 +33,13 @@ export const Quotes = () => {
           </thead>
           <tbody className="divide-y divide-gray-50">
             {quotes.map(q => (
-              <tr key={q.id} className="hover:bg-gray-50/50 transition-colors cursor-pointer" onClick={() => navigate(`/t/${tenant.slug}/quotes/${q.id}`)}>
-                <td className="px-10 py-6"><div className="font-black text-gray-900">{q.quote_no || `#Q-${q.id.slice(0,4)}`}</div><div className="text-[9px] text-gray-400 font-bold">{formatDate(q.created_at, language)}</div></td>
-                <td className="px-10 py-6 font-bold text-gray-600">{q.client_name || q.customer?.name || 'Cliente Genérico'}</td>
-                <td className="px-10 py-6 font-black text-brand-600">{formatCurrency(q.total_amount, language)}</td>
+              <tr key={q.id} className="hover:bg-gray-50/50 transition-colors cursor-pointer group" onClick={() => navigate(`/t/${tenant.slug}/quotes/${q.id}`)}>
+                <td className="px-10 py-6 text-left">
+                  <div className="font-black text-gray-900 group-hover:text-blue-600 transition-colors">{q.quote_no || `#Q-${q.id.slice(0,4)}`}</div>
+                  <div className="text-[9px] text-gray-400 font-bold">{formatDate(q.created_at, language)}</div>
+                </td>
+                <td className="px-10 py-6 font-bold text-gray-600 text-left">{q.client_name || q.customer?.name || 'Cliente Genérico'}</td>
+                <td className="px-10 py-6 font-black text-brand-600 text-left">{formatCurrency(q.total_amount, language)}</td>
                 <td className="px-10 py-6 text-right"><span className="px-3 py-1 bg-amber-50 text-amber-600 text-[9px] font-black uppercase rounded-full border border-amber-100">{q.status}</span></td>
               </tr>
             ))}

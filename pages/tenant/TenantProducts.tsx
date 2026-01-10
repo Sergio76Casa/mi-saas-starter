@@ -1,6 +1,5 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-// Use react-router-dom for all web hooks
 import { useOutletContext, useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '../../supabaseClient';
 import { Tenant, Product } from '../../types';
@@ -91,34 +90,31 @@ export const TenantProducts = () => {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500 pb-20 text-left">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 px-1">
-        <div>
-           <h3 className="text-xl font-bold text-slate-800 tracking-tight uppercase italic">Administración · Inventario</h3>
-           <p className="text-[10px] text-slate-400 font-bold uppercase mt-1 italic">Viendo productos de: {tenant.name}</p>
-        </div>
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 mb-10 px-1">
+        <h3 className="text-3xl md:text-4xl font-black text-slate-900 tracking-tighter uppercase italic">Inventario</h3>
         <button 
           onClick={() => navigate(`/t/${slug}/products/new/edit`)}
-          className="w-full md:w-auto flex items-center justify-center gap-2 px-6 py-2.5 bg-blue-600 text-white text-[11px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-blue-600/20 hover:scale-105 transition-all"
+          className="w-full md:w-auto flex items-center justify-center gap-2 px-8 py-3.5 bg-blue-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-blue-600/20 hover:bg-blue-700 hover:scale-[1.02] transition-all"
         >
            <span className="text-lg">+</span> Nuevo Producto
         </button>
       </div>
 
       <div className="bg-white border border-slate-100 rounded-3xl shadow-sm overflow-hidden">
-        <div className="p-4 border-b border-slate-50 flex flex-col md:flex-row gap-4 items-center bg-slate-50/30">
+        <div className="p-6 border-b border-slate-50 flex flex-col md:flex-row gap-4 items-center bg-slate-50/30">
           <div className="relative w-full md:w-64">
              <input 
                type="text"
                placeholder="Buscar marca o modelo..."
                value={searchTerm}
                onChange={(e) => setSearchTerm(e.target.value)}
-               className="w-full pl-4 pr-10 py-2 text-xs border border-slate-100 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 bg-white font-medium"
+               className="w-full pl-4 pr-10 py-3 text-xs border border-slate-100 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 bg-white font-medium shadow-sm"
              />
           </div>
           <select 
             value={filterType}
             onChange={(e) => setFilterType(e.target.value)}
-            className="w-full md:w-48 px-4 py-2 text-xs border border-slate-100 rounded-xl outline-none bg-white font-black uppercase tracking-widest cursor-pointer"
+            className="w-full md:w-48 px-4 py-3 text-xs border border-slate-100 rounded-xl outline-none bg-white font-black uppercase tracking-widest cursor-pointer shadow-sm"
           >
             <option value="all">Todos los tipos</option>
             {TYPES.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
@@ -144,7 +140,7 @@ export const TenantProducts = () => {
                 const statusInfo = STATUS_MAP[p.status || 'active'];
                 return (
                   <tr key={p.id} className="hover:bg-slate-50/50 transition-colors group">
-                    <td className="px-8 py-8">
+                    <td className="px-8 py-8 text-left">
                       <div className="flex items-center gap-4">
                         <div className="w-14 h-14 bg-white border border-slate-100 rounded-2xl shadow-sm flex items-center justify-center p-2 shrink-0 overflow-hidden">
                           {p.image_url ? (
@@ -159,12 +155,12 @@ export const TenantProducts = () => {
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-8">
+                    <td className="px-6 py-8 text-left">
                       <span className="inline-flex px-3 py-1 bg-slate-100 text-slate-500 text-[9px] font-black uppercase rounded-lg border border-slate-200/50">
                         {TYPES.find(t => t.id === p.type)?.label || p.type || 'S/T'}
                       </span>
                     </td>
-                    <td className="px-6 py-8">
+                    <td className="px-6 py-8 text-left">
                       <div className="space-y-2 max-w-[240px]">
                         {p.pricing && Array.isArray(p.pricing) && p.pricing.length > 0 ? p.pricing.map((v: any, idx) => (
                           <div key={idx} className="flex justify-between items-center bg-white/50 border border-slate-100 px-3 py-2 rounded-xl text-[10px] font-medium">
