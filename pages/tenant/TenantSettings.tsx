@@ -241,11 +241,11 @@ export const TenantSettings = () => {
       <div className="space-y-8">
         {/* IDENTIDAD VISUAL */}
         <div className="bg-white p-6 md:p-10 rounded-[1.5rem] md:rounded-[2.8rem] border border-gray-100 shadow-sm space-y-8">
-          <h4 className="text-[10px] font-black uppercase text-gray-400 tracking-[0.2em] italic">Identidad Visual</h4>
+          <h4 className="text-[10px] font-black uppercase text-gray-400 tracking-[0.2em] italic">{t('settings_visual_id')}</h4>
           
           <div className="flex flex-col md:flex-row gap-8 items-start">
             <div className="space-y-3">
-              <label className="text-[9px] font-black uppercase text-gray-400 ml-1">Logo de Empresa</label>
+              <label className="text-[9px] font-black uppercase text-gray-400 ml-1">{t('settings_logo_label')}</label>
               <div 
                 onClick={() => fileInputRef.current?.click()}
                 className="w-40 h-40 bg-gray-50 border-2 border-dashed border-gray-100 rounded-[2rem] flex items-center justify-center cursor-pointer overflow-hidden group hover:bg-gray-100 transition-all relative"
@@ -255,7 +255,7 @@ export const TenantSettings = () => {
                 ) : (
                   <div className="text-center opacity-30 group-hover:opacity-50 transition-opacity">
                     <svg className="w-8 h-8 mx-auto mb-1 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                    <span className="text-[8px] font-black uppercase">Subir Logo</span>
+                    <span className="text-[8px] font-black uppercase">{t('settings_logo_upload')}</span>
                   </div>
                 )}
                 <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleLogoChange} />
@@ -270,24 +270,24 @@ export const TenantSettings = () => {
                     <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
                   </div>
                   <div className="flex flex-col">
-                    <span className="text-[11px] font-black uppercase tracking-widest text-slate-900">Mostrar Logo en la Web</span>
-                    <span className="text-[9px] text-slate-400 font-bold uppercase italic">Si está desactivado, se mostrará el nombre comercial</span>
+                    <span className="text-[11px] font-black uppercase tracking-widest text-slate-900">{t('settings_logo_show_web')}</span>
+                    <span className="text-[9px] text-slate-400 font-bold uppercase italic">{t('settings_logo_hint')}</span>
                   </div>
                 </label>
               </div>
-              <Input label="Nombre Comercial" value={name} onChange={(e:any) => setName(e.target.value)} />
+              <Input label={t('settings_commercial_name')} value={name} onChange={(e:any) => setName(e.target.value)} />
             </div>
           </div>
         </div>
 
         {/* LOGOS PARTNER / CERTIFICACIONES */}
         <div className="bg-white p-6 md:p-10 rounded-[1.5rem] md:rounded-[2.8rem] border border-gray-100 shadow-sm space-y-8">
-          <h4 className="text-[10px] font-black uppercase text-gray-400 tracking-[0.2em] italic">Logos Partner / Certificaciones</h4>
+          <h4 className="text-[10px] font-black uppercase text-gray-400 tracking-[0.2em] italic">{t('settings_partners_title')}</h4>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {/* Logo 1 */}
             <div className="space-y-4 p-5 bg-slate-50 rounded-2xl border border-slate-100 flex flex-col items-center">
-              <span className="text-[9px] font-black text-slate-400 uppercase block border-b border-slate-200 pb-2 mb-2 w-full text-center">Partner 1</span>
+              <span className="text-[9px] font-black text-slate-400 uppercase block border-b border-slate-200 pb-2 mb-2 w-full text-center">{t('settings_partners_p1')}</span>
               <div 
                 onClick={() => p1Ref.current?.click()}
                 className="w-24 h-24 bg-white border-2 border-dashed border-slate-200 rounded-full flex items-center justify-center cursor-pointer overflow-hidden group hover:border-blue-400 transition-all relative mb-2"
@@ -300,14 +300,14 @@ export const TenantSettings = () => {
                 <input type="file" ref={p1Ref} className="hidden" accept="image/*" onChange={(e) => handlePartnerFileChange('partner_logo_1', e.target.files?.[0] || null)} />
               </div>
               {partnerUrls.partner_logo_1_url && (
-                <button onClick={(e) => { e.stopPropagation(); removePartnerLogo('partner_logo_1'); }} className="text-[8px] font-black uppercase text-red-500 hover:underline mb-4">Quitar imagen</button>
+                <button onClick={(e) => { e.stopPropagation(); removePartnerLogo('partner_logo_1'); }} className="text-[8px] font-black uppercase text-red-500 hover:underline mb-4">{t('settings_partners_remove')}</button>
               )}
-              <Input label="URL destino" value={partnerLinks.partner_logo_1_link} onChange={(e:any) => setPartnerLinks({...partnerLinks, partner_logo_1_link: e.target.value})} />
+              <Input label={t('settings_partners_link')} value={partnerLinks.partner_logo_1_link} onChange={(e:any) => setPartnerLinks({...partnerLinks, partner_logo_1_link: e.target.value})} />
             </div>
             
             {/* ISO 9001 */}
             <div className="space-y-4 p-5 bg-slate-50 rounded-2xl border border-slate-100 flex flex-col items-center">
-              <span className="text-[9px] font-black text-slate-400 uppercase block border-b border-slate-200 pb-2 mb-2 w-full text-center">ISO 9001</span>
+              <span className="text-[9px] font-black text-slate-400 uppercase block border-b border-slate-200 pb-2 mb-2 w-full text-center">{t('settings_partners_iso')}</span>
               <div 
                 onClick={() => pIsoRef.current?.click()}
                 className="w-24 h-24 bg-white border-2 border-dashed border-slate-200 rounded-full flex items-center justify-center cursor-pointer overflow-hidden group hover:border-blue-400 transition-all relative mb-2"
@@ -320,14 +320,14 @@ export const TenantSettings = () => {
                 <input type="file" ref={pIsoRef} className="hidden" accept="image/*" onChange={(e) => handlePartnerFileChange('partner_logo_iso9001', e.target.files?.[0] || null)} />
               </div>
               {partnerUrls.partner_logo_iso9001_url && (
-                <button onClick={(e) => { e.stopPropagation(); removePartnerLogo('partner_logo_iso9001'); }} className="text-[8px] font-black uppercase text-red-500 hover:underline mb-4">Quitar imagen</button>
+                <button onClick={(e) => { e.stopPropagation(); removePartnerLogo('partner_logo_iso9001'); }} className="text-[8px] font-black uppercase text-red-500 hover:underline mb-4">{t('settings_partners_remove')}</button>
               )}
-              <Input label="URL destino" value={partnerLinks.partner_logo_iso9001_link} onChange={(e:any) => setPartnerLinks({...partnerLinks, partner_logo_iso9001_link: e.target.value})} />
+              <Input label={t('settings_partners_link')} value={partnerLinks.partner_logo_iso9001_link} onChange={(e:any) => setPartnerLinks({...partnerLinks, partner_logo_iso9001_link: e.target.value})} />
             </div>
 
             {/* Logo 2 */}
             <div className="space-y-4 p-5 bg-slate-50 rounded-2xl border border-slate-100 flex flex-col items-center">
-              <span className="text-[9px] font-black text-slate-400 uppercase block border-b border-slate-200 pb-2 mb-2 w-full text-center">Partner 2</span>
+              <span className="text-[9px] font-black text-slate-400 uppercase block border-b border-slate-200 pb-2 mb-2 w-full text-center">{t('settings_partners_p2')}</span>
               <div 
                 onClick={() => p2Ref.current?.click()}
                 className="w-24 h-24 bg-white border-2 border-dashed border-slate-200 rounded-full flex items-center justify-center cursor-pointer overflow-hidden group hover:border-blue-400 transition-all relative mb-2"
@@ -340,37 +340,37 @@ export const TenantSettings = () => {
                 <input type="file" ref={p2Ref} className="hidden" accept="image/*" onChange={(e) => handlePartnerFileChange('partner_logo_2', e.target.files?.[0] || null)} />
               </div>
               {partnerUrls.partner_logo_2_url && (
-                <button onClick={(e) => { e.stopPropagation(); removePartnerLogo('partner_logo_2'); }} className="text-[8px] font-black uppercase text-red-500 hover:underline mb-4">Quitar imagen</button>
+                <button onClick={(e) => { e.stopPropagation(); removePartnerLogo('partner_logo_2'); }} className="text-[8px] font-black uppercase text-red-500 hover:underline mb-4">{t('settings_partners_remove')}</button>
               )}
-              <Input label="URL destino" value={partnerLinks.partner_logo_2_link} onChange={(e:any) => setPartnerLinks({...partnerLinks, partner_logo_2_link: e.target.value})} />
+              <Input label={t('settings_partners_link')} value={partnerLinks.partner_logo_2_link} onChange={(e:any) => setPartnerLinks({...partnerLinks, partner_logo_2_link: e.target.value})} />
             </div>
           </div>
         </div>
 
         {/* DATOS DE CONTACTO */}
         <div className="bg-white p-6 md:p-10 rounded-[1.5rem] md:rounded-[2.8rem] border border-gray-100 shadow-sm space-y-8">
-          <h4 className="text-[10px] font-black uppercase text-gray-400 tracking-[0.2em] italic">Datos de Contacto</h4>
+          <h4 className="text-[10px] font-black uppercase text-gray-400 tracking-[0.2em] italic">{t('settings_contact_title')}</h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Input label="Teléfono de Contacto" value={phone} onChange={(e:any) => setPhone(e.target.value)} />
-            <Input label="Email Público" value={email} onChange={(e:any) => setEmail(e.target.value)} />
+            <Input label={t('settings_contact_phone')} value={phone} onChange={(e:any) => setPhone(e.target.value)} />
+            <Input label={t('settings_contact_email')} value={email} onChange={(e:any) => setEmail(e.target.value)} />
           </div>
         </div>
 
         {/* SUCURSALES */}
         <div className="bg-white p-6 md:p-10 rounded-[1.5rem] md:rounded-[2.8rem] border border-gray-100 shadow-sm space-y-8">
           <div className="flex justify-between items-center">
-            <h4 className="text-[10px] font-black uppercase text-gray-400 tracking-[0.2em] italic">Sucursales</h4>
-            <button onClick={addBranch} className="text-[9px] font-black bg-slate-900 text-white px-4 py-2 rounded-full uppercase">+ Añadir</button>
+            <h4 className="text-[10px] font-black uppercase text-gray-400 tracking-[0.2em] italic">{t('settings_branches_title')}</h4>
+            <button onClick={addBranch} className="text-[9px] font-black bg-slate-900 text-white px-4 py-2 rounded-full uppercase tracking-widest">{t('settings_branches_add')}</button>
           </div>
           <div className="space-y-6">
             {branches.map((b, i) => (
               <div key={i} className="p-6 bg-gray-50 rounded-2xl border-gray-100 border relative">
-                <button onClick={() => setBranches(branches.filter((_, idx)=>idx!==i))} className="absolute top-4 right-4 text-red-400 font-bold">×</button>
+                <button onClick={() => setBranches(branches.filter((_, idx)=>idx!==i))} className="absolute top-4 right-4 text-red-400 font-bold text-xl">×</button>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="md:col-span-2"><Input label="Nombre de Sucursal" value={b.name} onChange={(e:any)=>updateBranch(i,'name',e.target.value)} /></div>
-                  <div className="md:col-span-2"><Input label="Dirección" value={b.address} onChange={(e:any)=>updateBranch(i,'address',e.target.value)} /></div>
-                  <Input label="Teléfono" value={b.phone} onChange={(e:any)=>updateBranch(i,'phone',e.target.value)} />
-                  <Input label="Email" value={b.email} onChange={(e:any)=>updateBranch(i,'email',e.target.value)} />
+                  <div className="md:col-span-2"><Input label={t('settings_branch_name')} value={b.name} onChange={(e:any)=>updateBranch(i,'name',e.target.value)} /></div>
+                  <div className="md:col-span-2"><Input label={t('address')} value={b.address} onChange={(e:any)=>updateBranch(i,'address',e.target.value)} /></div>
+                  <Input label={t('settings_branch_phone')} value={b.phone} onChange={(e:any)=>updateBranch(i,'phone',e.target.value)} />
+                  <Input label={t('email')} value={b.email} onChange={(e:any)=>updateBranch(i,'email',e.target.value)} />
                 </div>
               </div>
             ))}
@@ -379,14 +379,14 @@ export const TenantSettings = () => {
 
         {/* CONTENIDO DEL FOOTER */}
         <div className="bg-white p-6 md:p-10 rounded-[1.5rem] md:rounded-[2.8rem] border border-gray-100 shadow-sm space-y-8">
-          <h4 className="text-[10px] font-black uppercase text-gray-400 tracking-[0.2em] italic">Contenido del Footer</h4>
+          <h4 className="text-[10px] font-black uppercase text-gray-400 tracking-[0.2em] italic">{t('settings_footer_title')}</h4>
           <div className="space-y-6">
              <div className="space-y-1.5">
-               <label className="text-[10px] font-black uppercase text-gray-400">Descripción (ES)</label>
+               <label className="text-[10px] font-black uppercase text-gray-400">{t('settings_footer_desc_es')}</label>
                <textarea value={footerEs} onChange={(e) => setFooterEs(e.target.value)} className="w-full p-4 bg-gray-50 border border-gray-100 rounded-xl text-sm min-h-[100px]" />
              </div>
              <div className="space-y-1.5">
-               <label className="text-[10px] font-black uppercase text-gray-400">Descripció (CA)</label>
+               <label className="text-[10px] font-black uppercase text-gray-400">{t('settings_footer_desc_ca')}</label>
                <textarea value={footerCa} onChange={(e) => setFooterCa(e.target.value)} className="w-full p-4 bg-gray-50 border border-gray-100 rounded-xl text-sm min-h-[100px]" />
              </div>
           </div>
@@ -394,7 +394,7 @@ export const TenantSettings = () => {
 
         {/* REDES SOCIALES */}
         <div className="bg-white p-6 md:p-10 rounded-[1.5rem] md:rounded-[2.8rem] border border-gray-100 shadow-sm space-y-8">
-          <h4 className="text-[10px] font-black uppercase text-gray-400 tracking-[0.2em] italic">Redes Sociales (URLs)</h4>
+          <h4 className="text-[10px] font-black uppercase text-gray-400 tracking-[0.2em] italic">{t('settings_social_title')}</h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2">
             <Input label="Instagram" value={socials.social_instagram} onChange={(e:any) => setSocials({...socials, social_instagram: e.target.value})} />
             <Input label="Facebook" value={socials.social_facebook} onChange={(e:any) => setSocials({...socials, social_facebook: e.target.value})} />
@@ -408,7 +408,7 @@ export const TenantSettings = () => {
         </div>
 
         <button onClick={handleSave} disabled={saving} className="w-full py-5 bg-slate-900 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest hover:bg-black transition-all shadow-xl disabled:opacity-50">
-          {saving ? 'GUARDANDO...' : 'ACTUALIZAR CONFIGURACIÓN'}
+          {saving ? t('settings_btn_saving') : t('settings_btn_update')}
         </button>
       </div>
     </div>
