@@ -87,6 +87,8 @@ export const PublicFooter: React.FC<PublicFooterProps> = ({ tenant, branches, la
     return descEs || descCa || "Expertos en climatización eficiente.";
   })();
 
+  const IMAGE_FALLBACK = 'https://images.unsplash.com/photo-1581094794329-c8112a89af12?q=80&w=2070&auto=format&fit=crop';
+
   return (
     <>
       {activeModal && modalContent && (
@@ -97,7 +99,12 @@ export const PublicFooter: React.FC<PublicFooterProps> = ({ tenant, branches, la
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
             <div className="h-48 relative overflow-hidden bg-slate-100">
-              {modalContent.img && <img src={modalContent.img} className="w-full h-full object-cover" alt="" />}
+              <img 
+                src={modalContent.img || IMAGE_FALLBACK} 
+                onError={(e) => { e.currentTarget.src = IMAGE_FALLBACK; }}
+                className="w-full h-full object-cover" 
+                alt="" 
+              />
               <div className="absolute inset-0 bg-gradient-to-t from-white via-transparent text-white"></div>
             </div>
             <div className="p-10 md:p-12 text-center">
@@ -177,9 +184,30 @@ export const PublicFooter: React.FC<PublicFooterProps> = ({ tenant, branches, la
             <div className="space-y-8">
               <h4 className="text-xl font-bold text-white tracking-tight">Servicios</h4>
               <ul className="space-y-4">
-                <li><button onClick={()=>setActiveModal('instalacion')} className="text-slate-400 hover:text-white font-bold italic text-sm">{tt('link_install')}</button></li>
-                <li><button onClick={()=>setActiveModal('mantenimiento')} className="text-slate-400 hover:text-white font-bold italic text-sm">{tt('link_maint')}</button></li>
-                <li><button onClick={()=>setActiveModal('reparacion')} className="text-slate-400 hover:text-white font-bold italic text-sm">{tt('link_repair')}</button></li>
+                <li>
+                  <button onClick={()=>setActiveModal('instalacion')} className="flex items-center gap-3 text-slate-400 hover:text-white font-bold italic text-sm transition-colors group">
+                    <svg className="w-4 h-4 text-slate-500 group-hover:text-blue-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                    {tt('link_install')}
+                  </button>
+                </li>
+                <li>
+                  <button onClick={()=>setActiveModal('mantenimiento')} className="flex items-center gap-3 text-slate-400 hover:text-white font-bold italic text-sm transition-colors group">
+                    <svg className="w-4 h-4 text-slate-500 group-hover:text-blue-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+                    {tt('link_maint')}
+                  </button>
+                </li>
+                <li>
+                  <button onClick={()=>setActiveModal('reparacion')} className="flex items-center gap-3 text-slate-400 hover:text-white font-bold italic text-sm transition-colors group">
+                    <svg className="w-4 h-4 text-slate-500 group-hover:text-blue-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                    {tt('link_repair')}
+                  </button>
+                </li>
+                <li>
+                  <button onClick={()=>setActiveModal('garantias')} className="flex items-center gap-3 text-slate-400 hover:text-white font-bold italic text-sm transition-colors group">
+                    <svg className="w-4 h-4 text-slate-500 group-hover:text-blue-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                    {tt('link_warranty')}
+                  </button>
+                </li>
               </ul>
             </div>
 
@@ -214,7 +242,10 @@ export const PublicFooter: React.FC<PublicFooterProps> = ({ tenant, branches, la
               <div className="space-y-6">
                 {branches.length > 0 ? branches.map((b, i) => (
                   <div key={i} className="flex flex-col gap-1 border-l-2 border-blue-500 pl-4">
-                    <span className="text-xs font-black uppercase text-white">{b.name}</span>
+                    <div className="flex items-center gap-2">
+                      <svg className="w-3 h-3 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                      <span className="text-xs font-black uppercase text-white">{b.name}</span>
+                    </div>
                     <span className="text-xs text-slate-400 leading-tight">{b.address}</span>
                     {b.phone && <span className="text-[10px] font-bold text-blue-400">{b.phone}</span>}
                   </div>
@@ -223,9 +254,19 @@ export const PublicFooter: React.FC<PublicFooterProps> = ({ tenant, branches, la
                 )}
                 
                 {(tenant?.phone || tenant?.email) && (
-                  <div className="pt-4 border-t border-white/5">
-                    {tenant?.phone && <div className="text-sm font-black text-white">{tenant.phone}</div>}
-                    {tenant?.email && <div className="text-sm font-bold text-slate-400">{tenant.email}</div>}
+                  <div className="pt-4 border-t border-white/5 space-y-3">
+                    {tenant?.phone && (
+                      <div className="flex items-center gap-3 text-white group">
+                        <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>
+                        <span className="text-sm font-black">{tenant.phone}</span>
+                      </div>
+                    )}
+                    {tenant?.email && (
+                      <div className="flex items-center gap-3 text-slate-400 group">
+                        <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                        <span className="text-sm font-bold">{tenant.email}</span>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
