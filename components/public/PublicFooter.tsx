@@ -80,7 +80,6 @@ export const PublicFooter: React.FC<PublicFooterProps> = ({ tenant, branches, la
   const modalContent = activeModal ? FOOTER_MODAL_CONTENT[activeModal] : null;
   const currentYear = new Date().getFullYear();
 
-  // Resolución robusta de descripción del footer: prioridad DB
   const footerDescription = (() => {
     const descEs = (tenant?.footer_description_es || '').trim();
     const descCa = (tenant?.footer_description_ca || '').trim();
@@ -186,10 +185,26 @@ export const PublicFooter: React.FC<PublicFooterProps> = ({ tenant, branches, la
 
             {/* Legal */}
             <div className="space-y-8">
-              <h4 className="text-xl font-bold text-white tracking-tight">Información</h4>
+              <h4 className="text-xl font-bold text-white tracking-tight">Legal</h4>
               <ul className="space-y-4">
-                <li><button onClick={()=>setActiveModal('privacidad')} className="text-slate-400 hover:text-white font-bold italic text-sm">{tt('link_privacy')}</button></li>
-                <li><button onClick={()=>setActiveModal('aviso_legal')} className="text-slate-400 hover:text-white font-bold italic text-sm">{tt('link_legal')}</button></li>
+                <li>
+                  <button onClick={()=>setActiveModal('privacidad')} className="flex items-center gap-3 text-slate-400 hover:text-white font-bold italic text-sm transition-colors group">
+                    <svg className="w-4 h-4 text-slate-500 group-hover:text-blue-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                    {tt('link_privacy')}
+                  </button>
+                </li>
+                <li>
+                  <button onClick={()=>setActiveModal('cookies')} className="flex items-center gap-3 text-slate-400 hover:text-white font-bold italic text-sm transition-colors group">
+                    <svg className="w-4 h-4 text-slate-500 group-hover:text-blue-500 transition-colors" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2a10 10 0 1010 10A10 10 0 0012 2zm-4 7a1 1 0 110 2 1 1 0 010-2zm0 6a1 1 0 110 2 1 1 0 010-2zm4-3a1 1 0 110 2 1 1 0 010-2zm4 3a1 1 0 110 2 1 1 0 010-2zm0-6a1 1 0 110 2 1 1 0 010-2z"/></svg>
+                    {tt('link_cookies')}
+                  </button>
+                </li>
+                <li>
+                  <button onClick={()=>setActiveModal('aviso_legal')} className="flex items-center gap-3 text-slate-400 hover:text-white font-bold italic text-sm transition-colors group">
+                    <svg className="w-4 h-4 text-slate-500 group-hover:text-blue-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M3 6l9-4 9 4M3 6v14a1 1 0 001 1h16a1 1 0 001-1V6M3 6l9 4 9-4m-9 4v11"/></svg>
+                    {tt('link_legal')}
+                  </button>
+                </li>
               </ul>
             </div>
 
