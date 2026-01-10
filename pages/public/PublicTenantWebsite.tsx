@@ -141,17 +141,32 @@ export const PublicTenantWebsite = () => {
   useEffect(() => {
     const fetchCatalog = async () => {
       if (!isConfigured) return;
+      
+      // Limpieza de estado preventivo
       setIsDataReady(false);
       setIsError(false);
+      setTenant(null); 
+      setBranches([]);
+
       try {
         const { data: tData, error: tError } = await supabase
           .from('tenants')
-          .select('*')
+          .select('*') // Forzamos select(*) para asegurar todas las columnas nuevas
           .eq('slug', slug)
           .eq('is_deleted', false)
           .single();
 
         if (tError || !tData) { setIsError(true); return; }
+
+        // --- DIAGNÓSTICO: Verificación de lectura pública ---
+        console.log("[DIAGNOSTIC_PUBLIC_FETCH] Received from DB:", {
+          id: tData.id,
+          slug: tData.slug,
+          footer_es: tData.footer_description_es,
+          phone: tData.phone,
+          email: tData.email
+        });
+
         setTenant(tData as any);
         
         const { data: bData } = await supabase
@@ -174,13 +189,10 @@ export const PublicTenantWebsite = () => {
             const normalized = pData.map(p => {
               let pricingArr = p.pricing;
               if (typeof pricingArr === 'string') try { pricingArr = JSON.parse(pricingArr); } catch(e) { pricingArr = []; }
-              
               let desc = p.description;
               if (typeof desc === 'string') try { desc = JSON.parse(desc); } catch(e) { desc = { es: '', ca: '' }; }
-
               let kits = p.installation_kits;
               if (typeof kits === 'string') try { kits = JSON.parse(kits); } catch(e) { kits = []; }
-
               let extras = p.extras;
               if (typeof extras === 'string') try { extras = JSON.parse(extras); } catch(e) { extras = []; }
 

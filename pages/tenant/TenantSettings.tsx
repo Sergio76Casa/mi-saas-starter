@@ -10,7 +10,7 @@ export const TenantSettings = () => {
   const { tenant } = useOutletContext<{ tenant: Tenant }>();
   const { t, refreshProfile } = useApp();
   
-  // Estados Locales
+  // Estados Locales para el Tenant
   const [name, setName] = useState(tenant.name);
   const [phone, setPhone] = useState(tenant.phone || '');
   const [email, setEmail] = useState(tenant.email || '');
@@ -32,13 +32,12 @@ export const TenantSettings = () => {
   const [logoPreview, setLogoPreview] = useState(tenant.logo_url || '');
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
-  const [branches, setBranches] = useState<Partial<Branch>[]>([]);
+  const [branches, setBranches] = useState<Partial<Branch & { phone: string; email: string }>[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Sincronizar estado local cuando el objeto tenant cambie (hidratación real-time post-refresh)
+  // Sincronizar estado local cuando cambia el tenant (ej. tras refreshProfile)
   useEffect(() => {
     if (!tenant || saving) return;
-    
     setName(tenant.name || '');
     setPhone(tenant.phone || '');
     setEmail(tenant.email || '');
@@ -58,7 +57,7 @@ export const TenantSettings = () => {
     setLogoPreview(tenant.logo_url || '');
   }, [tenant]);
 
-  // Cargar sucursales existentes
+  // Cargar sucursales
   useEffect(() => {
     const fetchBranches = async () => {
       if (!tenant.id) return;
@@ -67,7 +66,7 @@ export const TenantSettings = () => {
         .select('*')
         .eq('tenant_id', tenant.id)
         .order('sort_order', { ascending: true });
-      if (data) setBranches(data);
+      if (data) setBranches(data as any);
     };
     fetchBranches();
   }, [tenant.id]);
@@ -87,22 +86,10 @@ export const TenantSettings = () => {
         const fileExt = logoFile.name.split('.').pop();
         const fileName = `logo_${Date.now()}.${fileExt}`;
         const path = `${tenant.id}/branding/${fileName}`;
-        const { error: storageError } = await supabase.storage.from('products').upload(path, logoFile);
-        if (storageError) throw storageError;
+        await supabase.storage.from('products').upload(path, logoFile);
         const { data: { publicUrl } } = supabase.storage.from('products').getPublicUrl(path);
         finalLogoUrl = publicUrl;
       }
-
-      const cleanedSocials = {
-        social_instagram: sanitizeUrl(socials.social_instagram),
-        social_facebook: sanitizeUrl(socials.social_facebook),
-        social_tiktok: sanitizeUrl(socials.social_tiktok),
-        social_youtube: sanitizeUrl(socials.social_youtube),
-        social_x: sanitizeUrl(socials.social_x),
-        social_linkedin: sanitizeUrl(socials.social_linkedin),
-        social_whatsapp: sanitizeUrl(socials.social_whatsapp),
-        social_telegram: sanitizeUrl(socials.social_telegram)
-      };
 
       const updatePayload = { 
         name,
@@ -110,7 +97,14 @@ export const TenantSettings = () => {
         email: email.trim(),
         footer_description_es: footerEs.trim(),
         footer_description_ca: footerCa.trim(),
-        ...cleanedSocials,
+        social_instagram: sanitizeUrl(socials.social_instagram),
+        social_facebook: sanitizeUrl(socials.social_facebook),
+        social_tiktok: sanitizeUrl(socials.social_tiktok),
+        social_youtube: sanitizeUrl(socials.social_youtube),
+        social_x: sanitizeUrl(socials.social_x),
+        social_linkedin: sanitizeUrl(socials.social_linkedin),
+        social_whatsapp: sanitizeUrl(socials.social_whatsapp),
+        social_telegram: sanitizeUrl(socials.social_telegram),
         logo_url: finalLogoUrl,
         use_logo_on_web: useLogo
       };
@@ -122,44 +116,40 @@ export const TenantSettings = () => {
 
       if (tenantError) throw tenantError;
 
-      // Guardar sucursales
-      const branchesToSave = branches
-        .filter(b => b.name?.trim() || b.address?.trim())
-        .map((b, idx) => {
-          const cleaned: any = { 
-            name: b.name?.trim() || 'Sucursal',
-            address: b.address?.trim() || '',
-            tenant_id: tenant.id,
-            is_active: b.is_active ?? true,
-            sort_order: idx
-          };
-          if (b.id && b.id !== "") cleaned.id = b.id;
-          return cleaned;
-        });
+      // --- DIAGNÓSTICO: Verificación de guardado real ---
+      const { data: verifyData } = await supabase.from('tenants').select('*').eq('id', tenant.id).single();
+      console.log("[DIAGNOSTIC_DB_STATE] Actual status in DB:", {
+        id: verifyData.id,
+        slug: verifyData.slug,
+        phone: verifyData.phone,
+        email: verifyData.email,
+        footer_es: verifyData.footer_description_es,
+        social_insta: !!verifyData.social_instagram
+      });
 
-      if (branchesToSave.length > 0) {
+      // Upsert Sucursales
+      if (branches.length > 0) {
+        const branchesToSave = branches.map((b, idx) => ({
+          ...b,
+          tenant_id: tenant.id,
+          sort_order: idx,
+          is_active: b.is_active ?? true
+        }));
         await supabase.from('tenant_branches').upsert(branchesToSave);
       }
 
       await refreshProfile();
-      alert("✅ Configuración actualizada correctamente.");
+      alert("✅ Configuración guardada correctamente.");
     } catch (err: any) {
       console.error("SAVE_ERROR:", err);
-      alert("❌ Error al guardar: " + err.message);
+      alert("❌ Error: " + err.message);
     } finally {
       setSaving(false);
     }
   };
 
-  const addBranch = () => {
-    setBranches([...branches, { name: '', address: '', is_active: true }]);
-  };
-
-  const removeBranch = (idx: number) => {
-    setBranches(branches.filter((_, i) => i !== idx));
-  };
-
-  const updateBranch = (idx: number, field: keyof Branch, val: any) => {
+  const addBranch = () => setBranches([...branches, { name: '', address: '', phone: '', email: '', is_active: true }]);
+  const updateBranch = (idx: number, field: string, val: any) => {
     const updated = [...branches];
     updated[idx] = { ...updated[idx], [field]: val };
     setBranches(updated);
@@ -167,111 +157,63 @@ export const TenantSettings = () => {
 
   return (
     <div className="max-w-3xl animate-in fade-in duration-500 mx-auto md:mx-0 pb-20 text-left">
-      <div className="inline-block px-2 py-0.5 bg-red-600 text-white text-[8px] font-black rounded mb-4 animate-pulse">
-        DEBUG_SETTINGS_RENDER_OK
-      </div>
-      
       <h3 className="text-3xl font-black text-gray-900 tracking-tighter mb-10 uppercase italic">{t('settings')}</h3>
       
       <div className="space-y-8">
-        {/* EMPRESA */}
         <div className="bg-white p-6 md:p-10 rounded-[1.5rem] md:rounded-[2.8rem] border border-gray-100 shadow-sm space-y-8">
           <h4 className="text-[10px] font-black uppercase text-gray-400 tracking-[0.2em] italic">Datos de la Empresa</h4>
-          <Input label="Nombre de la Empresa" value={name} onChange={(e:any) => setName(e.target.value)} />
+          <Input label="Nombre Comercial" value={name} onChange={(e:any) => setName(e.target.value)} />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Input label="Teléfono General" value={phone} onChange={(e:any) => setPhone(e.target.value)} placeholder="+34 ..." />
-            <Input label="Email de contacto" value={email} onChange={(e:any) => setEmail(e.target.value)} placeholder="info@empresa.com" />
+            <Input label="Teléfono de Contacto" value={phone} onChange={(e:any) => setPhone(e.target.value)} />
+            <Input label="Email Público" value={email} onChange={(e:any) => setEmail(e.target.value)} />
           </div>
         </div>
 
-        {/* SUCURSALES (RESTAURADA) */}
         <div className="bg-white p-6 md:p-10 rounded-[1.5rem] md:rounded-[2.8rem] border border-gray-100 shadow-sm space-y-8">
           <div className="flex justify-between items-center">
-            <h4 className="text-[10px] font-black uppercase text-gray-400 tracking-[0.2em] italic">Sucursales / Ubicaciones</h4>
-            <button onClick={addBranch} className="text-[9px] font-black uppercase bg-blue-50 text-blue-600 px-4 py-2 rounded-full hover:bg-blue-100 transition-colors">+ Añadir Sucursal</button>
+            <h4 className="text-[10px] font-black uppercase text-gray-400 tracking-[0.2em] italic">Sucursales</h4>
+            <button onClick={addBranch} className="text-[9px] font-black bg-slate-900 text-white px-4 py-2 rounded-full uppercase">+ Añadir</button>
           </div>
           <div className="space-y-6">
-            {branches.map((branch, idx) => (
-              <div key={idx} className="p-6 bg-gray-50 rounded-2xl border border-gray-100 relative group">
-                <button onClick={() => removeBranch(idx)} className="absolute top-4 right-4 text-slate-300 hover:text-red-500 transition-colors font-black">×</button>
+            {branches.map((b, i) => (
+              <div key={i} className="p-6 bg-gray-50 rounded-2xl border border-gray-100 relative">
+                <button onClick={() => setBranches(branches.filter((_, idx)=>idx!==i))} className="absolute top-4 right-4 text-red-400 font-bold">×</button>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <Input label="Nombre de la Sucursal" value={branch.name} onChange={(e:any) => updateBranch(idx, 'name', e.target.value)} placeholder="Ej: Oficina Central" />
-                  <Input label="Dirección Completa" value={branch.address} onChange={(e:any) => updateBranch(idx, 'address', e.target.value)} placeholder="Calle, Número, Ciudad..." />
+                  <div className="md:col-span-2"><Input label="Nombre de Sucursal" value={b.name} onChange={(e:any)=>updateBranch(i,'name',e.target.value)} /></div>
+                  <div className="md:col-span-2"><Input label="Dirección" value={b.address} onChange={(e:any)=>updateBranch(i,'address',e.target.value)} /></div>
+                  <Input label="Teléfono" value={b.phone} onChange={(e:any)=>updateBranch(i,'phone',e.target.value)} />
+                  <Input label="Email" value={b.email} onChange={(e:any)=>updateBranch(i,'email',e.target.value)} />
                 </div>
               </div>
             ))}
-            {branches.length === 0 && (
-              <p className="text-center py-6 text-slate-300 font-black text-[9px] uppercase italic tracking-widest">No hay sucursales configuradas.</p>
-            )}
           </div>
         </div>
 
-        {/* FOOTER */}
         <div className="bg-white p-6 md:p-10 rounded-[1.5rem] md:rounded-[2.8rem] border border-gray-100 shadow-sm space-y-8">
-          <h4 className="text-[10px] font-black uppercase text-gray-400 tracking-[0.2em] italic">Textos del Footer</h4>
+          <h4 className="text-[10px] font-black uppercase text-gray-400 tracking-[0.2em] italic">Contenido del Footer</h4>
           <div className="space-y-6">
              <div className="space-y-1.5">
-               <div className="flex items-center gap-2 mb-2 ml-1">
-                  <span className="bg-slate-900 text-white text-[8px] font-black px-1.5 py-0.5 rounded">ES</span>
-                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Descripción Footer (Español)</label>
-               </div>
-               <textarea 
-                 value={footerEs} 
-                 onChange={(e) => setFooterEs(e.target.value)}
-                 className="w-full px-6 py-4 border border-gray-100 rounded-2xl bg-gray-50 text-sm font-medium h-24 resize-none focus:ring-2 focus:ring-brand-500 outline-none transition-all"
-               />
+               <label className="text-[10px] font-black uppercase text-gray-400">Descripción (ES)</label>
+               <textarea value={footerEs} onChange={(e) => setFooterEs(e.target.value)} className="w-full p-4 bg-gray-50 border border-gray-100 rounded-xl text-sm min-h-[100px]" />
              </div>
              <div className="space-y-1.5">
-               <div className="flex items-center gap-2 mb-2 ml-1">
-                  <span className="bg-blue-600 text-white text-[8px] font-black px-1.5 py-0.5 rounded">CA</span>
-                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Descripció Footer (Català)</label>
-               </div>
-               <textarea 
-                 value={footerCa} 
-                 onChange={(e) => setFooterCa(e.target.value)}
-                 className="w-full px-6 py-4 border border-gray-100 rounded-2xl bg-gray-50 text-sm font-medium h-24 resize-none focus:ring-2 focus:ring-brand-500 outline-none transition-all"
-               />
+               <label className="text-[10px] font-black uppercase text-gray-400">Descripció (CA)</label>
+               <textarea value={footerCa} onChange={(e) => setFooterCa(e.target.value)} className="w-full p-4 bg-gray-50 border border-gray-100 rounded-xl text-sm min-h-[100px]" />
              </div>
           </div>
         </div>
 
-        {/* REDES SOCIALES */}
         <div className="bg-white p-6 md:p-10 rounded-[1.5rem] md:rounded-[2.8rem] border border-gray-100 shadow-sm space-y-8">
-          <h4 className="text-[10px] font-black uppercase text-gray-400 tracking-[0.2em] italic">Redes Sociales</h4>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2">
-            <Input label="Instagram" value={socials.social_instagram} onChange={(e:any) => setSocials({...socials, social_instagram: e.target.value})} placeholder="instagram.com/usuario" />
-            <Input label="Facebook" value={socials.social_facebook} onChange={(e:any) => setSocials({...socials, social_facebook: e.target.value})} placeholder="facebook.com/pagina" />
-            <Input label="TikTok" value={socials.social_tiktok} onChange={(e:any) => setSocials({...socials, social_tiktok: e.target.value})} placeholder="tiktok.com/@usuario" />
-            <Input label="YouTube" value={socials.social_youtube} onChange={(e:any) => setSocials({...socials, social_youtube: e.target.value})} />
-            <Input label="X (Twitter)" value={socials.social_x} onChange={(e:any) => setSocials({...socials, social_x: e.target.value})} />
+          <h4 className="text-[10px] font-black uppercase text-gray-400 tracking-[0.2em] italic">Redes Sociales (URLs)</h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6">
+            <Input label="Instagram" value={socials.social_instagram} onChange={(e:any) => setSocials({...socials, social_instagram: e.target.value})} />
+            <Input label="Facebook" value={socials.social_facebook} onChange={(e:any) => setSocials({...socials, social_facebook: e.target.value})} />
+            <Input label="WhatsApp" value={socials.social_whatsapp} onChange={(e:any) => setSocials({...socials, social_whatsapp: e.target.value})} />
             <Input label="LinkedIn" value={socials.social_linkedin} onChange={(e:any) => setSocials({...socials, social_linkedin: e.target.value})} />
-            <Input label="WhatsApp" value={socials.social_whatsapp} onChange={(e:any) => setSocials({...socials, social_whatsapp: e.target.value})} placeholder="wa.me/34600000000" />
-            <Input label="Telegram" value={socials.social_telegram} onChange={(e:any) => setSocials({...socials, social_telegram: e.target.value})} />
           </div>
         </div>
 
-        {/* LOGO */}
-        <div className="bg-white p-6 md:p-10 rounded-[1.5rem] md:rounded-[2.8rem] border border-gray-100 shadow-sm space-y-8">
-          <h4 className="text-[10px] font-black uppercase text-gray-400 tracking-[0.2em] italic">Identidad Visual</h4>
-          <div className="flex flex-col md:flex-row items-center gap-10">
-            <div onClick={() => fileInputRef.current?.click()} className="w-40 h-40 rounded-3xl border-2 border-dashed border-gray-100 bg-gray-50 flex items-center justify-center cursor-pointer overflow-hidden hover:bg-gray-100 transition-all group relative">
-              {logoPreview ? <img src={logoPreview} className="w-full h-full object-contain p-4" alt="Logo" /> : <div className="text-center p-4"><p className="text-[8px] font-black text-gray-300 uppercase tracking-widest">Subir logo</p></div>}
-              <input type="file" ref={fileInputRef} onChange={(e) => { const f = e.target.files?.[0]; if(f){ setLogoFile(f); setLogoPreview(URL.createObjectURL(f)); }}} className="hidden" accept="image/*" />
-            </div>
-            <div className="flex-1">
-              <label className="flex items-center justify-between p-6 bg-gray-50 rounded-2xl border border-gray-100 cursor-pointer">
-                <span className="text-[10px] font-black uppercase text-gray-900">Usar logo en la web</span>
-                <input type="checkbox" checked={useLogo} onChange={(e) => setUseLogo(e.target.checked)} className="w-5 h-5 accent-brand-600" />
-              </label>
-            </div>
-          </div>
-        </div>
-
-        <button 
-          onClick={handleSave} 
-          disabled={saving} 
-          className="w-full py-5 bg-slate-900 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest hover:bg-black transition-all shadow-xl disabled:opacity-50"
-        >
+        <button onClick={handleSave} disabled={saving} className="w-full py-5 bg-slate-900 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest hover:bg-black transition-all shadow-xl disabled:opacity-50">
           {saving ? 'GUARDANDO...' : 'ACTUALIZAR CONFIGURACIÓN'}
         </button>
       </div>
