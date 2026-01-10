@@ -106,23 +106,22 @@ export const TenantSettings = () => {
         use_logo_on_web: useLogo
       };
 
-      // A. LOG DE RESPUESTA DEL UPDATE (DIAGNÓSTICO)
-      const { data: updatedData, error: updateError, status: updateStatus } = await supabase
+      // Realizamos el UPDATE con .select().single() para verificar el impacto real de la RLS
+      const { data: updatedTenant, error: updateError } = await supabase
         .from('tenants')
         .update(updatePayload)
         .eq('id', tenant.id)
         .select('*')
         .single();
 
-      console.log("[DIAGNOSTIC_UPDATE_RESPONSE]", { updateStatus, error: updateError, data: updatedData });
-
       if (updateError) throw updateError;
+      
+      // Si no hay error pero no hay data, es un bloqueo de RLS (0 filas afectadas)
+      if (!updatedTenant) {
+        throw new Error("No tienes permisos para actualizar la empresa (RLS).");
+      }
 
-      // B. SELECT INMEDIATO (DIAGNÓSTICO)
-      const { data: rawTenant } = await supabase.from('tenants').select('*').eq('id', tenant.id).single();
-      console.log("[DIAGNOSTIC_CRUDO_DB]", rawTenant);
-
-      // Guardado de Sucursales
+      // Guardado de Sucursales (independiente)
       if (branches.length > 0) {
         const branchesToSave = branches.map((b, idx) => ({
           id: b.id,
@@ -141,7 +140,7 @@ export const TenantSettings = () => {
       alert("✅ Configuración actualizada con éxito.");
     } catch (err: any) {
       console.error("SAVE_ERROR:", err);
-      alert("❌ Error al guardar: " + err.message);
+      alert("❌ Error: " + (err.message || "No se ha podido guardar la configuración."));
     } finally {
       setSaving(false);
     }
