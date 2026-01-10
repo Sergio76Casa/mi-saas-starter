@@ -27,6 +27,15 @@ export const TenantSettings = () => {
     social_telegram: tenant.social_telegram || ''
   });
 
+  const [partners, setPartners] = useState({
+    partner_logo_1_url: tenant.partner_logo_1_url || '',
+    partner_logo_1_link: tenant.partner_logo_1_link || '',
+    partner_logo_iso9001_url: tenant.partner_logo_iso9001_url || '',
+    partner_logo_iso9001_link: tenant.partner_logo_iso9001_link || '',
+    partner_logo_2_url: tenant.partner_logo_2_url || '',
+    partner_logo_2_link: tenant.partner_logo_2_link || ''
+  });
+
   const [useLogo, setUseLogo] = useState(tenant.use_logo_on_web ?? false);
   const [logoPreview, setLogoPreview] = useState(tenant.logo_url || '');
   const [logoFile, setLogoFile] = useState<File | null>(null);
@@ -50,6 +59,14 @@ export const TenantSettings = () => {
       social_linkedin: tenant.social_linkedin || '',
       social_whatsapp: tenant.social_whatsapp || '',
       social_telegram: tenant.social_telegram || ''
+    });
+    setPartners({
+      partner_logo_1_url: tenant.partner_logo_1_url || '',
+      partner_logo_1_link: tenant.partner_logo_1_link || '',
+      partner_logo_iso9001_url: tenant.partner_logo_iso9001_url || '',
+      partner_logo_iso9001_link: tenant.partner_logo_iso9001_link || '',
+      partner_logo_2_url: tenant.partner_logo_2_url || '',
+      partner_logo_2_link: tenant.partner_logo_2_link || ''
     });
     setUseLogo(tenant.use_logo_on_web ?? false);
     setLogoPreview(tenant.logo_url || '');
@@ -102,6 +119,12 @@ export const TenantSettings = () => {
         social_linkedin: sanitizeUrl(socials.social_linkedin),
         social_whatsapp: sanitizeUrl(socials.social_whatsapp),
         social_telegram: sanitizeUrl(socials.social_telegram),
+        partner_logo_1_url: sanitizeUrl(partners.partner_logo_1_url),
+        partner_logo_1_link: sanitizeUrl(partners.partner_logo_1_link),
+        partner_logo_iso9001_url: sanitizeUrl(partners.partner_logo_iso9001_url),
+        partner_logo_iso9001_link: sanitizeUrl(partners.partner_logo_iso9001_link),
+        partner_logo_2_url: sanitizeUrl(partners.partner_logo_2_url),
+        partner_logo_2_link: sanitizeUrl(partners.partner_logo_2_link),
         logo_url: finalLogoUrl,
         use_logo_on_web: useLogo
       };
@@ -204,6 +227,31 @@ export const TenantSettings = () => {
           </div>
         </div>
 
+        {/* LOGOS PARTNER / CERTIFICACIONES */}
+        <div className="bg-white p-6 md:p-10 rounded-[1.5rem] md:rounded-[2.8rem] border border-gray-100 shadow-sm space-y-8">
+          <h4 className="text-[10px] font-black uppercase text-gray-400 tracking-[0.2em] italic">Logos Partner / Certificaciones</h4>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="space-y-4 p-5 bg-slate-50 rounded-2xl border border-slate-100">
+              <span className="text-[9px] font-black text-slate-400 uppercase block border-b border-slate-200 pb-2 mb-2">Partner / Certificación 1</span>
+              <Input label="URL del logo (imagen)" value={partners.partner_logo_1_url} onChange={(e:any) => setPartners({...partners, partner_logo_1_url: e.target.value})} />
+              <Input label="URL destino (al hacer clic)" value={partners.partner_logo_1_link} onChange={(e:any) => setPartners({...partners, partner_logo_1_link: e.target.value})} />
+            </div>
+            
+            <div className="space-y-4 p-5 bg-slate-50 rounded-2xl border border-slate-100">
+              <span className="text-[9px] font-black text-slate-400 uppercase block border-b border-slate-200 pb-2 mb-2">Certificado ISO 9001</span>
+              <Input label="URL del logo (imagen)" value={partners.partner_logo_iso9001_url} onChange={(e:any) => setPartners({...partners, partner_logo_iso9001_url: e.target.value})} />
+              <Input label="URL destino (al hacer clic)" value={partners.partner_logo_iso9001_link} onChange={(e:any) => setPartners({...partners, partner_logo_iso9001_link: e.target.value})} />
+            </div>
+
+            <div className="space-y-4 p-5 bg-slate-50 rounded-2xl border border-slate-100">
+              <span className="text-[9px] font-black text-slate-400 uppercase block border-b border-slate-200 pb-2 mb-2">Partner 2 / Adicional</span>
+              <Input label="URL del logo (imagen)" value={partners.partner_logo_2_url} onChange={(e:any) => setPartners({...partners, partner_logo_2_url: e.target.value})} />
+              <Input label="URL destino (al hacer clic)" value={partners.partner_logo_2_link} onChange={(e:any) => setPartners({...partners, partner_logo_2_link: e.target.value})} />
+            </div>
+          </div>
+        </div>
+
         {/* DATOS DE CONTACTO */}
         <div className="bg-white p-6 md:p-10 rounded-[1.5rem] md:rounded-[2.8rem] border border-gray-100 shadow-sm space-y-8">
           <h4 className="text-[10px] font-black uppercase text-gray-400 tracking-[0.2em] italic">Datos de Contacto</h4>
@@ -221,7 +269,7 @@ export const TenantSettings = () => {
           </div>
           <div className="space-y-6">
             {branches.map((b, i) => (
-              <div key={i} className="p-6 bg-gray-50 rounded-2xl border border-gray-100 relative">
+              <div key={i} className="p-6 bg-gray-50 rounded-2xl border-gray-100 border relative">
                 <button onClick={() => setBranches(branches.filter((_, idx)=>idx!==i))} className="absolute top-4 right-4 text-red-400 font-bold">×</button>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="md:col-span-2"><Input label="Nombre de Sucursal" value={b.name} onChange={(e:any)=>updateBranch(i,'name',e.target.value)} /></div>

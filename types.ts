@@ -28,6 +28,12 @@ export interface Tenant {
   social_linkedin?: string;
   social_whatsapp?: string;
   social_telegram?: string;
+  partner_logo_1_url?: string;
+  partner_logo_1_link?: string;
+  partner_logo_iso9001_url?: string;
+  partner_logo_iso9001_link?: string;
+  partner_logo_2_url?: string;
+  partner_logo_2_link?: string;
   is_deleted?: boolean;
   created_at: string;
 }
