@@ -84,7 +84,7 @@ export const PublicFooter: React.FC<PublicFooterProps> = ({ tenant, branches, la
   const footerDescription = (() => {
     const descEs = (tenant?.footer_description_es || '').trim();
     const descCa = (tenant?.footer_description_ca || '').trim();
-    if (language === 'ca') return descCa || descEs || "Som experts en climatització.";
+    if (language === 'ca') return descCa || descEs || "Som experts en climatització eficient.";
     return descEs || descCa || "Expertos en climatización eficiente.";
   })();
 
@@ -176,7 +176,7 @@ export const PublicFooter: React.FC<PublicFooterProps> = ({ tenant, branches, la
                   <div key={i} className="flex flex-col gap-1 border-l-2 border-blue-500 pl-4">
                     <span className="text-xs font-black uppercase text-white">{b.name}</span>
                     <span className="text-xs text-slate-400 leading-tight">{b.address}</span>
-                    {(b as any).phone && <span className="text-[10px] font-bold text-blue-400">{(b as any).phone}</span>}
+                    {b.phone && <span className="text-[10px] font-bold text-blue-400">{b.phone}</span>}
                   </div>
                 )) : (
                   <p className="text-xs text-slate-500 italic">Consulte disponibilidad.</p>

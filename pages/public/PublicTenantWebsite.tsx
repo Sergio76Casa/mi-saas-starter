@@ -142,7 +142,6 @@ export const PublicTenantWebsite = () => {
     const fetchCatalog = async () => {
       if (!isConfigured) return;
       
-      // Limpieza de estado preventivo
       setIsDataReady(false);
       setIsError(false);
       setTenant(null); 
@@ -151,20 +150,21 @@ export const PublicTenantWebsite = () => {
       try {
         const { data: tData, error: tError } = await supabase
           .from('tenants')
-          .select('*') // Forzamos select(*) para asegurar todas las columnas nuevas
+          .select('*')
           .eq('slug', slug)
           .eq('is_deleted', false)
           .single();
 
         if (tError || !tData) { setIsError(true); return; }
 
-        // --- DIAGNÓSTICO: Verificación de lectura pública ---
-        console.log("[DIAGNOSTIC_PUBLIC_FETCH] Received from DB:", {
+        // DIAGNÓSTICO LECTURA PÚBLICA
+        console.log("[DIAGNOSTIC_PUBLIC_FETCH]", {
           id: tData.id,
           slug: tData.slug,
-          footer_es: tData.footer_description_es,
           phone: tData.phone,
-          email: tData.email
+          email: tData.email,
+          footer_es: tData.footer_description_es,
+          social_insta: !!tData.social_instagram
         });
 
         setTenant(tData as any);

@@ -77,7 +77,6 @@ export const TenantSettings = () => {
 
   const handleSave = async () => {
     setSaving(true);
-    let tenantSuccess = false;
     try {
       let finalLogoUrl = logoPreview;
       if (logoFile) {
@@ -107,39 +106,42 @@ export const TenantSettings = () => {
         use_logo_on_web: useLogo
       };
 
-      const { error: tenantError } = await supabase
+      // A. LOG DE RESPUESTA DEL UPDATE (DIAGNÓSTICO)
+      const { data: updatedData, error: updateError, status: updateStatus } = await supabase
         .from('tenants')
         .update(updatePayload)
-        .eq('id', tenant.id);
+        .eq('id', tenant.id)
+        .select('*')
+        .single();
 
-      if (tenantError) throw tenantError;
-      tenantSuccess = true;
+      console.log("[DIAGNOSTIC_UPDATE_RESPONSE]", { updateStatus, error: updateError, data: updatedData });
 
-      // Guardado Robusto de Sucursales
-      try {
-        if (branches.length > 0) {
-          const branchesToSave = branches.map((b, idx) => ({
-            id: b.id,
-            tenant_id: tenant.id,
-            name: b.name?.trim() || 'Sucursal',
-            address: b.address?.trim() || '',
-            phone: b.phone?.trim() || '',
-            email: b.email?.trim() || '',
-            sort_order: idx,
-            is_active: b.is_active ?? true
-          }));
-          const { error: branchError } = await supabase.from('tenant_branches').upsert(branchesToSave);
-          if (branchError) throw branchError;
-        }
-      } catch (branchErr: any) {
-        console.error("BRANCH_SAVE_ERROR:", branchErr);
-        alert("⚠️ Datos de empresa guardados, pero hubo un problema con las sucursales: " + branchErr.message);
+      if (updateError) throw updateError;
+
+      // B. SELECT INMEDIATO (DIAGNÓSTICO)
+      const { data: rawTenant } = await supabase.from('tenants').select('*').eq('id', tenant.id).single();
+      console.log("[DIAGNOSTIC_CRUDO_DB]", rawTenant);
+
+      // Guardado de Sucursales
+      if (branches.length > 0) {
+        const branchesToSave = branches.map((b, idx) => ({
+          id: b.id,
+          tenant_id: tenant.id,
+          name: b.name?.trim() || 'Sucursal',
+          address: b.address?.trim() || '',
+          phone: b.phone?.trim() || '',
+          email: b.email?.trim() || '',
+          sort_order: idx,
+          is_active: b.is_active ?? true
+        }));
+        await supabase.from('tenant_branches').upsert(branchesToSave);
       }
 
       await refreshProfile();
-      if (tenantSuccess) alert("✅ Configuración actualizada con éxito.");
+      alert("✅ Configuración actualizada con éxito.");
     } catch (err: any) {
-      alert("❌ Error al guardar datos de empresa: " + err.message);
+      console.error("SAVE_ERROR:", err);
+      alert("❌ Error al guardar: " + err.message);
     } finally {
       setSaving(false);
     }
