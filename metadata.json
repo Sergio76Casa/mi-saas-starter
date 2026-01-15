@@ -1,0 +1,5 @@
+{
+  "name": "SaaS Multi-tenant Starter",
+  "description": "A production-ready SaaS starter with Supabase Auth, Row Level Security (RLS), and multi-tenancy support.",
+  "requestFramePermissions": []
+}
