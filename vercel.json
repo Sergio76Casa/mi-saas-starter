@@ -1,0 +1,16 @@
+{
+    "rewrites": [
+        {
+            "source": "/api/social",
+            "destination": "/api/social"
+        },
+        {
+            "source": "/api/extract",
+            "destination": "/api/extract"
+        },
+        {
+            "source": "/((?!api/).*)",
+            "destination": "/index.html"
+        }
+    ]
+}
