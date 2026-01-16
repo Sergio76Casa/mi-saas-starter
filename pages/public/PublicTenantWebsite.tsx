@@ -244,8 +244,9 @@ export const PublicTenantWebsite = () => {
   const handleShare = (e: React.MouseEvent, product: Product) => {
     e.stopPropagation();
 
-    // El link de compartir apunta a la ruta especial de Meta Tags
-    const shareUrl = `${window.location.origin}${window.location.pathname}#/share/${slug}`;
+
+    // El link de compartir apunta a la nueva API de Metadata Proxy para que WhatsApp lea la imagen
+    const shareUrl = `${window.location.origin}/api/social?slug=${slug}`;
     const prefill = tenant?.whatsapp_prefill_text || `¡Hola! Mira este equipo: ${product.brand} ${product.model}. Puedes verlo aquí:`;
 
     if (navigator.share) {
