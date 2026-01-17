@@ -540,7 +540,19 @@ export const PublicTenantWebsite = () => {
                   return (
                     <div key={p.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col overflow-hidden text-left transition-all duration-300 hover:shadow-xl hover:shadow-blue-900/10 hover:scale-[1.03] group relative animate-in fade-in slide-in-from-bottom-4 duration-500">
                       <div className="h-80 bg-slate-50/50 flex items-center justify-center p-12 overflow-hidden relative">
+                        {/* Logo de Marca en la esquina superior izquierda */}
+                        {p.brand_logo_url && (
+                          <div className="absolute top-6 left-6 z-20">
+                            <img
+                              src={p.brand_logo_url}
+                              className="h-6 w-auto object-contain grayscale opacity-40 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-300"
+                              alt={p.brand}
+                            />
+                          </div>
+                        )}
+
                         <div className="absolute top-6 right-6 z-20 flex flex-col gap-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300 translate-x-4 group-hover:translate-x-0">
+
                           <button onClick={(e) => handleShare(e, p)} className="w-10 h-10 bg-white text-slate-400 hover:text-blue-600 rounded-full flex items-center justify-center shadow-md border border-slate-100 transition-all hover:scale-110" title={tt('share_btn')}>
                             <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
                           </button>
