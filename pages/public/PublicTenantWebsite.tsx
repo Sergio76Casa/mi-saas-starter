@@ -11,6 +11,8 @@ import { LoadingSpinner } from '../../components/common/LoadingSpinner';
 import { Input } from '../../components/common/Input';
 import { PublicQuoteConfigurator } from './PublicQuoteConfigurator';
 import { PublicFooter } from '../../components/public/PublicFooter';
+import { ContactModal } from '../../components/public/ContactModal';
+import { FloatingWhatsApp } from '../../components/public/FloatingWhatsApp';
 
 const LOCAL_I18N = {
   es: {
@@ -129,6 +131,7 @@ export const PublicTenantWebsite = () => {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [showToast, setShowToast] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [showContactModal, setShowContactModal] = useState(false);
 
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [brandFilter, setBrandFilter] = useState('');
@@ -280,8 +283,8 @@ export const PublicTenantWebsite = () => {
     setIsMobileMenuOpen(false);
   };
 
-  const scrollToContact = () => {
-    window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+  const openContactModal = () => {
+    setShowContactModal(true);
     setIsMobileMenuOpen(false);
   };
 
@@ -325,7 +328,7 @@ export const PublicTenantWebsite = () => {
           <div className="flex flex-col gap-8 text-center">
             <button onClick={() => { setView('landing'); window.scrollTo(0, 0); setIsMobileMenuOpen(false); }} className="text-3xl font-black text-white uppercase italic tracking-tighter">{tt('nav_home')}</button>
             <button onClick={scrollToCatalog} className="text-3xl font-black text-white uppercase italic tracking-tighter">{tt('nav_products')}</button>
-            <button onClick={scrollToContact} className="text-3xl font-black text-white uppercase italic tracking-tighter">{tt('nav_contact')}</button>
+            <button onClick={openContactModal} className="text-3xl font-black text-white uppercase italic tracking-tighter">{tt('nav_contact')}</button>
           </div>
 
           <div className="mt-auto flex flex-col gap-6">
@@ -433,7 +436,7 @@ export const PublicTenantWebsite = () => {
           <div className="hidden lg:flex items-center gap-12">
             <button onClick={() => { setView('landing'); window.scrollTo(0, 0); }} className="text-[11px] font-black uppercase tracking-widest text-slate-500 hover:text-blue-600 transition-colors">{tt('nav_home')}</button>
             <button onClick={() => document.getElementById('catalog')?.scrollIntoView({ behavior: 'smooth' })} className="text-[11px] font-black uppercase tracking-widest text-slate-500 hover:text-blue-600 transition-colors">{tt('nav_products')}</button>
-            <button onClick={() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })} className="text-[11px] font-black uppercase tracking-widest text-slate-500 hover:text-blue-600 transition-colors">{tt('nav_contact')}</button>
+            <button onClick={openContactModal} className="text-[11px] font-black uppercase tracking-widest text-slate-500 hover:text-blue-600 transition-colors">{tt('nav_contact')}</button>
           </div>
 
           <div className="flex items-center gap-3 md:gap-4">
@@ -631,6 +634,22 @@ export const PublicTenantWebsite = () => {
         branches={branches}
         language={language}
         translations={LOCAL_I18N}
+      />
+
+      {/* Contact Modal */}
+      {showContactModal && (
+        <ContactModal
+          tenant={tenant}
+          branches={branches}
+          language={language}
+          onClose={() => setShowContactModal(false)}
+        />
+      )}
+
+      {/* Floating WhatsApp Button */}
+      <FloatingWhatsApp
+        phone={tenant?.social_whatsapp || tenant?.phone}
+        language={language}
       />
     </div>
   );

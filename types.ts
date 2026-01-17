@@ -50,9 +50,26 @@ export interface Branch {
   address: string;
   phone?: string;
   email?: string;
+  business_hours?: BusinessHours;
   sort_order: number;
   is_active: boolean;
   created_at?: string;
+}
+
+export interface BusinessHours {
+  monday: DaySchedule;
+  tuesday: DaySchedule;
+  wednesday: DaySchedule;
+  thursday: DaySchedule;
+  friday: DaySchedule;
+  saturday: DaySchedule;
+  sunday: DaySchedule;
+}
+
+export interface DaySchedule {
+  open: string;    // "09:00"
+  close: string;   // "18:00"
+  closed: boolean; // true if closed all day
 }
 
 export interface Membership {
@@ -60,7 +77,7 @@ export interface Membership {
   user_id: string;
   tenant_id: string;
   role: 'owner' | 'admin' | 'staff' | 'viewer';
-  tenant?: Tenant; 
+  tenant?: Tenant;
   profiles?: Profile;
 }
 
@@ -71,13 +88,13 @@ export interface Product {
   model: string;
   type: string;
   status: 'draft' | 'active' | 'inactive';
-  pricing: Array<{ 
-    variant?: string; 
-    price: number; 
+  pricing: Array<{
+    variant?: string;
+    price: number;
     name?: { es: string; ca: string };
     cost?: number;
     id?: string;
-  }>; 
+  }>;
   description?: { es: string; ca: string };
   features?: string;
   installation_kits?: Array<{ name: string; price: number }>;
@@ -88,7 +105,7 @@ export interface Product {
   brand_logo_url?: string;
   is_deleted: boolean;
   created_at: string;
-  price: number; 
+  price: number;
 }
 
 export interface Customer {
@@ -110,7 +127,7 @@ export interface Quote {
   tenant_id: string;
   customer_id: string;
   created_by: string;
-  quote_no: string; 
+  quote_no: string;
   customer?: Customer;
   tenant?: Tenant;
   client_name: string;
@@ -140,7 +157,7 @@ export interface QuoteItem {
 }
 
 export interface PlatformContent {
-  key: string; 
+  key: string;
   es: string;
   ca: string;
 }
