@@ -479,10 +479,10 @@ export const PublicTenantWebsite = () => {
               <img src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?q=80&w=2070&auto=format&fit=crop" className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:scale-105 transition-transform duration-[4s]" alt="" />
               <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/60 to-transparent"></div>
               <div className="relative px-8 md:px-24 py-20 max-w-4xl z-10 text-left">
-                <h1 className="text-4xl md:text-7xl lg:text-8xl font-black text-white leading-[1.1] tracking-tighter mb-6 md:mb-8 uppercase italic animate-in slide-in-from-bottom-6 duration-700">
+                <h1 className="text-3xl md:text-5xl lg:text-6xl font-black text-white leading-[1.1] tracking-tighter mb-6 md:mb-8 uppercase italic animate-in slide-in-from-bottom-6 duration-700">
                   {tt('hero_title_1')} <br /><span className="text-blue-500 drop-shadow-2xl">{tt('hero_title_2')}</span>
                 </h1>
-                <p className="text-base md:text-xl lg:text-2xl text-white/70 max-w-xl font-medium mb-10 md:mb-12 italic animate-in slide-in-from-bottom-8 duration-1000 delay-150">{tt('hero_desc')}</p>
+                <p className="text-sm md:text-lg lg:text-xl text-white/70 max-w-xl font-medium mb-10 md:mb-12 italic animate-in slide-in-from-bottom-8 duration-1000 delay-150">{tt('hero_desc')}</p>
                 <div className="flex flex-col sm:flex-row gap-4">
                   <button onClick={() => document.getElementById('catalog')?.scrollIntoView({ behavior: 'smooth' })} className="px-10 py-5 bg-blue-600 text-white rounded-xl font-black uppercase text-[11px] tracking-[0.2em] shadow-2xl shadow-blue-600/30 hover:bg-blue-500 hover:scale-[1.05] active:scale-95 transition-all animate-in zoom-in-50 duration-700 delay-300">
                     {tt('hero_cta_catalog')}
