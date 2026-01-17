@@ -545,7 +545,7 @@ export const PublicTenantWebsite = () => {
                           <div className="absolute top-6 left-6 z-20">
                             <img
                               src={p.brand_logo_url}
-                              className="h-6 w-auto object-contain grayscale opacity-40 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-300"
+                              className="h-8 w-auto object-contain transition-all duration-300"
                               alt={p.brand}
                             />
                           </div>
