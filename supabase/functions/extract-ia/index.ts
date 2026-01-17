@@ -24,22 +24,18 @@ Deno.serve(async (req) => {
         const bytes = new Uint8Array(await file.arrayBuffer());
         const base64 = encodeBase64(bytes);
 
-        const prompt = `Actúa como un experto en climatización (HVAC). Extrae los datos técnicos a JSON estricto.
-    Reglas:
-    - Separate 'installation_kits' from 'extras'.
-    - 'installation_kits': Paquetes de precio fijo.
-    - 'extras': Materiales por cantidad.
-    - Numbers: usa punto (.) como decimal.
-    Esquema: { "brand": "string", "model": "string", "type": "aire_acondicionado" | "caldera" | "termo_electrico", "stock": number, "description": { "es": "string", "ca": "string" }, "pricing": [{ "name": { "es": "string", "ca": "string" }, "price": number }], "installation_kits": [{ "name": "string", "price": number }], "extras": [{ "name": "string", "qty": number, "unit_price": number }], "financing": [{ "months": number, "coefficient": number }], "techSpecs": [{ "title": "string", "value": "string" }] }`;
+        const prompt = `Actúa como un experto en climatización (HVAC). Extrae técnica a JSON estricto.
+    Kits vs Extras: Kits son packs fijos, Extras son líneas sueltas.
+    Esquema: { "brand": "", "model": "", "type": "aire_acondicionado"|"caldera"|"termo_electrico", "stock": 0, "description": {"es": "", "ca": ""}, "pricing": [{"name": {"es": "", "ca": ""}, "price": 0}], "installation_kits": [{"name": "", "price": 0}], "extras": [{"name": "", "qty": 1, "unit_price": 0}], "financing": [{"months": 12, "coefficient": 0}], "techSpecs": [{"title": "", "value": ""}] }`;
 
-        // Usamos el endpoint v1 (estable) con gemini-1.5-flash
-        const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+        // REPLICANDO EL MODELO QUE FUNCIONABA: gemini-3-flash-preview
+        // Usamos v1beta para modelos preview/experimentales
+        const modelName = "gemini-3-flash-preview";
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
 
         const chatResp = await fetch(url, {
             method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-            },
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
                 contents: [{
                     parts: [
@@ -51,17 +47,16 @@ Deno.serve(async (req) => {
         });
 
         if (!chatResp.ok) {
-            const errorText = await chatResp.text();
-            console.error("Gemini raw error:", errorText);
-            throw new Error(`Gemini Error: ${errorText}`);
+            const errorData = await chatResp.json().catch(() => ({ error: { message: "Error desconocido de Gemini" } }));
+            throw new Error(errorData.error?.message || `Gemini Error (${chatResp.status})`);
         }
 
         const data = await chatResp.json();
         const resultText = data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
 
-        // Limpieza de JSON
+        // Extraer JSON de la respuesta (manejo de posibles markdown fences)
         const jsonMatch = resultText.match(/\{[\s\S]*\}/);
-        const jsonStr = jsonMatch ? jsonMatch[0] : resultText;
+        const jsonStr = jsonMatch ? jsonMatch[0] : (resultText || "{}");
 
         return new Response(jsonStr, {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
