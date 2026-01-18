@@ -106,6 +106,7 @@ export interface Product {
   is_deleted: boolean;
   created_at: string;
   price: number;
+  techSpecs?: string;
 }
 
 export interface Customer {
@@ -126,7 +127,6 @@ export interface Quote {
   id: string;
   tenant_id: string;
   customer_id: string;
-  created_by: string;
   quote_no: string;
   customer?: Customer;
   tenant?: Tenant;

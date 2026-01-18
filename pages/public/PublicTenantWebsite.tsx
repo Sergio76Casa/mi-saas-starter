@@ -271,10 +271,12 @@ export const PublicTenantWebsite = () => {
   };
 
   const getTechSpecs = (product: Product) => {
-    if (!product.features) return [];
+    if (!product.techSpecs) return [];
     try {
-      const parsed = typeof product.features === 'string' ? JSON.parse(product.features) : product.features;
-      return parsed.techSpecs || [];
+      const parsed = typeof product.techSpecs === 'string' ? JSON.parse(product.techSpecs) : product.techSpecs;
+      if (Array.isArray(parsed)) return parsed;
+      if (parsed && typeof parsed === 'object') return parsed.techSpecs || [];
+      return [];
     } catch (e) { return []; }
   };
 
