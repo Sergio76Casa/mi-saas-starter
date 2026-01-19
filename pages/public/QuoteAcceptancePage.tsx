@@ -1,10 +1,12 @@
-import React, { useState, useEffect, useMemo } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router';
 import { supabase } from '../../supabaseClient';
-import { Quote, QuoteItem, Language } from '../../types';
+import { Quote, QuoteItem } from '../../types';
 import { formatCurrency } from '../../i18n';
 import { LoadingSpinner } from '../../components/common/LoadingSpinner';
 import { useApp } from '../../AppProvider';
+import { jsPDF } from 'jspdf';
 
 export const QuoteAcceptancePage = () => {
   const { id } = useParams();
@@ -28,7 +30,7 @@ export const QuoteAcceptancePage = () => {
   const [isTechnician, setIsTechnician] = useState(false);
   const [orderNumber, setOrderNumber] = useState('');
   const [isAccepted, setIsAccepted] = useState(false);
-  const [signature, setSignature] = useState(''); // Base64 o simplemente un flag de "firmado" para el demo
+  const [signature, setSignature] = useState('');
 
   useEffect(() => {
     const fetchQuote = async () => {
@@ -44,7 +46,8 @@ export const QuoteAcceptancePage = () => {
         setQuote(q as any);
         setClientData(prev => ({
           ...prev,
-          name: q.client_name || '',
+          name: q.client_name?.split(' ')[0] || '',
+          surname: q.client_name?.split(' ').slice(1).join(' ') || '',
           email: q.client_email || '',
           phone: q.client_phone || '',
           address: q.client_address || ''
@@ -68,43 +71,92 @@ export const QuoteAcceptancePage = () => {
     fetchQuote();
   }, [id]);
 
-  const validateOrderNumber = (num: string) => /^\d{8}$/.test(num);
+  const generateAndUploadPDF = async (finalQuote: any) => {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    
+    // Header
+    doc.setFontSize(22);
+    doc.setFont('helvetica', 'bold');
+    doc.text(quote?.tenant?.name?.toUpperCase() || 'PRESUPUESTO', 20, 30);
+    
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(150);
+    doc.text(`Nº Presupuesto: ${quote?.quote_no}`, 20, 38);
+    doc.text(`Fecha: ${new Date().toLocaleDateString()}`, 20, 43);
 
-  const handleFirmarTarde = async () => {
-    setIsSubmitting(true);
-    try {
-      // Guardamos lo que haya escrito sin validar obligatoriedad de firma
-      const { error: updateError } = await supabase
-        .from('quotes')
-        .update({
-          client_name: `${clientData.name} ${clientData.surname}`.trim(),
-          client_email: clientData.email,
-          client_phone: clientData.phone,
-          client_address: clientData.address,
-          is_technician: isTechnician,
-          maintenance_no: orderNumber,
-          status: 'sent' // Marcamos como enviado (Pendiente de firma)
-        })
-        .eq('id', id);
+    // Client Info
+    doc.setTextColor(0);
+    doc.setFont('helvetica', 'bold');
+    doc.text('DATOS DEL CLIENTE', 20, 60);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`${finalQuote.client_name}`, 20, 68);
+    doc.text(`${finalQuote.client_email}`, 20, 73);
+    doc.text(`${finalQuote.client_phone}`, 20, 78);
+    doc.text(`${finalQuote.client_address}`, 20, 83);
 
-      if (updateError) throw updateError;
-      
-      alert("Presupuesto guardado. Pendiente de firma.");
-      navigate(`/c/${quote?.tenant?.slug}`);
-    } catch (err: any) {
-      alert("Error al guardar: " + err.message);
-    } finally {
-      setIsSubmitting(false);
+    // Table Header
+    doc.setFillColor(245, 245, 245);
+    doc.rect(20, 100, pageWidth - 40, 10, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.text('CONCEPTO', 25, 106.5);
+    doc.text('CANT.', pageWidth - 65, 106.5, { align: 'right' });
+    doc.text('TOTAL', pageWidth - 25, 106.5, { align: 'right' });
+
+    // Table Items
+    let y = 118;
+    doc.setFont('helvetica', 'normal');
+    items.forEach(item => {
+      doc.text(item.description, 25, y, { maxWidth: 100 });
+      doc.text(item.quantity.toString(), pageWidth - 65, y, { align: 'right' });
+      doc.text(formatCurrency(item.total, language), pageWidth - 25, y, { align: 'right' });
+      y += 12;
+    });
+
+    // Total
+    y += 10;
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('TOTAL (IVA Incl.):', pageWidth - 80, y, { align: 'right' });
+    doc.text(formatCurrency(quote?.total_amount || 0, language), pageWidth - 25, y, { align: 'right' });
+
+    // Financing if exists
+    if (quote?.financing_months) {
+      y += 20;
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.text('OPCIÓN DE FINANCIACIÓN:', 20, y);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`${quote.financing_months} cuotas de ${formatCurrency(quote.financing_fee || 0, language)} / mes`, 20, y + 8);
     }
+
+    // Signature Area
+    y = doc.internal.pageSize.getHeight() - 60;
+    doc.setFontSize(8);
+    doc.setTextColor(150);
+    doc.text('Firma del cliente y aceptación de condiciones:', 20, y);
+    doc.setFontSize(12);
+    doc.setTextColor(0);
+    doc.setFont('times', 'italic');
+    doc.text('Documento firmado digitalmente', 20, y + 15);
+
+    const pdfBlob = doc.output('blob');
+    const fileName = `${quote?.tenant_id}/${id}/presupuesto.pdf`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('quotes')
+      .upload(fileName, pdfBlob, { upsert: true, contentType: 'application/pdf' });
+
+    if (uploadError) throw uploadError;
+
+    const { data: { publicUrl } } = supabase.storage.from('quotes').getPublicUrl(fileName);
+    return publicUrl;
   };
 
   const handleConfirmarPedido = async () => {
-    // Validaciones
     if (!clientData.name || !clientData.email || !clientData.address) {
       return alert("Por favor, completa los datos del cliente.");
-    }
-    if (isTechnician && !validateOrderNumber(orderNumber)) {
-      return alert("El Número de Orden debe tener exactamente 8 dígitos numéricos.");
     }
     if (!signature) {
       return alert("La firma es obligatoria para confirmar el pedido.");
@@ -115,6 +167,40 @@ export const QuoteAcceptancePage = () => {
 
     setIsSubmitting(true);
     try {
+      const finalClientName = `${clientData.name} ${clientData.surname}`.trim();
+      
+      // 1. Generar y subir el PDF
+      const pdfUrl = await generateAndUploadPDF({ client_name: finalClientName });
+
+      // 2. Actualizar presupuesto con estado y URL del PDF
+      const { error: updateError } = await supabase
+        .from('quotes')
+        .update({
+          client_name: finalClientName,
+          client_email: clientData.email,
+          client_phone: clientData.phone,
+          client_address: clientData.address,
+          status: 'accepted',
+          is_technician: isTechnician,
+          maintenance_no: isTechnician ? orderNumber : null,
+          pdf_url: pdfUrl
+        })
+        .eq('id', id);
+
+      if (updateError) throw updateError;
+
+      alert("¡Pedido Confirmado con éxito! El presupuesto ha sido generado.");
+      navigate(`/c/${quote?.tenant?.slug}`);
+    } catch (err: any) {
+      alert("Error en el proceso: " + err.message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleFirmarTarde = async () => {
+    setIsSubmitting(true);
+    try {
       const { error: updateError } = await supabase
         .from('quotes')
         .update({
@@ -122,18 +208,18 @@ export const QuoteAcceptancePage = () => {
           client_email: clientData.email,
           client_phone: clientData.phone,
           client_address: clientData.address,
-          status: 'accepted', // Confirmado
           is_technician: isTechnician,
-          maintenance_no: isTechnician ? orderNumber : null,
+          maintenance_no: orderNumber,
+          status: 'sent'
         })
         .eq('id', id);
 
       if (updateError) throw updateError;
-
-      alert("¡Pedido Confirmado con éxito!");
+      
+      alert("Presupuesto guardado. Pendiente de firma.");
       navigate(`/c/${quote?.tenant?.slug}`);
     } catch (err: any) {
-      alert("Error al confirmar: " + err.message);
+      alert("Error al guardar: " + err.message);
     } finally {
       setIsSubmitting(false);
     }
@@ -157,7 +243,6 @@ export const QuoteAcceptancePage = () => {
       <main className="max-w-7xl mx-auto px-6 md:px-10 py-12 md:py-20">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-20">
           
-          {/* Columna Izquierda: Detalle del pedido */}
           <div className="lg:col-span-5 space-y-10">
              <div>
                 <h3 className="text-2xl font-black uppercase italic tracking-tighter text-slate-900 mb-2">Detalle del pedido</h3>
@@ -189,7 +274,6 @@ export const QuoteAcceptancePage = () => {
              </div>
           </div>
 
-          {/* Columna Derecha: Formulario */}
           <div className="lg:col-span-7 space-y-12">
              <section className="space-y-8">
                 <h4 className="text-xs font-black uppercase tracking-widest text-blue-600 border-b border-blue-50 pb-4">Datos del Cliente</h4>
@@ -273,7 +357,7 @@ export const QuoteAcceptancePage = () => {
                    disabled={isSubmitting}
                    className="w-full py-6 bg-slate-900 text-white rounded-2xl font-black uppercase text-sm tracking-[0.2em] shadow-2xl hover:bg-black transition-all hover:scale-[1.01] active:scale-95 disabled:opacity-50"
                 >
-                   {isSubmitting ? 'PROCESANDO...' : 'Firmar y Confirmar Pedido'}
+                   {isSubmitting ? 'GENERANDO PDF...' : 'Firmar y Confirmar Pedido'}
                 </button>
                 <button 
                    onClick={handleFirmarTarde}

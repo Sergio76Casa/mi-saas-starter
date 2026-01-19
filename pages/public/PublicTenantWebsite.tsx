@@ -237,7 +237,7 @@ export const PublicTenantWebsite = () => {
   };
 
   /**
-   * handleShare: Actualizado para usar la nueva ruta de /share/:slug
+   * handleShare: Actualizadoo para usar la nueva ruta de /share/:slug
    * que genera la tarjeta de previsualización para WhatsApp.
    */
   const handleShare = (e: React.MouseEvent, product: Product) => {

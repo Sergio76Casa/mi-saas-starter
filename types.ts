@@ -1,3 +1,4 @@
+
 export type Language = 'es' | 'ca';
 
 export interface Profile {
@@ -33,7 +34,6 @@ export interface Tenant {
   partner_logo_iso9001_link?: string;
   partner_logo_2_url?: string;
   partner_logo_2_link?: string;
-  // Campos para compartir
   share_title?: string;
   share_description?: string;
   share_image_url?: string;
@@ -127,6 +127,7 @@ export interface Quote {
   items?: QuoteItem[];
   maintenance_no?: string;
   is_technician?: boolean;
+  pdf_url?: string;
 }
 
 export interface QuoteItem {

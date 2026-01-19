@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useOutletContext, useNavigate } from 'react-router';
 import { supabase } from '../../supabaseClient';
@@ -60,6 +61,13 @@ export const Quotes = () => {
   const formatDateShort = (dateStr: string) => {
     const d = new Date(dateStr);
     return d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  };
+
+  const openPdf = (e: React.MouseEvent, url: string | undefined) => {
+    e.stopPropagation();
+    if (url) {
+      window.open(url, '_blank');
+    }
   };
 
   return (
@@ -151,7 +159,11 @@ export const Quotes = () => {
 
                   <td className="px-6 py-7">
                     <div className="flex justify-center">
-                      <button className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 text-slate-400 hover:text-red-500 rounded-lg border border-slate-100 transition-all font-black text-[9px] uppercase">
+                      <button 
+                        onClick={(e) => openPdf(e, q.pdf_url)}
+                        disabled={!q.pdf_url}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border transition-all font-black text-[9px] uppercase ${q.pdf_url ? 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50 hover:text-red-600 hover:border-red-100' : 'bg-slate-50 text-slate-300 border-transparent cursor-not-allowed opacity-50'}`}
+                      >
                         <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M11.363 2c4.155 0 2.637 6 2.637 6s6-1.518 6 2.638v11.362c0 .552-.448 1-1 1h-11c-.552 0-1-.448-1-1v-19c0-.552.448-1 1-1zm-1.363 1.363v17.274h9.274v-10.274h-5.274v-5.274h-4zm1.363-1.363h3l5.274 5.274v3.089c-.583-.243-1.226-.363-1.9-.363-2.761 0-5 2.239-5 5 0 2.761 2.239 5 5 5 1.572 0 2.97-.728 3.874-1.861v1.861c0 .552-.448 1-1 1h-11c-.552 0-1-.448-1-1v-19c0-.552.448-1 1-1z"/></svg>
                         PDF
                       </button>
