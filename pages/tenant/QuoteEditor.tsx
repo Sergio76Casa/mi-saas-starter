@@ -1,6 +1,5 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-// Import routing hooks from react-router to avoid export issues in react-router-dom
 import { useOutletContext, useNavigate, useParams, useSearchParams } from 'react-router';
 import { supabase } from '../../supabaseClient';
 import { Tenant, Quote, Customer, QuoteItem } from '../../types';
@@ -8,6 +7,7 @@ import { useApp } from '../../AppProvider';
 import { formatCurrency, formatDate } from '../../i18n';
 import { PDF_PRODUCTS, PDF_KITS, PDF_EXTRAS, FINANCING_COEFFICIENTS } from '../../data/pdfCatalog';
 import { Input } from '../../components/common/Input';
+import { LoadingSpinner } from '../../components/common/LoadingSpinner';
 
 export const QuoteEditor = () => {
   const { tenant } = useOutletContext<{ tenant: Tenant }>();
@@ -17,7 +17,9 @@ export const QuoteEditor = () => {
   const navigate = useNavigate();
 
   const [customers, setCustomers] = useState<Customer[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [showToast, setShowToast] = useState<string | null>(null);
   
   const [formData, setFormData] = useState<Partial<Quote>>({
     status: 'draft',
@@ -34,6 +36,62 @@ export const QuoteEditor = () => {
     financing_months: 12
   });
 
+  // Cargar datos iniciales
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        // 1. Cargar clientes para el selector
+        const { data: custData } = await supabase
+          .from('customers')
+          .select('*')
+          .eq('tenant_id', tenant.id)
+          .order('name');
+        if (custData) setCustomers(custData);
+
+        // 2. Si es edición, cargar el presupuesto
+        if (id && id !== 'new') {
+          const { data: q, error: qError } = await supabase
+            .from('quotes')
+            .select('*, items:quote_items(*)')
+            .eq('id', id)
+            .single();
+
+          if (!qError && q) {
+            setFormData({
+              ...q,
+              items: q.items || []
+            });
+          }
+        } else {
+          // Si es nuevo y viene de un producto específico (URL param)
+          const productId = searchParams.get('productId');
+          if (productId) {
+            const product = PDF_PRODUCTS.find(p => p.id === productId);
+            if (product) {
+              addItem(product.name, product.price);
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Error loading data:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, [tenant.id, id]);
+
+  const subtotal = useMemo(() => {
+    return (formData.items || []).reduce((acc, item) => acc + (item.quantity * item.unit_price), 0);
+  }, [formData.items]);
+
+  const monthlyFee = useMemo(() => {
+    if (!formData.financing_months) return 0;
+    const coeff = FINANCING_COEFFICIENTS[formData.financing_months];
+    return subtotal * (coeff || 0);
+  }, [subtotal, formData.financing_months]);
+
   const addItem = (description: string, price: number) => {
     const newItem: QuoteItem = {
       id: Math.random().toString(36).substr(2, 9),
@@ -45,41 +103,17 @@ export const QuoteEditor = () => {
     setFormData(prev => ({ ...prev, items: [...(prev.items || []), newItem] }));
   };
 
-  useEffect(() => {
-    const fetchCustomers = async () => {
-      const { data } = await supabase.from('customers').select('*').eq('tenant_id', tenant.id).order('name');
-      if (data) setCustomers(data);
-    };
-    fetchCustomers();
-    
-    const productId = searchParams.get('productId');
-    if (productId && id === 'new') {
-      const product = PDF_PRODUCTS.find(p => p.id === productId);
-      if (product) {
-        addItem(product.name, product.price);
-      }
-    }
-  }, [tenant.id, id, searchParams]);
-
-  const subtotal = useMemo(() => {
-    return (formData.items || []).reduce((acc, item) => acc + (item.quantity * item.unit_price), 0);
-  }, [formData.items]);
-
-  const monthlyFee = useMemo(() => {
-    if (!formData.financing_months) return 0;
-    const coeff = FINANCING_COEFFICIENTS[formData.financing_months];
-    return subtotal * coeff;
-  }, [subtotal, formData.financing_months]);
-
-  const updateItemQty = (id: string, qty: number) => {
+  const updateItemQty = (itemId: string, qty: number) => {
     setFormData(prev => ({
       ...prev,
-      items: (prev.items || []).map(item => item.id === id ? { ...item, quantity: qty, total: qty * item.unit_price } : item)
+      items: (prev.items || []).map(item => 
+        item.id === itemId ? { ...item, quantity: qty, total: qty * item.unit_price } : item
+      )
     }));
   };
 
-  const removeItem = (id: string) => {
-    setFormData(prev => ({ ...prev, items: (prev.items || []).filter(item => item.id !== id) }));
+  const removeItem = (itemId: string) => {
+    setFormData(prev => ({ ...prev, items: (prev.items || []).filter(item => item.id !== itemId) }));
   };
 
   const handleCustomerSelect = (custId: string) => {
@@ -99,41 +133,145 @@ export const QuoteEditor = () => {
   };
 
   const handleSave = async () => {
-    setLoading(true);
-    console.log("Saving Quote:", { ...formData, total_amount: subtotal, financing_fee: monthlyFee });
-    setTimeout(() => {
-      setLoading(false);
+    if (!formData.client_name) return alert("El nombre del cliente es obligatorio.");
+    if (!formData.items || formData.items.length === 0) return alert("Añada al menos un concepto.");
+
+    setIsSaving(true);
+    try {
+      const quotePayload = {
+        tenant_id: tenant.id,
+        client_name: formData.client_name,
+        client_dni: formData.client_dni,
+        client_address: formData.client_address,
+        client_population: formData.client_population,
+        client_email: formData.client_email,
+        client_phone: formData.client_phone,
+        maintenance_no: formData.maintenance_no,
+        total_amount: subtotal,
+        status: formData.status || 'draft',
+        valid_until: formData.valid_until,
+        financing_months: formData.financing_months,
+        financing_fee: monthlyFee,
+        quote_no: formData.quote_no || `PRE-${Math.random().toString(36).substr(2, 6).toUpperCase()}`
+      };
+
+      let quoteId = id;
+
+      if (id === 'new') {
+        const { data, error: iError } = await supabase.from('quotes').insert([quotePayload]).select().single();
+        if (iError) throw iError;
+        quoteId = data.id;
+      } else {
+        const { error: uError } = await supabase.from('quotes').update(quotePayload).eq('id', id);
+        if (uError) throw uError;
+        // Limpiar items antiguos para re-insertar
+        await supabase.from('quote_items').delete().eq('quote_id', id);
+      }
+
+      // Insertar items
+      const itemsPayload = (formData.items || []).map(item => ({
+        quote_id: quoteId,
+        description: item.description,
+        quantity: item.quantity,
+        unit_price: item.unit_price,
+        total: item.total
+      }));
+
+      const { error: itemsError } = await supabase.from('quote_items').insert(itemsPayload);
+      if (itemsError) throw itemsError;
+
+      alert("Presupuesto guardado correctamente.");
       navigate(`/t/${tenant.slug}/quotes`);
-    }, 1000);
+    } catch (err: any) {
+      alert("Error al guardar: " + err.message);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
+  const getShareLink = () => {
+    return `${window.location.origin}${window.location.pathname}#/presupuestos/${id}/aceptar`;
+  };
+
+  const handleWhatsAppShare = () => {
+    const link = getShareLink();
+    const msg = `Hola ${formData.client_name}, aquí tienes el presupuesto para tu revisión y firma: ${link}`;
+    window.open(`https://wa.me/${formData.client_phone?.replace(/\D/g, '')}?text=${encodeURIComponent(msg)}`, '_blank');
+  };
+
+  const copyLink = () => {
+    navigator.clipboard.writeText(getShareLink());
+    setShowToast("Enlace copiado");
+    setTimeout(() => setShowToast(null), 2000);
+  };
+
+  if (loading) return <LoadingSpinner />;
+
   return (
-    <div className="max-w-5xl mx-auto animate-in fade-in duration-700 pb-24 px-4 md:px-0 text-left">
+    <div className="max-w-5xl mx-auto animate-in fade-in duration-700 pb-24 px-4 md:px-0 text-left relative">
+      {showToast && (
+        <div className="fixed top-10 left-1/2 -translate-x-1/2 z-[100] bg-slate-900 text-white px-6 py-3 rounded-full text-[10px] font-black uppercase tracking-widest shadow-2xl animate-bounce">
+          {showToast}
+        </div>
+      )}
+
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6">
         <div>
-          <h3 className="text-3xl md:text-4xl font-black text-gray-900 tracking-tighter uppercase italic">{t('new_quote')}</h3>
-          <p className="text-[10px] font-black uppercase text-gray-400 tracking-[0.2em] mt-2">Ref: {new Date().getFullYear()}-XXXX</p>
+          <h3 className="text-3xl md:text-4xl font-black text-gray-900 tracking-tighter uppercase italic">{id === 'new' ? t('new_quote') : 'Editar Presupuesto'}</h3>
+          <p className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em] mt-2">Ref: {formData.quote_no || 'Temporal'}</p>
         </div>
         <div className="flex w-full md:w-auto gap-4">
-          <button onClick={() => navigate(-1)} className="flex-1 md:flex-none px-6 py-3 text-gray-400 text-[10px] font-black uppercase border border-gray-100 rounded-xl">Cancelar</button>
-          <button onClick={handleSave} disabled={loading} className="flex-2 md:flex-none px-10 py-4 bg-brand-600 text-white rounded-xl md:rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-xl">
-            {loading ? '...' : 'Finalizar'}
+          <button onClick={() => navigate(-1)} className="flex-1 md:flex-none px-6 py-3 text-gray-400 text-[10px] font-black uppercase border border-gray-100 rounded-xl hover:bg-slate-50 transition-colors">Cancelar</button>
+          <button 
+            onClick={handleSave} 
+            disabled={isSaving} 
+            className="flex-2 md:flex-none px-10 py-4 bg-slate-900 text-white rounded-xl md:rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-xl hover:bg-black transition-all active:scale-95 disabled:opacity-50"
+          >
+            {isSaving ? 'GUARDANDO...' : 'Guardar borrador'}
           </button>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 md:gap-10">
         <div className="lg:col-span-2 space-y-8">
+          
+          {/* SECCIÓN COMPARTIR (Solo si ya existe el presupuesto) */}
+          {id !== 'new' && (
+            <section className="bg-blue-600 p-8 rounded-[2.5rem] text-white shadow-xl shadow-blue-600/20 flex flex-col md:flex-row items-center justify-between gap-6 animate-in slide-in-from-top-4">
+              <div>
+                <h4 className="text-[10px] font-black uppercase tracking-widest opacity-70 mb-1">Presupuesto listo</h4>
+                <p className="text-xl font-black italic tracking-tight leading-none uppercase">Enviar enlace de firma al cliente</p>
+              </div>
+              <div className="flex gap-3 w-full md:w-auto">
+                <button 
+                  onClick={handleWhatsAppShare}
+                  className="flex-1 md:flex-none px-6 py-3 bg-white text-blue-600 rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-blue-50 transition-all"
+                >
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.246 2.248 3.484 5.232 3.484 8.412s-1.239 6.167-3.488 8.413c-2.248 2.244-5.231 3.484-8.411 3.484h-.001c-2.008 0-3.975-.521-5.714-1.506l-6.276 1.649zm6.151-3.692l.332.197c1.472.873 3.136 1.335 4.845 1.335h.001c5.446 0 9.876-4.43 9.878-9.876.001-2.64-1.029-5.12-2.899-6.992s-4.353-2.901-6.993-2.902c-5.448 0-9.879 4.432-9.881 9.879 0 1.83.509 3.618 1.474 5.176l.216.35-.97 3.541 3.633-.953z"/></svg>
+                  WhatsApp
+                </button>
+                <button 
+                  onClick={copyLink}
+                  className="flex-1 md:flex-none px-6 py-3 bg-blue-700 text-white rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-blue-800 transition-all"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/></svg>
+                  Link
+                </button>
+              </div>
+            </section>
+          )}
+
           <section className="bg-white p-6 md:p-10 rounded-[1.5rem] md:rounded-[2.8rem] border border-gray-100 shadow-sm">
-            <h4 className="text-xs font-black uppercase tracking-widest text-brand-600 mb-8 flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-brand-500"></span> Datos del Cliente
+            <h4 className="text-xs font-black uppercase tracking-widest text-blue-600 mb-8 flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-blue-500"></span> Datos del Cliente
             </h4>
             
             <div className="mb-8">
-              <label className="block text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2">Seleccionar de Base de Datos</label>
+              <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Seleccionar de Base de Datos</label>
               <select 
                 onChange={(e) => handleCustomerSelect(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-100 rounded-xl bg-gray-50 text-sm focus:ring-2 focus:ring-brand-500 outline-none"
+                value={formData.customer_id || ''}
+                className="w-full px-5 py-4 border border-slate-100 rounded-2xl bg-slate-50 text-sm font-bold focus:ring-2 focus:ring-blue-500 outline-none transition-all"
               >
                 <option value="">-- Nuevo Cliente --</option>
                 {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -141,48 +279,50 @@ export const QuoteEditor = () => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-              <Input label="Nombre" value={formData.client_name} onChange={(e:any) => setFormData({...formData, client_name: e.target.value})} />
+              <Input label="Nombre del cliente" value={formData.client_name} onChange={(e:any) => setFormData({...formData, client_name: e.target.value})} />
               <Input label={t('dni')} value={formData.client_dni} onChange={(e:any) => setFormData({...formData, client_dni: e.target.value})} />
               <div className="md:col-span-2">
                 <Input label={t('address')} value={formData.client_address} onChange={(e:any) => setFormData({...formData, client_address: e.target.value})} />
               </div>
               <Input label={t('population')} value={formData.client_population} onChange={(e:any) => setFormData({...formData, client_population: e.target.value})} />
-              <Input label={t('maintenance_no')} value={formData.maintenance_no} onChange={(e:any) => setFormData({...formData, client_name: e.target.value})} />
+              <Input label={t('maintenance_no')} value={formData.maintenance_no} onChange={(e:any) => setFormData({...formData, maintenance_no: e.target.value})} />
+              <Input label="Email" type="email" value={formData.client_email} onChange={(e:any) => setFormData({...formData, client_email: e.target.value})} />
+              <Input label="Teléfono" value={formData.client_phone} onChange={(e:any) => setFormData({...formData, client_phone: e.target.value})} />
             </div>
           </section>
 
           <section className="bg-white p-6 md:p-10 rounded-[1.5rem] md:rounded-[2.8rem] border border-gray-100 shadow-sm">
-            <h4 className="text-xs font-black uppercase tracking-widest text-brand-600 mb-8 flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-brand-500"></span> Conceptos del Presupuesto
+            <h4 className="text-xs font-black uppercase tracking-widest text-blue-600 mb-8 flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-blue-500"></span> Conceptos del Presupuesto
             </h4>
             
             <div className="overflow-x-auto -mx-6 px-6 md:mx-0 md:px-0 mb-8">
               <table className="w-full text-left min-w-[500px]">
-                <thead className="text-[9px] font-black uppercase tracking-widest text-gray-400 border-b border-gray-50">
+                <thead className="text-[9px] font-black uppercase tracking-widest text-slate-400 border-b border-slate-50">
                   <tr>
-                    <th className="py-4">Descripción</th>
+                    <th className="py-4 px-2">Descripción</th>
                     <th className="py-4 text-center">Cant.</th>
                     <th className="py-4 text-right">Precio</th>
                     <th className="py-4 text-right">Total</th>
                     <th className="py-4 text-right"></th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-50">
+                <tbody className="divide-y divide-slate-50">
                   {(formData.items || []).map(item => (
-                    <tr key={item.id} className="text-sm">
-                      <td className="py-4 font-bold text-gray-700">{item.description}</td>
+                    <tr key={item.id} className="text-sm group hover:bg-slate-50 transition-colors">
+                      <td className="py-4 px-2 font-bold text-slate-700">{item.description}</td>
                       <td className="py-4">
                         <input 
                           type="number" 
                           value={item.quantity} 
                           onChange={(e) => updateItemQty(item.id, parseInt(e.target.value))}
-                          className="w-16 mx-auto block bg-gray-50 border border-gray-100 rounded-lg py-1 px-2 text-center"
+                          className="w-16 mx-auto block bg-white border border-slate-100 rounded-lg py-1 px-2 text-center font-black"
                         />
                       </td>
-                      <td className="py-4 text-right text-gray-400">{formatCurrency(item.unit_price, language)}</td>
-                      <td className="py-4 text-right font-black text-gray-900">{formatCurrency(item.total, language)}</td>
+                      <td className="py-4 text-right text-slate-400">{formatCurrency(item.unit_price, language)}</td>
+                      <td className="py-4 text-right font-black text-slate-900">{formatCurrency(item.total, language)}</td>
                       <td className="py-4 text-right">
-                        <button onClick={() => removeItem(item.id)} className="text-red-400 hover:text-red-600 px-2 text-xl">×</button>
+                        <button onClick={() => removeItem(item.id)} className="text-red-300 hover:text-red-500 transition-colors px-2 text-xl font-bold">×</button>
                       </td>
                     </tr>
                   ))}
@@ -190,88 +330,104 @@ export const QuoteEditor = () => {
               </table>
             </div>
 
-            <div className="space-y-6">
+            <div className="space-y-8">
               <div>
-                <span className="text-[10px] font-black uppercase text-gray-400 block mb-3">Modelos Comfee (PDF)</span>
-                <div className="flex flex-wrap gap-2">
+                <span className="text-[10px] font-black uppercase text-slate-400 block mb-4 tracking-widest">Modelos Comfee (Cátalogo PDF)</span>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                   {PDF_PRODUCTS.map(p => (
-                    <button key={p.name} onClick={() => addItem(p.name, p.price)} className="px-3 py-2 md:px-4 md:py-2 bg-gray-50 hover:bg-brand-50 hover:text-brand-600 border border-gray-100 rounded-lg md:rounded-xl text-[9px] md:text-[10px] font-black transition-all">{p.name}</button>
+                    <button key={p.name} onClick={() => addItem(p.name, p.price)} className="px-4 py-3 bg-slate-50 hover:bg-blue-50 hover:text-blue-600 border border-slate-100 rounded-xl text-[10px] font-black transition-all text-center">
+                       {p.name} <br/> <span className="opacity-40 text-[8px]">{formatCurrency(p.price, language)}</span>
+                    </button>
                   ))}
                 </div>
               </div>
 
-              <div>
-                <span className="text-[10px] font-black uppercase text-gray-400 block mb-3">Kits de Instalación</span>
-                <div className="flex flex-wrap gap-2">
-                  {PDF_KITS.map(k => (
-                    <button key={k.name} onClick={() => addItem(k.name, k.price)} className="px-3 py-2 md:px-4 md:py-2 bg-gray-50 hover:bg-brand-50 hover:text-brand-600 border border-gray-100 rounded-lg md:rounded-xl text-[9px] md:text-[10px] font-black transition-all">{k.name}</button>
-                  ))}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                   <span className="text-[10px] font-black uppercase text-slate-400 block mb-4 tracking-widest">Kits de Instalación</span>
+                   <div className="space-y-2">
+                     {PDF_KITS.map(k => (
+                       <button key={k.name} onClick={() => addItem(k.name, k.price)} className="w-full text-left px-5 py-3 bg-slate-50 hover:bg-blue-50 hover:text-blue-600 border border-slate-100 rounded-xl text-[10px] font-black transition-all flex justify-between">
+                          <span>{k.name}</span>
+                          <span>{k.price}€</span>
+                       </button>
+                     ))}
+                   </div>
                 </div>
-              </div>
-
-              <div>
-                <button 
-                  onClick={() => addItem('Concepto Manual', 0)}
-                  className="w-full py-4 border-2 border-dashed border-gray-100 rounded-xl md:rounded-2xl text-[10px] font-black text-gray-400 uppercase tracking-widest hover:border-brand-500 hover:text-brand-600 transition-all"
-                >
-                  + Añadir Concepto Personalizado
-                </button>
+                <div className="flex items-end">
+                   <button 
+                     onClick={() => addItem('Concepto Manual', 0)}
+                     className="w-full h-20 py-4 border-2 border-dashed border-slate-200 rounded-2xl text-[10px] font-black text-slate-400 uppercase tracking-widest hover:border-blue-500 hover:text-blue-600 hover:bg-blue-50 transition-all"
+                   >
+                     + Añadir Personalizado
+                   </button>
+                </div>
               </div>
             </div>
           </section>
         </div>
 
         <aside className="space-y-8">
-          <div className="bg-slate-900 text-white p-6 md:p-10 rounded-[1.5rem] md:rounded-[2.8rem] shadow-2xl relative overflow-hidden lg:sticky lg:top-32">
-            <div className="absolute -top-10 -right-10 w-40 h-40 bg-brand-500/20 blur-[80px] rounded-full"></div>
-            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-brand-400 mb-8">Resumen Total (IVA incl.)</h4>
+          <div className="bg-slate-900 text-white p-8 md:p-10 rounded-[2.5rem] md:rounded-[3rem] shadow-2xl relative overflow-hidden lg:sticky lg:top-10">
+            <div className="absolute -top-10 -right-10 w-40 h-40 bg-blue-500/20 blur-[80px] rounded-full"></div>
+            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-400 mb-8 italic">Resumen Presupuesto</h4>
             
             <div className="space-y-4 mb-10">
               <div className="flex justify-between text-sm opacity-60">
-                <span>Subtotal</span>
+                <span>Subtotal base</span>
                 <span>{formatCurrency(subtotal, language)}</span>
               </div>
-              <div className="flex justify-between text-3xl md:text-4xl font-black pt-4 border-t border-white/10">
+              <div className="flex justify-between text-4xl font-black pt-6 border-t border-white/10 italic tracking-tighter">
                 <span>TOTAL</span>
                 <span>{formatCurrency(subtotal, language)}</span>
               </div>
+              <p className="text-[10px] text-slate-500 font-black uppercase text-center mt-2">IVA e instalación incluidos</p>
             </div>
 
             <div className="pt-8 border-t border-white/10">
-              <label className="text-[9px] font-black uppercase tracking-widest text-brand-400 block mb-4">Financiación</label>
-              <div className="grid grid-cols-5 gap-1 mb-6">
+              <label className="text-[9px] font-black uppercase tracking-widest text-blue-400 block mb-4 italic">Opciones de Financiación</label>
+              <div className="grid grid-cols-5 gap-1.5 mb-6">
                 {[12, 24, 36, 48, 60].map(m => (
                   <button 
                     key={m} 
                     onClick={() => setFormData({...formData, financing_months: m})}
-                    className={`py-2 rounded-lg text-[10px] font-black border transition-all ${formData.financing_months === m ? 'bg-brand-500 border-brand-500 text-white' : 'bg-white/5 border-white/10 text-slate-400'}`}
+                    className={`py-3 rounded-xl text-[10px] font-black border transition-all ${formData.financing_months === m ? 'bg-blue-600 border-blue-600 text-white shadow-lg' : 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/10'}`}
                   >
                     {m}m
                   </button>
                 ))}
               </div>
-              <div className="bg-white/5 p-4 md:p-6 rounded-2xl text-center">
-                 <div className="text-[10px] font-black uppercase text-slate-500 mb-1">Cuota Mensual Est.</div>
-                 <div className="text-xl md:text-2xl font-black text-brand-500">{formatCurrency(monthlyFee, language)}</div>
+              <div className="bg-white/5 p-6 rounded-2xl text-center border border-white/5">
+                 <div className="text-[9px] font-black uppercase text-slate-500 mb-2 tracking-widest">Cuota Mensual Estimada</div>
+                 <div className="text-3xl font-black text-blue-500 italic tracking-tighter">{formatCurrency(monthlyFee, language)}</div>
               </div>
             </div>
 
-            <div className="mt-8 text-[9px] text-slate-500 text-center uppercase font-black leading-relaxed">
-              Hasta {formatDate(formData.valid_until || '', language)}
+            <div className="mt-10 flex flex-col gap-3">
+               <button 
+                  onClick={handleSave}
+                  disabled={isSaving}
+                  className="w-full py-5 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-xl transition-all disabled:opacity-50"
+               >
+                  {isSaving ? 'GUARDANDO...' : 'Actualizar borrador'}
+               </button>
+               <p className="text-[8px] text-slate-500 text-center uppercase font-black italic">
+                 Válido hasta el {formatDate(formData.valid_until || '', language)}
+               </p>
             </div>
           </div>
 
-          <div className="bg-white p-6 md:p-8 rounded-[1.5rem] md:rounded-[2.5rem] border border-gray-100 max-h-[400px] overflow-auto shadow-sm">
-            <h4 className="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-6">Materiales Extras</h4>
-            <div className="space-y-2">
+          <div className="bg-white p-6 md:p-10 rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden">
+            <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em] mb-6 italic">Materiales y Extras</h4>
+            <div className="space-y-1.5 max-h-[500px] overflow-y-auto no-scrollbar pr-1">
               {PDF_EXTRAS.map(e => (
                 <button 
                   key={e.name} 
                   onClick={() => addItem(e.name, e.price)}
-                  className="w-full text-left p-3 md:p-4 hover:bg-gray-50 rounded-xl border border-transparent hover:border-gray-100 transition-all group flex justify-between items-center"
+                  className="w-full text-left p-4 hover:bg-blue-50 rounded-2xl border border-transparent hover:border-blue-100 transition-all group flex justify-between items-center"
                 >
-                  <span className="text-[10px] md:text-[11px] font-bold text-gray-600 group-hover:text-gray-900 leading-tight pr-2">{e.name}</span>
-                  <span className="text-[10px] font-black text-brand-600 shrink-0">{e.price}€</span>
+                  <span className="text-[11px] font-bold text-slate-500 group-hover:text-slate-900 leading-tight pr-4">{e.name}</span>
+                  <span className="text-[10px] font-black text-blue-600 shrink-0">{e.price}€</span>
                 </button>
               ))}
             </div>
