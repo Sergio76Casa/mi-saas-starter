@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router';
 import { supabase } from '../../supabaseClient';
@@ -34,6 +35,7 @@ export const QuoteAcceptancePage = () => {
   useEffect(() => {
     const fetchQuote = async () => {
       try {
+        if (!supabase) return;
         const { data: q, error: qError } = await supabase
           .from('quotes')
           .select('*, tenant:tenants(*)')
@@ -71,6 +73,8 @@ export const QuoteAcceptancePage = () => {
   }, [id]);
 
   const generateAndUploadPDF = async (finalQuote: any) => {
+    if (!supabase) throw new Error("Supabase no está configurado");
+    
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
     
@@ -141,15 +145,21 @@ export const QuoteAcceptancePage = () => {
     doc.text('Documento firmado digitalmente', 20, y + 15);
 
     const pdfBlob = doc.output('blob');
-    const fileName = `${quote?.tenant_id}/${id}/presupuesto.pdf`;
+    // Guardamos en el bucket 'products' bajo la carpeta 'quotes' para evitar el error de bucket no encontrado
+    const fileName = `quotes/${quote?.tenant_id}/${id}/presupuesto.pdf`;
 
     const { error: uploadError } = await supabase.storage
-      .from('quotes')
+      .from('products')
       .upload(fileName, pdfBlob, { upsert: true, contentType: 'application/pdf' });
 
-    if (uploadError) throw uploadError;
+    if (uploadError) {
+      if (uploadError.message.includes('Bucket not found')) {
+        throw new Error("El contenedor de archivos 'products' no existe en Supabase. Por favor, créalo en el Dashboard de Supabase -> Storage.");
+      }
+      throw uploadError;
+    }
 
-    const { data: { publicUrl } } = supabase.storage.from('quotes').getPublicUrl(fileName);
+    const { data: { publicUrl } } = supabase.storage.from('products').getPublicUrl(fileName);
     return publicUrl;
   };
 
@@ -166,6 +176,8 @@ export const QuoteAcceptancePage = () => {
 
     setIsSubmitting(true);
     try {
+      if (!supabase) throw new Error("Error de conexión");
+      
       const finalClientName = `${clientData.name} ${clientData.surname}`.trim();
       
       // 1. Generar y subir el PDF
@@ -189,11 +201,9 @@ export const QuoteAcceptancePage = () => {
       if (updateError) throw updateError;
 
       alert("¡Pedido Confirmado con éxito! El presupuesto ha sido generado correctamente.");
-      
-      // Redirigir a la web de la empresa (o una página de éxito)
       navigate(`/c/${quote?.tenant?.slug}`);
     } catch (err: any) {
-      alert("Error en el proceso: " + err.message);
+      alert("Error: " + err.message);
     } finally {
       setIsSubmitting(false);
     }
@@ -202,6 +212,7 @@ export const QuoteAcceptancePage = () => {
   const handleFirmarTarde = async () => {
     setIsSubmitting(true);
     try {
+      if (!supabase) throw new Error("Error de conexión");
       const { error: updateError } = await supabase
         .from('quotes')
         .update({
