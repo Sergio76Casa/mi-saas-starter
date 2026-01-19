@@ -76,11 +76,11 @@ export const PublicQuoteConfigurator: React.FC<PublicQuoteConfiguratorProps> = (
   const handleSaveBudget = async () => {
     if (!tenant) return;
     setIsSaving(true);
-
+    
     try {
       // 1. Generar número de presupuesto simple
       const quoteNo = `PRE-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
-
+      
       // 2. Insertar presupuesto en Supabase
       const { data: quote, error } = await supabase
         .from('quotes')
@@ -109,7 +109,7 @@ export const PublicQuoteConfigurator: React.FC<PublicQuoteConfiguratorProps> = (
           ...item
         }));
         await supabase.from('quote_items').insert(itemsToSave);
-
+        
         // 4. Redirigir a la página de firma/aceptación
         navigate(`/presupuestos/${quote.id}/aceptar`);
       }
@@ -123,12 +123,12 @@ export const PublicQuoteConfigurator: React.FC<PublicQuoteConfiguratorProps> = (
 
   return (
     <div className="max-w-7xl mx-auto">
-      <button
-        onClick={onBack}
+      <button 
+        onClick={onBack} 
         className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-blue-600 mb-10 transition-colors"
       >
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M15 19l-7-7 7-7" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M15 19l-7-7 7-7"/>
         </svg>
         {tt('back_to_catalog')}
       </button>
@@ -143,8 +143,8 @@ export const PublicQuoteConfigurator: React.FC<PublicQuoteConfiguratorProps> = (
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {(product.pricing || []).map((v: any, i: number) => (
-                <button
-                  key={i}
+                <button 
+                  key={i} 
                   onClick={() => setSelectedVariantIdx(i)}
                   className={`p-6 rounded-2xl border-2 text-left transition-all relative ${selectedVariantIdx === i ? 'border-blue-500 bg-blue-50/30' : 'border-slate-100 bg-white hover:border-blue-200'}`}
                 >
@@ -153,7 +153,7 @@ export const PublicQuoteConfigurator: React.FC<PublicQuoteConfiguratorProps> = (
                     {selectedVariantIdx === i && (
                       <div className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center absolute top-6 right-6">
                         <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"/>
                         </svg>
                       </div>
                     )}
@@ -244,7 +244,7 @@ export const PublicQuoteConfigurator: React.FC<PublicQuoteConfiguratorProps> = (
         <div className="lg:col-span-4 lg:sticky lg:top-28 self-start space-y-6 z-[60]">
           <div className="bg-slate-900 rounded-[2.5rem] p-8 md:p-10 shadow-2xl relative overflow-hidden text-left">
             <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 blur-[50px] rounded-full -translate-y-1/2 translate-x-1/2"></div>
-
+            
             <div className="mb-10 text-center flex flex-col items-center">
               <div className="w-full h-40 bg-white rounded-3xl p-6 flex items-center justify-center mb-6 shadow-inner relative">
                 {product.brand_logo_url && (
@@ -281,12 +281,12 @@ export const PublicQuoteConfigurator: React.FC<PublicQuoteConfiguratorProps> = (
             </div>
 
             <div className="space-y-4">
-              <button
+              <button 
                 disabled={isSaving}
                 onClick={handleSaveBudget}
                 className="w-full py-5 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl font-black text-[12px] uppercase tracking-widest transition-all shadow-xl shadow-blue-600/20 flex items-center justify-center gap-3 disabled:opacity-50"
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" /></svg>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/></svg>
                 {isSaving ? 'GUARDANDO...' : tt('btn_save_quote')}
               </button>
             </div>

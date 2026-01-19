@@ -19,7 +19,6 @@ if (!rootElement) {
     const root = ReactDOM.createRoot(rootElement);
     root.render(
       <React.StrictMode>
-        {/* HelmetProvider removed due to React 19 incompatibility */}
         <App />
       </React.StrictMode>
     );

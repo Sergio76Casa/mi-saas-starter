@@ -15,10 +15,6 @@ export const Login = () => {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!supabase) {
-      alert("Error: Supabase no está configurado. Revisa las variables de entorno.");
-      return;
-    }
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (!error) { 
       await refreshProfile(); 
