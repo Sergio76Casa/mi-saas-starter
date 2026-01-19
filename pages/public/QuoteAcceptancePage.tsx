@@ -145,7 +145,6 @@ export const QuoteAcceptancePage = () => {
     doc.text('Documento firmado digitalmente', 20, y + 15);
 
     const pdfBlob = doc.output('blob');
-    // Guardamos en el bucket 'products' bajo la carpeta 'quotes' para evitar el error de bucket no encontrado
     const fileName = `quotes/${quote?.tenant_id}/${id}/presupuesto.pdf`;
 
     const { error: uploadError } = await supabase.storage
@@ -154,7 +153,7 @@ export const QuoteAcceptancePage = () => {
 
     if (uploadError) {
       if (uploadError.message.includes('Bucket not found')) {
-        throw new Error("El contenedor de archivos 'products' no existe en Supabase. Por favor, créalo en el Dashboard de Supabase -> Storage.");
+        throw new Error("El contenedor 'products' no existe. Créalo en Supabase Storage.");
       }
       throw uploadError;
     }
@@ -168,22 +167,21 @@ export const QuoteAcceptancePage = () => {
       return alert("Por favor, completa los datos del cliente.");
     }
     if (!signature) {
-      return alert("La firma es obligatoria para confirmar el pedido.");
+      return alert("La firma es obligatoria.");
     }
     if (!isAccepted) {
-      return alert("Debes aceptar las condiciones de servicio.");
+      return alert("Debes aceptar las condiciones.");
     }
 
     setIsSubmitting(true);
     try {
       if (!supabase) throw new Error("Error de conexión");
-      
       const finalClientName = `${clientData.name} ${clientData.surname}`.trim();
       
       // 1. Generar y subir el PDF
       const pdfUrl = await generateAndUploadPDF({ client_name: finalClientName });
 
-      // 2. Actualizar presupuesto con estado y URL del PDF
+      // 2. Actualizar presupuesto
       const { error: updateError } = await supabase
         .from('quotes')
         .update({
@@ -194,13 +192,18 @@ export const QuoteAcceptancePage = () => {
           status: 'accepted',
           is_technician: isTechnician,
           maintenance_no: isTechnician ? orderNumber : null,
-          pdf_url: pdfUrl
+          pdf_url: pdfUrl // <--- Aquí fallaba si no existía la columna
         })
         .eq('id', id);
 
-      if (updateError) throw updateError;
+      if (updateError) {
+        if (updateError.message.includes('pdf_url')) {
+          throw new Error("Falta la columna 'pdf_url' en la tabla 'quotes'. Por favor, ejecute el comando ALTER TABLE en el SQL Editor de Supabase.");
+        }
+        throw updateError;
+      }
 
-      alert("¡Pedido Confirmado con éxito! El presupuesto ha sido generado correctamente.");
+      alert("¡Pedido Confirmado! El presupuesto PDF ha sido guardado.");
       navigate(`/c/${quote?.tenant?.slug}`);
     } catch (err: any) {
       alert("Error: " + err.message);
@@ -227,11 +230,10 @@ export const QuoteAcceptancePage = () => {
         .eq('id', id);
 
       if (updateError) throw updateError;
-      
-      alert("Presupuesto guardado. Pendiente de firma.");
+      alert("Guardado como borrador.");
       navigate(`/c/${quote?.tenant?.slug}`);
     } catch (err: any) {
-      alert("Error al guardar: " + err.message);
+      alert("Error: " + err.message);
     } finally {
       setIsSubmitting(false);
     }
