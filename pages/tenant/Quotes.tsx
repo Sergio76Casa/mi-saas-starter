@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useOutletContext, useNavigate } from 'react-router';
 import { supabase } from '../../supabaseClient';
@@ -94,7 +93,7 @@ export const Quotes = () => {
               <th className="px-6 py-6">El Equipo</th>
               <th className="px-6 py-6">Financiación</th>
               <th className="px-6 py-6 text-center">Docs</th>
-              <th className="px-6 py-6 text-center">Presupuesto</th>
+              <th className="px-6 py-6 text-center italic">Presupuesto Realizado</th>
               <th className="px-6 py-6">Total</th>
               <th className="px-6 py-6">Estado</th>
               <th className="px-8 py-6 text-right">Acciones</th>
@@ -157,16 +156,26 @@ export const Quotes = () => {
                     </div>
                   </td>
 
+                  {/* COLUMNA PRESUPUESTO REALIZADO */}
                   <td className="px-6 py-7">
-                    <div className="flex justify-center">
+                    <div className="flex justify-center items-center gap-2">
                       <button 
                         onClick={(e) => openPdf(e, q.pdf_url)}
                         disabled={!q.pdf_url}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border transition-all font-black text-[9px] uppercase ${q.pdf_url ? 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50 hover:text-red-600 hover:border-red-100' : 'bg-slate-50 text-slate-300 border-transparent cursor-not-allowed opacity-50'}`}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-xl border transition-all font-black text-[9px] uppercase shadow-sm ${
+                          q.pdf_url 
+                          ? 'bg-red-600 text-white border-red-700 hover:bg-red-700 hover:scale-105 active:scale-95' 
+                          : 'bg-slate-50 text-slate-300 border-slate-100 cursor-not-allowed opacity-40'
+                        }`}
                       >
-                        <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M11.363 2c4.155 0 2.637 6 2.637 6s6-1.518 6 2.638v11.362c0 .552-.448 1-1 1h-11c-.552 0-1-.448-1-1v-19c0-.552.448-1 1-1zm-1.363 1.363v17.274h9.274v-10.274h-5.274v-5.274h-4zm1.363-1.363h3l5.274 5.274v3.089c-.583-.243-1.226-.363-1.9-.363-2.761 0-5 2.239-5 5 0 2.761 2.239 5 5 5 1.572 0 2.97-.728 3.874-1.861v1.861c0 .552-.448 1-1 1h-11c-.552 0-1-.448-1-1v-19c0-.552.448-1 1-1z"/></svg>
-                        PDF
+                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M11.363 2c4.155 0 2.637 6 2.637 6s6-1.518 6 2.638v11.362c0 .552-.448 1-1 1h-11c-.552 0-1-.448-1-1v-19c0-.552.448-1 1-1zm-1.363 1.363v17.274h9.274v-10.274h-5.274v-5.274h-4zm1.363-1.363h3l5.274 5.274v3.089c-.583-.243-1.226-.363-1.9-.363-2.761 0-5 2.239-5 5 0 2.761 2.239 5 5 5 1.572 0 2.97-.728 3.874-1.861v1.861c0 .552-.448 1-1 1h-11c-.552 0-1-.448-1-1v-19c0-.552.448-1 1-1z"/></svg>
+                        {q.pdf_url ? 'VER PDF' : 'PDF'}
                       </button>
+                      {q.pdf_url && (
+                        <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center text-white" title="Presupuesto Realizado y Firmado">
+                           <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" d="M5 13l4 4L19 7"/></svg>
+                        </div>
+                      )}
                     </div>
                   </td>
 

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router';
 import { supabase } from '../../supabaseClient';
@@ -189,7 +188,9 @@ export const QuoteAcceptancePage = () => {
 
       if (updateError) throw updateError;
 
-      alert("¡Pedido Confirmado con éxito! El presupuesto ha sido generado.");
+      alert("¡Pedido Confirmado con éxito! El presupuesto ha sido generado correctamente.");
+      
+      // Redirigir a la web de la empresa (o una página de éxito)
       navigate(`/c/${quote?.tenant?.slug}`);
     } catch (err: any) {
       alert("Error en el proceso: " + err.message);
@@ -357,7 +358,7 @@ export const QuoteAcceptancePage = () => {
                    disabled={isSubmitting}
                    className="w-full py-6 bg-slate-900 text-white rounded-2xl font-black uppercase text-sm tracking-[0.2em] shadow-2xl hover:bg-black transition-all hover:scale-[1.01] active:scale-95 disabled:opacity-50"
                 >
-                   {isSubmitting ? 'GENERANDO PDF...' : 'Firmar y Confirmar Pedido'}
+                   {isSubmitting ? 'GENERANDO PDF Y GUARDANDO...' : 'Firmar y Confirmar Pedido'}
                 </button>
                 <button 
                    onClick={handleFirmarTarde}
