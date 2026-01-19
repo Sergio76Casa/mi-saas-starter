@@ -1,0 +1,20 @@
+{
+    "rewrites": [
+        {
+            "source": "/s/:slug",
+            "destination": "/api/social?slug=:slug"
+        },
+        {
+            "source": "/api/social",
+            "destination": "/api/social"
+        },
+        {
+            "source": "/api/extract",
+            "destination": "/api/extract"
+        },
+        {
+            "source": "/((?!api/|s/).*)",
+            "destination": "/index.html"
+        }
+    ]
+}
