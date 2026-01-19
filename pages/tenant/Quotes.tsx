@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useOutletContext, useNavigate } from 'react-router';
 import { supabase } from '../../supabaseClient';

@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { Session } from '@supabase/supabase-js';
 import { supabase, isConfigured } from './supabaseClient';

@@ -1,4 +1,3 @@
-
 export type Language = 'es' | 'ca';
 
 export interface Profile {

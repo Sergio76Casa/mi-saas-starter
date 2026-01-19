@@ -1,4 +1,3 @@
-
 import React from 'react';
 // Import routing components from react-router to avoid export issues in react-router-dom
 import { HashRouter, Routes, Route, Navigate } from 'react-router';
