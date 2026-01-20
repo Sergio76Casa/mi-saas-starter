@@ -56,13 +56,14 @@ export const PublicQuoteConfigurator: React.FC<PublicQuoteConfiguratorProps> = (
     // 3. Extras
     Object.entries(extraQuantities).forEach(([idxStr, qty]) => {
       const idx = parseInt(idxStr);
+      const q = qty as number;
       const extra = product.extras?.[idx];
-      if (extra && qty > 0) {
+      if (extra && q > 0) {
         items.push({
           description: extra.name,
-          quantity: qty,
+          quantity: q,
           unit_price: extra.unit_price,
-          total: qty * extra.unit_price
+          total: q * extra.unit_price
         });
       }
     });
@@ -95,7 +96,9 @@ export const PublicQuoteConfigurator: React.FC<PublicQuoteConfiguratorProps> = (
           // Pasamos los items como JSON en una columna temporal o similar si no hay tabla items relacionada
           // En esta estructura, asumimos que se guardan los items en el objeto
           client_name: 'Pendiente de completar',
-          client_email: 'pendiente@pendiente.com'
+          client_email: 'pendiente@pendiente.com',
+          product_image_url: product.image_url,
+          brand_logo_url: product.brand_logo_url
         }])
         .select()
         .single();
