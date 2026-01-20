@@ -244,7 +244,7 @@ export const PublicQuoteConfigurator: React.FC<PublicQuoteConfiguratorProps> = (
           </div>
         </div>
 
-        <div className="lg:col-span-4 lg:sticky lg:top-28 self-start space-y-6 z-[60]">
+        <aside className="lg:col-span-4 sticky top-24 self-start space-y-6 z-[60] h-fit">
           <div className="bg-slate-900 rounded-[2.5rem] p-8 md:p-10 shadow-2xl relative overflow-hidden text-left">
             <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 blur-[50px] rounded-full -translate-y-1/2 translate-x-1/2"></div>
 
@@ -294,7 +294,7 @@ export const PublicQuoteConfigurator: React.FC<PublicQuoteConfiguratorProps> = (
               </button>
             </div>
           </div>
-        </div>
+        </aside>
       </div>
     </div>
   );

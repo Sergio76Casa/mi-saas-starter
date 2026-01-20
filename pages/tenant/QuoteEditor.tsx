@@ -593,7 +593,7 @@ export const QuoteEditor = () => {
         </div>
 
         {/* COLUMNA DERECHA: RESUMEN (Rediseñado) */}
-        <div className="lg:col-span-4 lg:sticky lg:top-10 h-fit space-y-8">
+        <aside className="lg:col-span-4 sticky top-6 self-start space-y-8 z-[60] h-fit">
           <section className="bg-slate-900 p-10 md:p-12 rounded-[3.5rem] text-white shadow-2xl shadow-slate-900/40 relative overflow-hidden group/aside">
             <div className="absolute bottom-0 right-0 w-64 h-64 bg-blue-600/20 blur-[100px] rounded-full translate-x-1/2 translate-y-1/2 pointer-events-none transition-all group-hover/aside:scale-125 duration-1000"></div>
 
@@ -714,7 +714,7 @@ export const QuoteEditor = () => {
               ))}
             </div>
           </div>
-        </div>
+        </aside>
       </div>
     </div>
   );
